@@ -7,6 +7,7 @@ them. Oracle numbers are never edited here: a mismatch means the source or the p
 
 import hashlib
 import json
+import os
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -31,6 +32,10 @@ AVAILABLE = [h for h in ORACLES if _raw(h).exists()]
 
 
 def test_golden_hours_present_or_skipped() -> None:
+    required = [h for h in os.environ.get("KEYSTONE_GOLDEN_REQUIRED", "").split(",") if h]
+    assert set(required) <= set(AVAILABLE), (
+        f"missing golden hours: {set(required) - set(AVAILABLE)}"
+    )
     if not AVAILABLE:
         pytest.skip("no raw oracle hours under data/raw/gharchive")
     assert set(AVAILABLE) <= set(ORACLES)

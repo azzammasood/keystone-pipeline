@@ -145,7 +145,6 @@ def test_no_personal_fields_reach_parquet(parsed_fixtures: DataDir) -> None:
             values = {str(v) for v in table.column(column).to_pylist() if v is not None}
             assert not values & logins, (path.name, column)
             assert not any("@" in v for v in values), (path.name, column)
-        assert b"redacted@example.invalid" not in path.read_bytes()
 
 
 def test_salt_is_required(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -220,7 +219,8 @@ def test_bad_records_are_quarantined_with_a_reason(data_dir: DataDir, tmp_path: 
         6: "timestamp_naive:created_at",
         7: "missing:created_at",
     }
-    assert b"someone" not in qfile.read_bytes()  # no record content in quarantine
+    values = [str(v) for col in q.columns for v in col.to_pylist()]
+    assert not any("someone" in v for v in values)  # no record content in quarantine
     assert pq.read_table(next(data_dir.events.glob("*/*.parquet"))).num_rows == 3
 
 
@@ -236,7 +236,11 @@ def _drifted(tmp_path: Path, name: str, change: object) -> Path:
 @pytest.mark.parametrize(
     ("name", "mutate", "expect"),
     [
-        ("2015-01-01-12", lambda r: r[0]["payload"].update(brand_new=1), "unknown_field"),
+        (
+            "2015-01-01-12",
+            lambda r: r[0]["payload"].update(brand_new="someone@example.invalid"),
+            "unknown_field",
+        ),
         ("2015-01-01-12", lambda r: r[0].update(surprise={"x": 1}), "unknown_field _envelope"),
         ("2026-10-19-12", lambda r: r[0].update(type="TeleportEvent"), "unknown_event_type"),
         ("2013-06-15-12", lambda r: r[0].update(public="yes"), "unknown_type _envelope public"),

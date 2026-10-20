@@ -38,6 +38,8 @@ jobs:
       - run: uv run pytest
         env:
           KEYSTONE_ACTOR_SALT: ci-only-salt-not-a-secret-0000
+          # A cache saved after a failed fetch must not switch the golden tests off silently.
+          KEYSTONE_GOLDEN_REQUIRED: 2011-02-12-0,2012-06-15-12,2013-06-15-12,2015-01-01-12,2026-10-19-12
 
   contracts:
     runs-on: ubuntu-latest
@@ -58,7 +60,7 @@ jobs:
       - run: >-
           uv run keystone parse files tests/fixtures/gharchive/*.json.gz
           tests/fixtures/gharchive/quarantine/*.json.gz --root ci-data
-      - run: uv run keystone quality contracts --root ci-data
+      - run: uv run keystone quality contracts --root ci-data --require-all
       - run: uv run keystone quality gx --root ci-data
 
   security:

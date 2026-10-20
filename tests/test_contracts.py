@@ -52,6 +52,15 @@ def test_contracts_match_the_written_schemas() -> None:
             assert prop.get("description"), (path.name, fld.name)  # every column documented
 
 
+def test_contract_trim_instant_matches_config() -> None:
+    from keystone.sources import load_sources
+
+    trim = load_sources().gharchive.payload_trim_at
+    text = (contract_files()[0].parent / "gharchive_events.odcs.yaml").read_text("utf-8")
+    literal = f"TIMESTAMPTZ '{trim:%Y-%m-%d %H:%M:%S}+00'"
+    assert text.count(literal) == 2 and text.count("TIMESTAMPTZ") == 2
+
+
 datacontract = pytest.importorskip("datacontract", reason="quality group not installed")
 
 
