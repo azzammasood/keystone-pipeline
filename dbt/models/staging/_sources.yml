@@ -1,0 +1,33 @@
+version: 2
+
+# Silver Parquet (Phase 3, parse) and the free rollup engine's DuckDB file (Phase 4). The
+# DuckDB target reads silver files in place; another target maps the same names to its tables.
+sources:
+  - name: silver
+    description: Typed silver Parquet written by `keystone parse` (lineage columns on every row).
+    meta:
+      root: "{{ env_var('KEYSTONE_DATA_ROOT') }}"
+    tables:
+      - name: gharchive_events
+        description: One row per GH Archive event; repository-level facts and salted keys only.
+        meta:
+          external_location: "read_parquet('{{ env_var('KEYSTONE_DATA_ROOT') }}/silver/gharchive/events/*/*.parquet', hive_partitioning = false)"
+      - name: osv_vulns
+        description: One row per OSV record (no free text, no credits).
+        meta:
+          external_location: "read_parquet('{{ env_var('KEYSTONE_DATA_ROOT') }}/silver/osv/vulns/*.parquet')"
+      - name: osv_affected
+        description: One row per OSV `affected[]` entry with a package.
+        meta:
+          external_location: "read_parquet('{{ env_var('KEYSTONE_DATA_ROOT') }}/silver/osv/affected/*.parquet')"
+      - name: osv_repo_refs
+        description: Repository pointers in OSV records (GIT ranges and FIX references).
+        meta:
+          external_location: "read_parquet('{{ env_var('KEYSTONE_DATA_ROOT') }}/silver/osv/repo_refs/*.parquet')"
+  - name: rollup
+    description: Rollup tables of the free engine (`keystone rollup run`), attached read-only.
+    database: rollup
+    schema: main
+    tables:
+      - name: repo_hour
+        description: Activity per repository, era and event type in UTC hours (ADR-024).

@@ -1,0 +1,239 @@
+version: 2
+
+# Published layer (tag `publish`): copied to the Iceberg namespace `marts` by
+# `keystone warehouse publish`. Repository and package facts only; no person keys.
+models:
+  - name: dim_repo
+    description: One row per GitHub repository id seen in GH Archive, with its current name.
+    columns:
+      - name: repo_id
+        description: GitHub repository id.
+        data_tests: [unique, not_null]
+      - name: repo_name
+        description: Current name, the latest name spell in dim_repo_name_history.
+        data_tests: [not_null]
+      - name: repo_name_lower
+        description: Current name in lower case (GitHub names are case-insensitive).
+      - name: distinct_names
+        description: Distinct names (case-insensitive) the id has carried.
+      - name: name_spells
+        description: Name spells in the history (a name taken again counts again).
+      - name: first_seen_at
+        description: First event of the repository, UTC.
+      - name: last_seen_at
+        description: Last event of the repository, UTC.
+      - name: first_era
+        description: Earliest schema era with an event.
+      - name: last_era
+        description: Latest schema era with an event.
+      - name: events
+        description: Events with a repository id (all eras in the loaded data).
+  - name: dim_repo_name_history
+    description: >
+      Name history per repository id: one row per uninterrupted spell of a name, ordered by
+      first sighting. valid_to is the first sighting of the next spell (half-open).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [repo_id, name_seq]
+    columns:
+      - name: repo_id
+        description: GitHub repository id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_repo')
+                field: repo_id
+      - name: name_seq
+        description: Spell number within the repository, from 1.
+      - name: repo_name
+        description: Name during the spell.
+      - name: repo_name_lower
+        description: Name in lower case.
+      - name: valid_from
+        description: First event under the name in the spell, UTC.
+      - name: valid_to
+        description: First event of the next spell, UTC; null for the current spell.
+      - name: last_seen_at
+        description: Last event under the name in the spell, UTC.
+      - name: first_era
+        description: Earliest schema era in the spell.
+      - name: last_era
+        description: Latest schema era in the spell.
+      - name: events
+        description: Events in the spell.
+      - name: is_current
+        description: True for the latest spell.
+  - name: dim_package
+    description: One row per package named in OSV (ecosystem and name as OSV spells them).
+    columns:
+      - name: package_key
+        description: ecosystem/package_name.
+        data_tests: [unique, not_null]
+      - name: ecosystem
+        description: OSV ecosystem.
+      - name: package_name
+        description: Package name.
+      - name: purl
+        description: A package URL from OSV, if any.
+      - name: vuln_count
+        description: OSV records naming the package.
+      - name: malicious_vuln_count
+        description: Of those, malicious-package reports.
+      - name: withdrawn_vuln_count
+        description: Of those, withdrawn records.
+      - name: first_vuln_published_at
+        description: Earliest publication time among those records, UTC.
+      - name: last_vuln_modified_at
+        description: Latest modification time among those records, UTC.
+  - name: bridge_package_repo
+    description: >
+      Package-to-repository candidates from OSV evidence. Confidence is a rule (high: GIT range
+      of the package; medium: FIX reference in a record about this package only; low: FIX
+      reference in a record about several packages). repo_id is set only when exactly one
+      GitHub repository id ever carried the name in the loaded data.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [package_key, repo_host, repo_full_name]
+    columns:
+      - name: package_key
+        description: ecosystem/package_name.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_package')
+                field: package_key
+      - name: repo_host
+        description: github.com, gitlab.com or bitbucket.org.
+      - name: repo_full_name
+        description: owner/name in lower case, as the evidence names it.
+      - name: repo_id
+        description: Matched GitHub repository id, or null (see repo_match).
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_repo')
+                field: repo_id
+      - name: repo_match
+        description: unique_name, ambiguous_name, not_seen (no event in the loaded data) or not_github.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [unique_name, ambiguous_name, not_seen, not_github]
+      - name: confidence
+        description: high, medium or low (rule above).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [high, medium, low]
+      - name: evidence_vulns
+        description: OSV records giving evidence for the pair.
+      - name: mapping_source
+        description: Where the evidence comes from (osv).
+  - name: fct_vuln
+    description: One row per OSV record and affected package.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [vuln_id, package_key]
+    columns:
+      - name: vuln_id
+        description: OSV id.
+        data_tests: [not_null]
+      - name: package_key
+        description: ecosystem/package_name.
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('dim_package')
+                field: package_key
+      - name: ecosystem
+        description: OSV ecosystem.
+      - name: package_name
+        description: Package name.
+      - name: published_at
+        description: Publication time, UTC.
+      - name: modified_at
+        description: Last modification time, UTC.
+      - name: withdrawn_at
+        description: Withdrawal time, UTC; null when not withdrawn.
+      - name: is_malicious
+        description: True for malicious-package reports.
+      - name: severity_label
+        description: Database severity label, if given.
+      - name: cvss_v3_vector
+        description: CVSS v3 vector, if given.
+      - name: cvss_v4_vector
+        description: CVSS v4 vector, if given.
+      - name: has_fixed
+        description: True when any range for the package names a fix.
+      - name: alias_count
+        description: Number of aliases of the record.
+      - name: source_file
+        description: Lineage, the OSV zip.
+      - name: source_sha256
+        description: Lineage, SHA-256 of the zip.
+      - name: fetched_at
+        description: Lineage, fetch time of the zip (UTC).
+  - name: fct_repo_day
+    description: >
+      Daily activity per repository (UTC day), schema era and completeness period. Era and
+      period are keys, so a day crossing a boundary has a row per side.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [activity_date, repo_id, era, completeness_period]
+    columns:
+      - name: activity_date
+        description: UTC day.
+        data_tests: [not_null]
+      - name: repo_id
+        description: GitHub repository id.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_repo')
+                field: repo_id
+      - name: era
+        description: Schema era.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [E0, E1, E2, E3]
+      - name: completeness_period
+        description: Completeness period.
+        data_tests: [not_null]
+      - name: events
+        description: All events.
+      - name: human_events
+        description: Events by actors not flagged as bots.
+      - name: pushes
+        description: PushEvents.
+      - name: prs_opened
+        description: Pull requests opened.
+      - name: prs_closed
+        description: Pull requests closed (merged or not).
+      - name: prs_merged
+        description: Closed pull requests marked merged (E1, E2 only).
+      - name: pr_merge_known
+        description: Closed pull requests whose merged flag is present.
+      - name: issues_opened
+        description: Issues opened.
+      - name: issues_closed
+        description: Issues closed.
+      - name: issue_comments
+        description: IssueCommentEvents.
+      - name: releases_published
+        description: Releases published.
+      - name: members_added
+        description: Collaborators added (MemberEvent added).
+      - name: stars
+        description: WatchEvents (stars).
+      - name: forks
+        description: ForkEvents.
+      - name: fetched_at_max
+        description: Newest fetch time of the source files (lineage).

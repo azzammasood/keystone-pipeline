@@ -1,0 +1,99 @@
+version: 2
+
+# Metric inputs, one model per metric version. Each version uses only fields present in every
+# era it covers (docs/era-map.md); the accepted_values tests keep other eras out.
+models:
+  - name: metric_maint_v1_repo_day
+    description: maint_v1 inputs per repository and UTC day, E1 and E2 (merged flag present).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [activity_date, repo_id, era, completeness_period]
+    columns:
+      - name: activity_date
+        description: UTC day.
+      - name: repo_id
+        description: GitHub repository id.
+        data_tests: [not_null]
+      - name: era
+        description: Schema era (E1 or E2).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [E1, E2]
+      - name: completeness_period
+        description: Completeness period.
+      - name: metric_version
+        description: maint_v1.
+      - name: prs_opened
+        description: Pull requests opened.
+      - name: prs_closed
+        description: Pull requests closed.
+      - name: prs_merged
+        description: Closed pull requests marked merged.
+      - name: pr_merge_known
+        description: Closed pull requests whose merged flag is present.
+      - name: issues_opened
+        description: Issues opened.
+      - name: issues_closed
+        description: Issues closed.
+      - name: releases_published
+        description: Releases published.
+  - name: metric_maint_v2_repo_day
+    description: maint_v2 inputs per repository and UTC day, E3 only (no merged flag).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [activity_date, repo_id, era, completeness_period]
+    columns:
+      - name: activity_date
+        description: UTC day.
+      - name: repo_id
+        description: GitHub repository id.
+        data_tests: [not_null]
+      - name: era
+        description: Schema era (E3).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [E3]
+      - name: completeness_period
+        description: Completeness period.
+      - name: metric_version
+        description: maint_v2.
+      - name: prs_opened
+        description: Pull requests opened.
+      - name: prs_closed
+        description: Pull requests closed (a merge is not distinguishable in E3).
+      - name: issues_opened
+        description: Issues opened.
+      - name: issues_closed
+        description: Issues closed.
+      - name: releases_published
+        description: Releases published.
+  - name: metric_release_v1_repo_day
+    description: Release and membership inputs, E1 to E3, days with a release or member added.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [activity_date, repo_id, era, completeness_period]
+    columns:
+      - name: activity_date
+        description: UTC day.
+      - name: repo_id
+        description: GitHub repository id.
+        data_tests: [not_null]
+      - name: era
+        description: Schema era (E1 to E3).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [E1, E2, E3]
+      - name: completeness_period
+        description: Completeness period.
+      - name: metric_version
+        description: release_v1.
+      - name: releases_published
+        description: Releases published.
+      - name: members_added
+        description: Collaborators added.

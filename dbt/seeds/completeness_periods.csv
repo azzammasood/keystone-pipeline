@@ -1,0 +1,7 @@
+period,label,start_at
+C1,full,2011-02-12T00:00:00Z
+C2,reduced,2025-05-23T16:00:00Z
+GAP,near-empty,2025-10-08T17:00:00Z
+C3,trimmed,2025-10-14T21:00:00Z
+C4,push-only,2026-04-01T00:00:00Z
+C5,erratic,2026-09-01T00:00:00Z

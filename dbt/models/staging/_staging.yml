@@ -1,0 +1,151 @@
+version: 2
+
+models:
+  - name: stg_ref__completeness_periods
+    description: Completeness periods as half-open UTC ranges.
+    columns:
+      - name: completeness_period
+        description: Period name.
+        data_tests: [unique, not_null]
+      - name: label
+        description: Capture level of the period.
+      - name: start_at
+        description: First UTC instant of the period.
+      - name: end_at
+        description: First UTC instant after the period; null for the open, latest period.
+  - name: stg_ref__schema_eras
+    description: Schema eras as half-open UTC ranges of file hours.
+    columns:
+      - name: era
+        description: Era name.
+        data_tests: [unique, not_null]
+      - name: label
+        description: Source API or capture of the era.
+      - name: start_at
+        description: First file hour of the era (UTC).
+      - name: end_at
+        description: First file hour of the next era; null for the latest era.
+  - name: stg_gharchive__repo_names
+    description: Repository id, name, era and time of each silver event that carries a name.
+    columns:
+      - name: repo_id
+        description: GitHub repository id; null where the era has none (E1 2012, some E0).
+      - name: repo_name
+        description: Repository full name (owner/name) as the event spelled it.
+        data_tests: [not_null]
+      - name: era
+        description: Schema era of the source file of the event.
+      - name: created_at
+        description: Event time, UTC.
+  - name: stg_rollup__repo_hour
+    description: The free engine's hourly rollup with the completeness period of each hour.
+    columns:
+      - name: window_start
+        description: Start of the UTC hour.
+      - name: repo_id
+        description: GitHub repository id (null for events without one).
+      - name: era
+        description: Schema era.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [E0, E1, E2, E3]
+      - name: completeness_period
+        description: Completeness period of the hour.
+        data_tests: [not_null]
+      - name: event_type
+        description: GH Archive event type.
+      - name: events
+        description: Events in the hour.
+      - name: human_events
+        description: Events by actors not flagged as bots.
+      - name: opened
+        description: Events with action opened.
+      - name: closed
+        description: Events with action closed.
+      - name: reopened
+        description: Events with action reopened.
+      - name: merged
+        description: Closed pull requests with the merged flag set (E1, E2 only).
+      - name: merge_known
+        description: Closed pull requests whose merged flag is present.
+      - name: published
+        description: Events with action published.
+      - name: added
+        description: Events with action added.
+      - name: fetched_at_max
+        description: Newest fetch time of the source files in the window (lineage).
+  - name: stg_osv__vulns
+    description: OSV records (identifiers, dates, severity labels, lineage).
+    columns:
+      - name: vuln_id
+        description: OSV id (GHSA-, PYSEC-, MAL-, ...).
+        data_tests: [unique, not_null]
+      - name: published_at
+        description: Publication time, UTC.
+      - name: modified_at
+        description: Last modification time, UTC.
+      - name: withdrawn_at
+        description: Withdrawal time, UTC; null when not withdrawn.
+      - name: alias_count
+        description: Number of aliases (other ids for the same issue).
+      - name: affected_count
+        description: Number of affected entries in the record.
+      - name: is_malicious
+        description: True for OpenSSF malicious-package reports.
+      - name: severity_label
+        description: Database severity label (GitHub-reviewed records), else null.
+      - name: cvss_v3_vector
+        description: CVSS v3 vector string, if given.
+      - name: cvss_v4_vector
+        description: CVSS v4 vector string, if given.
+      - name: github_reviewed
+        description: The GitHub reviewed flag, if given.
+      - name: source_file
+        description: Lineage, the zip the record came from.
+      - name: source_sha256
+        description: Lineage, SHA-256 of that zip.
+      - name: fetched_at
+        description: Lineage, when the zip was fetched (UTC).
+  - name: stg_osv__affected
+    description: OSV affected packages.
+    columns:
+      - name: vuln_id
+        description: OSV id.
+        data_tests: [not_null]
+      - name: affected_index
+        description: Position in the affected list of the record.
+      - name: ecosystem
+        description: OSV ecosystem (PyPI, npm, ...).
+      - name: package_name
+        description: Package name as OSV spells it.
+      - name: package_key
+        description: ecosystem/package_name.
+        data_tests: [not_null]
+      - name: purl
+        description: Package URL, if given.
+      - name: range_count
+        description: Number of affected ranges.
+      - name: version_count
+        description: Number of listed affected versions.
+      - name: has_fixed
+        description: True when a range names a fixed version or commit.
+  - name: stg_osv__repo_refs
+    description: Repository pointers in OSV records.
+    columns:
+      - name: vuln_id
+        description: OSV id.
+      - name: affected_index
+        description: Affected entry of a GIT range; null for FIX references (whole record).
+      - name: kind
+        description: git_range or fix_reference.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [git_range, fix_reference]
+      - name: url
+        description: The URL as given.
+      - name: repo_host
+        description: github.com, gitlab.com or bitbucket.org.
+      - name: repo_full_name
+        description: owner/name in lower case.

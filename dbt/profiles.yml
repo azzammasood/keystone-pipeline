@@ -1,0 +1,15 @@
+# Paths come from `keystone warehouse build`, which sets them from --root (absolute).
+keystone:
+  target: duckdb
+  outputs:
+    duckdb:
+      type: duckdb
+      path: "{{ env_var('KEYSTONE_WAREHOUSE_PATH') }}"
+      threads: 2
+      settings:
+        TimeZone: UTC  # timestamptz -> date and hour cuts are UTC, as everywhere else
+      attach:
+        - path: "{{ env_var('KEYSTONE_ROLLUP_PATH') }}"
+          alias: rollup
+          read_only: true
+    # databricks: added when the owner provides a token (Unity Catalog); see PROGRESS.md.

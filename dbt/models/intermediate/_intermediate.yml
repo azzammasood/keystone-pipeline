@@ -1,0 +1,43 @@
+version: 2
+
+models:
+  - name: int_repo_name_hours
+    description: One row per repository id, name and UTC hour with activity under that name.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [repo_id, repo_name, seen_hour]
+    columns:
+      - name: repo_id
+        description: GitHub repository id.
+        data_tests: [not_null]
+      - name: repo_name
+        description: Name seen in the hour.
+      - name: seen_hour
+        description: UTC hour.
+      - name: first_seen_at
+        description: First event under the name in the hour.
+      - name: last_seen_at
+        description: Last event under the name in the hour.
+      - name: era_min
+        description: Earliest schema era among those events.
+      - name: era_max
+        description: Latest schema era among those events.
+      - name: events
+        description: Events in the hour under the name.
+  - name: int_package_repo_evidence
+    description: >
+      Each OSV pointer from a package to a repository, with how many packages the record names.
+    columns:
+      - name: package_key
+        description: ecosystem/package_name.
+      - name: repo_host
+        description: Repository host.
+      - name: repo_full_name
+        description: owner/name in lower case.
+      - name: kind
+        description: git_range or fix_reference.
+      - name: vuln_id
+        description: OSV record giving the evidence.
+      - name: packages_in_vuln
+        description: Distinct packages named by that record.

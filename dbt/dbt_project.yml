@@ -1,0 +1,39 @@
+# Keystone warehouse (Phase 5, ADR-028). SQL stays portable: DuckDB (free target, always) and
+# Databricks (when a token exists). Engine-specific bits live only in sources and profiles.
+name: keystone
+version: "0.1.0"
+config-version: 2
+profile: keystone
+require-dbt-version: [">=1.10.0", "<2.0.0"]
+
+model-paths: [models]
+seed-paths: [seeds]
+test-paths: [tests]
+macro-paths: [macros]
+clean-targets: [target]
+
+flags:
+  send_anonymous_usage_stats: false
+
+seeds:
+  keystone:
+    +schema: ref
+    +column_types:
+      start_at: varchar
+
+models:
+  keystone:
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: intermediate
+      +materialized: table
+    marts:
+      +schema: marts
+      +materialized: table
+      +tags: [publish]
+    metrics:
+      +schema: metrics
+      +materialized: table
+      +tags: [publish]

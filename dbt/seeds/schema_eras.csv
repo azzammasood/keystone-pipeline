@@ -1,0 +1,5 @@
+era,label,start_at
+E0,timeline-early,2011-02-12T00:00:00Z
+E1,timeline,2012-03-10T09:00:00Z
+E2,events,2015-01-01T00:00:00Z
+E3,events-trimmed,2025-10-08T17:00:00Z

@@ -13,13 +13,17 @@ from keystone.fetch.client import DiskBudgetExceeded, DiskGuard, PoliteClient
 from keystone.fetch.manifest import FileRecord, Manifest
 from keystone.machine import measure
 from keystone.parsers import drift as driftmod
+from keystone.parsers import osv as osvparse
 from keystone.parsers.gharchive import parse_file
-from keystone.parsers.parquet import GhArchiveSink
+from keystone.parsers.parquet import GhArchiveSink, write_osv
 from keystone.parsers.privacy import ActorHasher, SaltMissing, salt_from_env
 from keystone.paths import DATA_DIR, QUALITY_DIR, QUARANTINE_DIR, REPO_ROOT, SILVER_DIR
 from keystone.policy import load_policy
 from keystone.sources import GhArchiveConfig, load_sources, osv
 from keystone.sources import gharchive as gha
+from keystone.warehouse import coverage as whcoverage
+from keystone.warehouse import dbt as whdbt
+from keystone.warehouse import lake as whlake
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 ingest_app = typer.Typer(no_args_is_help=True, help="Polite, resumable ingestion (Phase 2).")
@@ -261,6 +265,56 @@ def parse_learn_drift(
         added = result.observer.merge_into(registry, ctx.era)
         typer.echo(f"{path.name} {ctx.era}: {result.lines} lines, {added} new entries")
     driftmod.save_registry(registry)
+
+
+@parse_app.command("osv")
+def parse_osv(
+    ecosystem: list[str] | None = typer.Option(
+        None, help="Ecosystem zip to parse (repeatable). Default: every kept zip."
+    ),
+    zip_file: Path | None = typer.Option(
+        None, "--zip", help="A local all.zip outside the manifest (fixtures, CI)."
+    ),
+    root: Path = typer.Option(DATA_DIR, help="Data directory to write silver/ and quarantine/."),
+) -> None:
+    """Parse OSV ecosystem zips to Parquet (vulns, affected, repo_refs); bad records quarantined.
+    With --zip, the file's own SHA-256 and modification time stand in for the manifest's facts."""
+    jobs: list[tuple[str, Path, osvparse.ZipContext]] = []
+    if zip_file is not None:
+        name = zip_file.parent.name or "local"
+        ctx = osvparse.ZipContext(
+            source_file=f"osv/{name}/{zip_file.name}",
+            source_sha256=gha.sha256_file(zip_file),
+            fetched_at=datetime.fromtimestamp(zip_file.stat().st_mtime, UTC),
+        )
+        jobs.append((name, zip_file, ctx))
+    else:
+        cfg = load_sources().osv
+        manifest = Manifest(MANIFEST_PATH)
+        try:
+            for eco in ecosystem or cfg.ecosystems:
+                name = osv.safe_dir(eco)
+                path = OSV_DIR / "zips" / name / "all.zip"
+                rec = manifest.get(osv.zip_url(cfg, eco))
+                if not path.exists() or rec is None or rec.sha256 is None:
+                    continue
+                if gha.sha256_file(path) != rec.sha256:
+                    typer.echo(f"skip {eco}: local zip differs from the manifest", err=True)
+                    continue
+                source = f"osv/{name}/all.zip"
+                jobs.append((name, path, osvparse.ZipContext(source, rec.sha256, rec.fetched_at)))
+        finally:
+            manifest.close()
+    if not jobs:
+        typer.echo("no kept, verified OSV zips", err=True)
+        raise typer.Exit(1)
+    for name, path, ctx in jobs:
+        result = osvparse.parse_zip(path, ctx)
+        write_osv(name, result, root / "silver" / "osv", root / "quarantine" / "osv")
+        typer.echo(
+            f"{name}: vulns={len(result.vulns)} affected={len(result.affected)} "
+            f"repo_refs={len(result.repo_refs)} quarantined={len(result.quarantine)}"
+        )
 
 
 @ingest_app.command("gaps")
@@ -567,4 +621,71 @@ def rollup_parity(
                 f"late_rows={r['late_rows']}"
             )
     if not all(r.ok for r in results):
+        raise typer.Exit(1)
+
+
+warehouse_app = typer.Typer(no_args_is_help=True, help="dbt warehouse and Iceberg (Phase 5).")
+app.add_typer(warehouse_app, name="warehouse")
+
+
+@warehouse_app.command("build")
+def warehouse_build(
+    root: Path = typer.Option(DATA_DIR, help="Data directory with silver/ and rollup/."),
+    target: str = typer.Option("duckdb", help="dbt target (profiles.yml)."),
+    select: str | None = typer.Option(None, help="dbt node selection."),
+) -> None:
+    """`dbt build` (seeds, models, tests) on the target; then the docs-coverage gate."""
+    paths = whdbt.WarehousePaths(root)
+    args = ["build", *(["--select", select] if select else [])]
+    if not whdbt.run_dbt(args, paths, target):
+        raise typer.Exit(1)
+    if not whdbt.run_dbt(["docs", "generate"], paths, target):
+        raise typer.Exit(1)
+    cov = whcoverage.measure(paths.target_dir)
+    typer.echo(
+        f"docs coverage: {cov.ratio:.1%} (models {cov.models_documented}/{cov.models}, "
+        f"columns {cov.columns_documented}/{cov.columns}; gate {whcoverage.GATE:.0%})"
+    )
+    for name in cov.missing[:20]:
+        typer.echo(f"undocumented: {name}", err=True)
+    if not cov.ok:
+        raise typer.Exit(1)
+
+
+@warehouse_app.command("publish")
+def warehouse_publish(
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding warehouse/."),
+    prefix: str = typer.Option("", help="Namespace prefix (e.g. ci_) for test runs."),
+) -> None:
+    """Copy the dbt models tagged `publish` into Iceberg (namespace = prefix + schema)."""
+    paths = whdbt.WarehousePaths(root)
+    for p in whlake.publish(paths.warehouse_db, paths.target_dir, prefix):
+        typer.echo(f"published {p.table.label}: rows={p.rows}")
+
+
+@warehouse_app.command("verify")
+def warehouse_verify(
+    table: list[str] = typer.Option([], help="namespace.table to read (repeatable)."),
+    namespace: list[str] = typer.Option([], help="Read every table of a namespace (repeatable)."),
+    engine: list[str] = typer.Option(
+        ["duckdb", "spark", "flink"], help="Engines; the first is the reference."
+    ),
+    json_out: Path | None = typer.Option(None, "--json", help="Write the results as JSON."),
+) -> None:
+    """Read the same Iceberg tables from each engine and compare exact fingerprints."""
+    unknown = [e for e in engine if e not in whlake.READERS]
+    if unknown:
+        typer.echo(f"unknown engines: {unknown}", err=True)
+        raise typer.Exit(2)
+    tables = [whlake.Table(*t.split(".", 1)) for t in table] + whlake.tables_in(namespace)
+    if not tables:
+        typer.echo("no tables to read", err=True)
+        raise typer.Exit(2)
+    reads = whlake.verify(tables, engine)
+    for r in reads:
+        typer.echo(f"{r.engine:7} {r.table:45} rows={r.rows} match={r.matches}")
+    if json_out is not None:
+        json_out.parent.mkdir(parents=True, exist_ok=True)
+        json_out.write_text(jsonlib.dumps([r.__dict__ for r in reads], indent=1), "utf-8")
+    if not all(r.matches for r in reads):
         raise typer.Exit(1)

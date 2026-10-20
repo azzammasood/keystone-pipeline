@@ -1,0 +1,25 @@
+version: 2
+
+seeds:
+  - name: completeness_periods
+    description: >
+      GH Archive completeness periods (ADR-012), copied from config/sources.yml; a pytest test
+      fails if the two differ.
+    columns:
+      - name: period
+        description: Period name (C1, C2, GAP, C3, C4, C5).
+        data_tests: [unique, not_null]
+      - name: label
+        description: Short description of the capture level in the period.
+      - name: start_at
+        description: First UTC hour of the period (ISO 8601 text).
+  - name: schema_eras
+    description: Schema eras (docs/era-map.md), copied from config/sources.yml; checked by pytest.
+    columns:
+      - name: era
+        description: Era name (E0 to E3).
+        data_tests: [unique, not_null]
+      - name: label
+        description: Short name of the source API or capture of the era.
+      - name: start_at
+        description: First file hour of the era (ISO 8601 text, UTC).
