@@ -87,7 +87,7 @@ services:
       RUSTFS_VOLUMES: /data
     ports: [127.0.0.1:9000:9000]
     volumes: [rustfs:/data]
-    mem_limit: 512m
+    mem_limit: 768m  # 445 MB in use after the one-day replay
 
   catalog-db:
     profiles: [catalog]

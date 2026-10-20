@@ -1,0 +1,9 @@
+# SQLFluff (Phase 4): the shared rollup SQL must parse as plain ANSI, so every engine can run it.
+[sqlfluff]
+dialect = ansi
+max_line_length = 100
+# AM04: the input view is SELECT *; ST06: column order is the rollup header's (time, keys, measures).
+exclude_rules = AM04, ST06
+
+[sqlfluff:indentation]
+tab_space_size = 4

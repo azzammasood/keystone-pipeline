@@ -27,6 +27,7 @@ dev = [
     "pyarrow-stubs>=20.0.0.20260819",
     "pytest>=8.2",
     "ruff>=0.6",
+    "sqlfluff>=3.4",
     "types-psutil>=6.0",
     "types-pyyaml>=6.0",
 ]
