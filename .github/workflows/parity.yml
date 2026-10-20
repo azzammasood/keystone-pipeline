@@ -4,10 +4,14 @@ name: parity
 # fixtures, including late and out-of-order events. Needs the compose stack (Redpanda, Flink,
 # Lakekeeper, RustFS), so it runs only when rollup code changes, weekly, or by hand: measured
 # 2.6 runner minutes (run 39465097650) against the free 2,000 a month (private repo).
+# Phase 5 adds the lakehouse gate: the dbt marts (written to Iceberg by DuckDB) and a Flink
+# rollup table must read identically in DuckDB, Spark, Flink and Trino.
 on:
   push:
     branches: [main]
     paths:
+      - src/keystone/warehouse/**
+      - dbt/**
       - src/keystone/rollup/**
       - src/keystone/parsers/**
       - contracts/avro/**
@@ -16,6 +20,8 @@ on:
       - .github/workflows/parity.yml
   pull_request:
     paths:
+      - src/keystone/warehouse/**
+      - dbt/**
       - src/keystone/rollup/**
       - src/keystone/parsers/**
       - contracts/avro/**
@@ -72,7 +78,24 @@ jobs:
         env:
           KEYSTONE_STACK_TESTS: "1"
           KEYSTONE_ACTOR_SALT: ci-only-salt-not-a-secret-0000
+      - name: Warehouse on fixtures, published to Iceberg, read by four engines
+        env:
+          KEYSTONE_ACTOR_SALT: ci-only-salt-not-a-secret-0000
+        run: |
+          compose="docker compose -f compose/docker-compose.yml"
+          $compose --profile spark build spark
+          $compose --profile trino up -d --wait trino
+          uv run keystone parse files tests/fixtures/gharchive/*.json.gz --root ci-data
+          uv run keystone rollup run --root ci-data
+          uv run keystone parse osv --zip tests/fixtures/osv/PyPI/all.zip --root ci-data
+          uv run keystone warehouse build --root ci-data
+          uv run keystone warehouse publish --root ci-data --prefix ci_
+          uv run keystone stream produce --root ci-data --topic ci-lake --fresh
+          uv run keystone rollup flink --namespace ci_rollup --topic ci-lake --mode batch
+          docker stats --no-stream --format '{{.Name}} {{.MemUsage}}'
+          tables="--namespace ci_marts --namespace ci_metrics --table ci_rollup.repo_hour"
+          uv run keystone warehouse verify $tables --engine duckdb --engine spark --engine flink --engine trino
       - if: failure()
-        run: docker compose -f compose/docker-compose.yml --profile streaming --profile catalog logs --tail 200
+        run: docker compose -f compose/docker-compose.yml --profile streaming --profile catalog --profile trino logs --tail 200
       - if: always()
-        run: docker compose -f compose/docker-compose.yml --profile streaming --profile catalog down -v
+        run: docker compose -f compose/docker-compose.yml --profile streaming --profile catalog --profile trino down -v
