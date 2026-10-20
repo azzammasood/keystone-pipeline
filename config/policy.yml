@@ -1,0 +1,12 @@
+# Polite-client policy. Every fetcher reads this; nothing hardcodes limits.
+user_agent: "keystone-pipeline/0.1 (+https://github.com/azzammasood/keystone-pipeline)"
+# Bulk-data disk budget: at most this share of free disk (brief section 1).
+disk_budget_fraction: 0.7
+default_limits:
+  max_concurrent: 1
+  requests_per_second: 1.0
+hosts:
+  # GH Archive is volunteer-run: live jobs at most 2 concurrent downloads, about 2 req/s.
+  data.gharchive.org:
+    max_concurrent: 2
+    requests_per_second: 2.0
