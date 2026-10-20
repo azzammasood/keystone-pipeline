@@ -1,0 +1,80 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: keystone-gharchive-quarantine
+name: GH Archive quarantine
+version: 1.0.0
+status: active
+domain: keystone
+dataProduct: gharchive-silver
+description:
+  purpose: >-
+    GH Archive records that could not be parsed, with a reason. Holds no record content (it may
+    contain personal data): the line is identified by file hash, line number and line hash.
+  usage: Monitoring of parse quality; re-parse after a parser fix.
+  limitations: Lines are recoverable only from the source file named by source_sha256.
+servers:
+  - server: local
+    type: local
+    format: parquet
+    path: data/quarantine/gharchive/*/*.parquet
+schema:
+  - name: quarantine
+    physicalName: quarantine
+    physicalType: table
+    logicalType: object
+    description: One row per unparseable record.
+    properties:
+      - name: source_file
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: Source file, `gharchive/<YYYY-MM-DD-H>.json.gz`.
+        logicalTypeOptions:
+          pattern: '^gharchive/\d{4}-\d{2}-\d{2}-\d{1,2}\.json\.gz$'
+      - name: source_sha256
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: SHA-256 of the verified source file.
+        logicalTypeOptions:
+          pattern: '^[0-9a-f]{64}$'
+      - name: fetched_at
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        required: true
+        description: When the source file was fetched (UTC).
+      - name: source_line
+        logicalType: integer
+        physicalType: INT64
+        required: true
+        description: 1-based line number in the source file.
+        logicalTypeOptions:
+          minimum: 1
+      - name: era
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: Schema era of the source file.
+      - name: reason
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: >-
+          Why the record was quarantined (json_decode, not_object, blank_line, era_shape, public_value,
+          missing:<field>, timestamp_*:<field>, validation:<field>:<error type>). Never a value.
+        logicalTypeOptions:
+          pattern: '^(json_decode|not_object|blank_line|era_shape|public_value|missing:[a-z_]+|timestamp_(type|format|naive):[a-z_.]+|validation:[a-z_.0-9]+:[a-z_]+)$'
+      - name: line_sha256
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: SHA-256 of the raw line.
+        logicalTypeOptions:
+          pattern: '^[0-9a-f]{64}$'
+      - name: line_bytes
+        logicalType: integer
+        physicalType: INT64
+        required: true
+        description: Length of the raw line in bytes.
+        logicalTypeOptions:
+          minimum: 0

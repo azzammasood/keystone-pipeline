@@ -1,0 +1,269 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: keystone-gharchive-events
+name: GH Archive events (silver)
+version: 1.0.0
+status: active
+domain: keystone
+dataProduct: gharchive-silver
+description:
+  purpose: >-
+    One row per GH Archive event, parsed era-aware (docs/era-map.md) from one hourly file.
+    Repository-level facts and salted person keys only.
+  usage: Input to rollups and repository signals. Never used to rank or label people.
+  limitations: >-
+    Fields exist only in some eras (docs/era-map.md); a metric uses only fields present in the
+    whole period it covers. Capture completeness varies by period (ADR-012).
+servers:
+  - server: local
+    type: local
+    format: parquet
+    path: data/silver/gharchive/events/*/*.parquet
+schema:
+  - name: events
+    physicalName: events
+    physicalType: table
+    logicalType: object
+    description: GH Archive events, one Parquet file per source hour.
+    properties:
+      - name: source_file
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: Source file, `gharchive/<YYYY-MM-DD-H>.json.gz`.
+        logicalTypeOptions:
+          pattern: '^gharchive/\d{4}-\d{2}-\d{2}-\d{1,2}\.json\.gz$'
+      - name: source_sha256
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: SHA-256 of the verified source file (manifest).
+        logicalTypeOptions:
+          pattern: '^[0-9a-f]{64}$'
+      - name: fetched_at
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        required: true
+        description: When the source file was fetched (UTC).
+      - name: source_line
+        logicalType: integer
+        physicalType: INT64
+        required: true
+        description: 1-based line number of the record in the source file.
+        logicalTypeOptions:
+          minimum: 1
+      - name: era
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: Schema era of the source file (E0 to E3, docs/era-map.md).
+        quality:
+          - metric: invalidValues
+            arguments:
+              validValues: [E0, E1, E2, E3]
+            mustBe: 0
+      - name: period
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: Completeness period of the source hour (config/sources.yml, ADR-012).
+        quality:
+          - metric: invalidValues
+            arguments:
+              validValues: [C1, C2, GAP, C3, C4, C5]
+            mustBe: 0
+      - name: event_id
+        logicalType: string
+        physicalType: STRING
+        description: GitHub event id; absent in E1 (Timeline API has no event ids).
+      - name: event_type
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: GitHub event type, for example PushEvent.
+        logicalTypeOptions:
+          pattern: '^[A-Za-z]+Event$'
+      - name: created_at
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        required: true
+        description: Event time normalised to UTC (E1 carries Pacific offsets in the source).
+      - name: created_at_offset_min
+        logicalType: integer
+        physicalType: INT64
+        required: true
+        description: UTC offset of the original created_at string, in minutes (E1 -420/-480).
+        logicalTypeOptions:
+          minimum: -840
+          maximum: 840
+      - name: public
+        logicalType: boolean
+        physicalType: BOOLEAN
+        description: Source `public` flag.
+      - name: actor_key
+        logicalType: string
+        physicalType: STRING
+        description: >-
+          Salted HMAC-SHA256 (first 32 hex) of the actor's account id, or of the lower-cased
+          login in E1. Never a login.
+        logicalTypeOptions:
+          pattern: '^[0-9a-f]{32}$'
+      - name: actor_key_kind
+        logicalType: string
+        physicalType: STRING
+        description: What actor_key hashes, `id` or `login` (E1 only, ADR-013).
+        quality:
+          - metric: invalidValues
+            arguments:
+              validValues: [id, login]
+            mustBe: 0
+      - name: actor_is_bot
+        logicalType: boolean
+        physicalType: BOOLEAN
+        required: true
+        description: Actor login ends in `[bot]` or is in config/bots.yml.
+      - name: repo_id
+        logicalType: integer
+        physicalType: INT64
+        description: GitHub repository id; absent in E1 2012 and for some E0 events.
+      - name: repo_name
+        logicalType: string
+        physicalType: STRING
+        description: Repository full name `owner/name` at event time.
+      - name: action
+        logicalType: string
+        physicalType: STRING
+        description: Payload action (opened, closed, started, published, ...).
+      - name: number
+        logicalType: integer
+        physicalType: INT64
+        description: Pull request or issue number, when the payload has one.
+      - name: ref_type
+        logicalType: string
+        physicalType: STRING
+        description: Create/Delete ref type (repository, branch, tag).
+      - name: ref
+        logicalType: string
+        physicalType: STRING
+        description: Git ref of a push, create or delete.
+      - name: push_head
+        logicalType: string
+        physicalType: STRING
+        description: Push head commit SHA.
+      - name: push_before
+        logicalType: string
+        physicalType: STRING
+        description: Push previous head SHA (E2 and E3).
+      - name: push_size
+        logicalType: integer
+        physicalType: INT64
+        description: Commits in the push (absent after the payload trim, 2025-10-08 16:59:22Z).
+      - name: push_distinct_size
+        logicalType: integer
+        physicalType: INT64
+        description: Distinct commits in the push (E2 only).
+      - name: payload_repository_id
+        logicalType: integer
+        physicalType: INT64
+        description: Payload repository id of a push (late E2 and E3).
+      - name: pr_merged
+        logicalType: boolean
+        physicalType: BOOLEAN
+        description: PullRequestEvent merged flag (E1 and E2 only).
+      - name: pr_created_at
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        description: Pull request creation time, UTC (E1 and E2).
+      - name: pr_merged_at
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        description: Pull request merge time, UTC (E1 and E2).
+      - name: pr_closed_at
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        description: Pull request close time, UTC (E1 and E2).
+      - name: pr_author_key
+        logicalType: string
+        physicalType: STRING
+        description: Salted key of the pull request author, same kind as actor_key.
+        logicalTypeOptions:
+          pattern: '^[0-9a-f]{32}$'
+      - name: issue_id
+        logicalType: integer
+        physicalType: INT64
+        description: Issue id of an IssuesEvent or IssueCommentEvent.
+      - name: issue_created_at
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        description: Issue creation time, UTC (E2 and E3).
+      - name: issue_closed_at
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        description: Issue close time, UTC (E2 and E3).
+      - name: issue_author_key
+        logicalType: string
+        physicalType: STRING
+        description: Salted key of the issue author, same kind as actor_key.
+        logicalTypeOptions:
+          pattern: '^[0-9a-f]{32}$'
+      - name: issue_is_pr
+        logicalType: boolean
+        physicalType: BOOLEAN
+        description: The issue is a pull request (E2 and E3).
+      - name: comment_id
+        logicalType: integer
+        physicalType: INT64
+        description: Comment id of an IssueCommentEvent.
+      - name: comment_created_at
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        description: Comment creation time, UTC (E2 and E3).
+      - name: release_tag
+        logicalType: string
+        physicalType: STRING
+        description: ReleaseEvent tag name.
+      - name: release_published_at
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        description: Release publish time, UTC.
+      - name: release_prerelease
+        logicalType: boolean
+        physicalType: BOOLEAN
+        description: Release is a pre-release.
+    quality:
+      - type: sql
+        description: One row per source line.
+        query: >-
+          SELECT COUNT(*) FROM (SELECT source_file, source_line FROM events
+          GROUP BY ALL HAVING COUNT(*) > 1)
+        mustBe: 0
+      - type: sql
+        description: actor_key_kind is `login` exactly in E1 and `id` elsewhere (ADR-013).
+        query: >-
+          SELECT COUNT(*) FROM events WHERE actor_key_kind IS NOT NULL
+          AND (era = 'E1') <> (actor_key_kind = 'login')
+        mustBe: 0
+      - type: sql
+        description: actor_key and actor_key_kind are both set or both null.
+        query: >-
+          SELECT COUNT(*) FROM events WHERE (actor_key IS NULL) <> (actor_key_kind IS NULL)
+        mustBe: 0
+      - type: sql
+        description: Events have ids in every era except E1.
+        query: SELECT COUNT(*) FROM events WHERE (event_id IS NULL) <> (era = 'E1')
+        mustBe: 0
+      - type: sql
+        description: Repository names are `owner/name`.
+        query: >-
+          SELECT COUNT(*) FROM events WHERE repo_name IS NOT NULL
+          AND NOT regexp_matches(repo_name, '^[^/]+/[^/]+$')
+        mustBe: 0
+      - type: sql
+        description: >-
+          Pushes before GitHub's payload trim (2025-10-08 16:59:22Z, config payload_trim_at)
+          carry a size; pushes after it do not.
+        query: >-
+          SELECT COUNT(*) FROM events WHERE event_type = 'PushEvent' AND (
+          (created_at < TIMESTAMPTZ '2025-10-08 16:59:22+00' AND push_size IS NULL)
+          OR (created_at > TIMESTAMPTZ '2025-10-08 16:59:22+00' AND push_size IS NOT NULL))
+        mustBe: 0
