@@ -2,6 +2,72 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-030 (2026-10-20) Phase 5 rungs: Databricks skipped, Trino done (Tier 2)
+- Databricks (dbt-databricks, Unity Catalog, a Lakeflow Declarative Pipeline for marts) needs a
+  workspace token, which does not exist yet: skipped and logged in PROGRESS.md. The dbt SQL is
+  written for both (ANSI casts, CASE, window functions, `DATE_TRUNC('hour', ...)`; no engine
+  functions in models); sources and the profile are the only per-target parts. "`dbt build`
+  passes on every available target" therefore means the `duckdb` target today.
+- Trino ran within the RAM budget (measured 0.91 GB idle, 1.09 GB after the fingerprint queries,
+  limit 1.5 GB), so the Tier 2 rung is in: `trino` profile, Iceberg REST connector, native S3.
+
+## ADR-029 (2026-10-20) Lakehouse reads: DuckDB writes the marts, four engines read them
+- Publish: `keystone warehouse publish` copies every dbt model tagged `publish` (schemas `marts`
+  and `metrics`) into Iceberg through DuckDB's Iceberg extension (REST catalog, CTAS); the
+  namespace is the schema, with a prefix for test runs (`ci_`). Drop and re-create, so a reader
+  can miss a table for the seconds of a publish (12 s for the nine tables); an atomic swap
+  (branch or `replace` commit) is a Phase 10 item. Options: dbt-duckdb materialising into the
+  attached catalog (not tried: dbt's table materialisation builds a temporary relation and
+  renames it, and the explicit copy keeps the Iceberg write in one place), Spark or Flink as
+  the writer (rejected: a JVM in the free path).
+- Readers: DuckDB (in-process), Spark 4.1.3 (newest line with an Iceberg 1.12.0 runtime; 4.2 has
+  none yet), Flink 2.2.1 (the Phase 4 image, SQL client in batch mode) and Trino 483. Spark and
+  Trino run only for the check (profiles `spark`, `trino`); images pinned by digest, jars by
+  SHA-256. Every port binds to 127.0.0.1.
+- Check (`keystone warehouse verify`): one fingerprint query per table, built from the Iceberg
+  schema: row count, non-null count of every column, sum of every integer and boolean column.
+  All exact integers, the same SQL text in every engine (COUNT, SUM, CAST, CASE), compared
+  against the first engine. Floats and text values are not summed (no engine-neutral hash);
+  non-null counts cover them. `period` was renamed `completeness_period` because it is reserved
+  in Flink SQL.
+- Measured 2026-10-20: the nine marts (sample hours of every era, the day 2026-10-19 and the
+  PyPI OSV zip) and the Flink-written `replay_20261019_batch.repo_hour` match in all four
+  engines (one run DuckDB+Spark+Flink, 30 of 30 reads, 52 s; one run DuckDB+Trino, 20 of 20,
+  11 s). The parity workflow repeats it
+  on fixtures with a fresh Flink batch table.
+
+## ADR-028 (2026-10-20) Warehouse: dbt on DuckDB over silver and the free rollup
+- dbt-core 1.12.6 with dbt-duckdb 1.11.0 (`warehouse` dependency group); anonymous usage
+  stats off. The CLI (`keystone warehouse build`) sets every path from `--root`, runs
+  `dbt build` and `dbt docs generate`, then a docs-coverage gate (>= 95%) that compares the
+  real columns in `catalog.json` with the YAML descriptions (100%: 20 models and seeds, 178
+  columns). Orchestrators call the CLI, never dbt.
+- Inputs: silver Parquet (GH Archive events, OSV) read in place and the free engine's DuckDB
+  file attached read-only. `repo_actor_day` (salted actor keys) is not declared as a source,
+  so no model can read it; a singular test fails on any person-like column (actor, login,
+  email, author, owner) in `marts` or `metrics`, and the publish refuses such columns again.
+  No owner column is derived from repository names.
+- OSV silver (`keystone parse osv`): vulns, affected packages and repository pointers, an
+  allow-list like ADR-019 (no `details`, `summary`, `credits`, IOCs). Pointers are GIT ranges
+  (belong to one package) and FIX references (belong to the record); advisory, web and package
+  links are not repositories. PyPI: 26,393 records (11,852 malicious-package reports), 31,997
+  affected entries, 3,797 pointers, 0 quarantined.
+- Models: `dim_repo` and `dim_repo_name_history` (spells of a name per repository id, ordered
+  by first sighting; ids missing in E1 2012 and some E0 are left to Phase 7), `dim_package`
+  (ecosystem + name as OSV spells it), `bridge_package_repo` (confidence is a rule: high = GIT
+  range, medium = FIX reference in a one-package record, low = FIX reference in a multi-package
+  record; `repo_id` only when exactly one id ever carried the name, else `ambiguous_name`),
+  `fct_vuln` (record x package), `fct_repo_day` (UTC day x repo x era x completeness period:
+  era and period are keys, so nothing mixes) and metric inputs per version: `maint_v1` (E1,
+  E2: merged flag), `maint_v2` (E3: closes only), `release_v1` (E1 to E3). Accepted-values tests
+  keep other eras out. The periods and eras seeds are copied from `config/sources.yml`; a
+  pytest test fails if they differ.
+- Measured on the local data (151 sample hours of every era plus 2026-10-19, PyPI OSV): 73
+  nodes pass, build plus docs 22 s; 810,117 repositories, 867,596 repo-days, 13,846 packages,
+  526 package-repo candidates (242 with a unique repository id), 27,894 vuln-package rows. The
+  event total of 2026-10-19 in `fct_repo_day` (1,042,689) is the day's 1,042,693 events minus 4
+  without a repository id.
+
 ## ADR-027 (2026-10-20) Lakehouse components confirmed for Phase 4 (updates ADR-014)
 - Catalog: **Lakekeeper v0.14.1** (Iceberg REST) on Postgres 17.6; object store: **RustFS 1.0.3**
   (Apache-2.0, single binary, S3 API). Both run in the `catalog` compose profile; a one-shot

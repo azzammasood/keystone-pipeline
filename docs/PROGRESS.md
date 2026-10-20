@@ -3,8 +3,9 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
-Phase 4 (rollup engines) gate checks pass (parity on fixtures and on a one-day replay); ADR-024 to
-027. Review: `docs/reviews/phase-4.md` (1 major, 13 minor/nit, all fixed except one owner question); CI green. Next phase: **Phase 5** (see Next).
+Phase 5 (lakehouse and warehouse) gate checks pass locally: `dbt build` on the `duckdb` target
+(73 nodes, docs coverage 100%), and the same Iceberg tables read identically from DuckDB, Spark,
+Flink and Trino (ADR-028 to 030). Databricks rung skipped (no token). Review and CI: see Done.
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -42,9 +43,10 @@ Phase 4 (rollup engines) gate checks pass (parity on fixtures and on a one-day r
   as azzammasood).
 
 ## Next
-1. **Phase 5** (next in the brief): Iceberg + REST catalog are running (ADR-027); dbt on dbt-duckdb
-   over the rollups, `dim_repo`, `fct_repo_day`, metric models per era; Spark reads the same tables.
-   Known Phase 4 limit: a re-parsed hour already streamed needs a Flink batch rebuild (ADR-026).
+1. **Phase 6** (next in the brief). Phase 5 leftovers: Databricks target when a token exists
+   (ADR-030); atomic Iceberg publish (ADR-029); E1 2012 repositories without ids are resolved by
+   name in Phase 7 (ADR-028). Known Phase 4 limit: a re-parsed hour already streamed needs a
+   Flink batch rebuild (ADR-026).
 2. Owner: set the production `KEYSTONE_ACTOR_SALT` as a secret before any non-sample parse (the
    local one in `.env` is for samples only; changing it changes every actor key).
 3. Backfill (Phase 9) still waits on the owner (disk below 50 GB). Do not start it. Before it:
@@ -58,7 +60,11 @@ Phase 4 (rollup engines) gate checks pass (parity on fixtures and on a one-day r
   backfill or full Compose stack needs more space or another drive.
 - **RAM: 16.8 GB total, ~4.4 GB available at measurement.** Full-profile stacks must run one
   Compose profile at a time.
-- Optional rungs skipped until tokens exist: Databricks, BigQuery sandbox, OpenRouter.
+- Optional rungs skipped until tokens exist: Databricks (Phase 5 rung: dbt-databricks, Unity
+  Catalog, Lakeflow pipeline; logged 2026-10-20, ADR-030), BigQuery sandbox, OpenRouter.
+- **Owner: disk.** 20 GB free after Phase 5 (Spark and Trino images 2.5 GB). An untagged
+  1.07 GB Flink image from an earlier build is reclaimable (`docker image prune`); freeing disk
+  is the owner's call.
 
 ## Measured
 | When | What | Value |
@@ -87,3 +93,10 @@ Phase 4 (rollup engines) gate checks pass (parity on fixtures and on a one-day r
 | 2026-10-20 | Flink batch job, the day | 34 s; fold 19 s |
 | 2026-10-20 | Phase 4 stack RAM (docker stats) | 1.4 GB idle, 3.0 GB after the replay (VM 8.2 GB) |
 | 2026-10-20 | Disk free after Phase 4 (C:) | 25.6 GB; stack images 2.4 GB (docker images, uncompressed) |
+| 2026-10-20 | OSV PyPI zip to silver | 26,393 records, 31,997 affected, 3,797 repo pointers, 0 quarantined |
+| 2026-10-20 | dbt build + docs (151 sample hours + 2026-10-19 + PyPI OSV) | 73 nodes pass, 22 s; docs coverage 100% (20 nodes, 178 columns) |
+| 2026-10-20 | Warehouse marts | 810,117 repos; 867,596 repo-days; 13,846 packages; 526 package-repo candidates (242 with a repo id) |
+| 2026-10-20 | Iceberg publish (9 tables, DuckDB) | 12 s |
+| 2026-10-20 | Engine reads, 10 tables | DuckDB+Spark+Flink 30/30 match (52 s); DuckDB+Trino 20/20 (11 s) |
+| 2026-10-20 | Reader RAM (docker stats) | Trino 0.91 GB idle, 1.09 GB after queries; Flink TM 1.08 GB, JM 0.62 GB |
+| 2026-10-20 | Disk free after Phase 5 (C:) | 20 GB; spark 1.1 GB + trino 1.38 GB images; data/warehouse 403 MB |

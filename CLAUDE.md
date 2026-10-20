@@ -65,6 +65,11 @@ uv run keystone stream produce [--root DIR] [--topic T] [--fresh] [--shuffle-see
 uv run keystone stream check-schema [--schema F.avsc]     # registry BACKWARD compatibility check
 uv run keystone rollup flink --namespace NS [--topic T] [--mode stream|batch]  # full engine + fold
 uv run keystone rollup parity --namespace NS [--root DIR] # row-for-row diff; exit 1 on any
+uv run keystone parse osv [--ecosystem PyPI] [--zip F --root DIR]  # OSV zips -> silver
+uv run keystone warehouse build [--root DIR]              # dbt build + docs coverage gate (>= 95%)
+uv run keystone warehouse publish [--root DIR] [--prefix ci_]  # tagged marts -> Iceberg
+uv run keystone warehouse verify --namespace marts [--table NS.T] --engine duckdb --engine spark ...
+docker compose -f compose/docker-compose.yml --profile trino up -d --wait trino   # Tier 2 reader
 uv run pytest                             # network tests skip unless KEYSTONE_NETWORK_TESTS=1
 KEYSTONE_STACK_TESTS=1 uv run pytest tests/parity  # engine parity on the running stack
 uv run ruff check . ; uv run ruff format . ; uv run sqlfluff lint src/keystone/rollup/sql
@@ -78,12 +83,15 @@ src/keystone/            cli.py (Typer), paths.py, policy.py, machine.py
   fetch/ sources/        polite client + DuckDB manifest; GH Archive + OSV ingestion (Phase 2)
   parsers/ quality/      era-aware parser, privacy, drift, Parquet sink; contracts + GX (Phase 3)
   rollup/                sql/ (the logic, once), duck (free), stream + flink (full), compare (Phase 4)
+  warehouse/             dbt runner, docs coverage, Iceberg publish + engine reads (Phase 5)
   planned subpackages:   eras resolve metrics score backtest bench
                          profile lineage telemetry narrate export (created when a phase needs them)
 config/                  policy.yml (UA, limits, disk budget); later sources.yml, incidents.yml
 contracts/               ODCS contracts (*.odcs.yaml), drift/gharchive.yml, avro/ (event topic schema)
-compose/                 docker-compose.yml (profiles), flink/Dockerfile (pinned jars), catalog/init.sh
-dbt/ metadata/           (filled in by later phases)
+compose/                 docker-compose.yml (profiles), flink/ + spark/ Dockerfiles (pinned jars),
+                         trino/catalog, catalog/init.sh
+dbt/                     staging, intermediate, marts, metrics (+ seeds, tests); portable SQL
+metadata/                (filled in by later phases)
 tests/                   tests/fixtures/ (small, committed), tests/parity/ (Flink vs DuckDB)
 docs/                    PLAN, PROGRESS, DECISIONS, roshni-patterns, reviews/
 data/                    generated, git-ignored
@@ -96,6 +104,6 @@ data/                    generated, git-ignored
 - Rollup logic written once in portable SQL; parity tests between engines fail CI on any diff.
 - dbt SQL stays portable (DuckDB and Databricks). Every model and column documented (>= 95% gate).
 - GitHub Actions = production; Airflow = local showcase calling the CLI only (no logic in DAGs).
-- Compose profiles (`core`, `streaming`, `lineage`, `catalog`, `obs`, `bench`): start only what a
+- Compose profiles (`core`, `streaming`, `lineage`, `catalog`, `spark`, `trino`, `obs`, `bench`): start only what a
   phase needs; measure RAM first (machine has ~16 GB total).
 - Owner is on a limited plan: no large dumps into the conversation; one phase per session.
