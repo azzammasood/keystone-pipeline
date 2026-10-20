@@ -2,6 +2,73 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-027 (2026-10-20) Lakehouse components confirmed for Phase 4 (updates ADR-014)
+- Catalog: **Lakekeeper v0.14.1** (Iceberg REST) on Postgres 17.6; object store: **RustFS 1.0.3**
+  (Apache-2.0, single binary, S3 API). Both run in the `catalog` compose profile; a one-shot
+  `catalog-init` creates the bucket (SigV4 via curl), bootstraps Lakekeeper and registers the
+  `keystone` warehouse (S3 profile, path style, STS off). SeaweedFS was the alternative; RustFS
+  has stable 1.0 releases and needs no master/volume split. MinIO stays out (ADR-014).
+- Flink writes through the REST catalog with S3FileIO; DuckDB reads the same tables through the
+  REST catalog (`ATTACH ... TYPE iceberg`) with its own S3 secret. Credentials are local-only
+  defaults, overridable in `.env`; every port binds to 127.0.0.1.
+- Measured (docker stats, Docker VM 8.2 GB): both profiles use about 1.4 GB idle and about
+  3.0 GB after the one-day replay (taskmanager 1.37 GB, jobmanager 0.68 GB, RustFS 0.45 GB).
+
+## ADR-026 (2026-10-20) `full` rollup: Redpanda + Avro + Flink 2.2.1 to Iceberg, late rows kept
+- Versions: Flink 2.2.1 (newest supported by both flink-connector-kafka 5.0.0-2.2 and
+  iceberg-flink-runtime-2.2 1.12.0, ADR-014), Redpanda v26.2.5 (Kafka API and schema registry).
+  Connector jars are pinned by SHA-256 in `compose/flink/Dockerfile`.
+- Topic value: Avro (`contracts/avro/gharchive_event.avsc`, the columns the rollups read plus
+  lineage), Confluent wire format, subject `<topic>-value` with BACKWARD compatibility; the
+  producer checks compatibility before registering, `keystone stream check-schema` checks a
+  candidate. Tested live: an optional field passes, a required field or a narrowed type fails.
+- Replay: GH Archive is hourly files, not a firehose. Hours are produced in arrival order (event
+  time of their content by default) to a one-partition topic, so the topic order is the arrival
+  order. Watermark `created_at - 1 h`, emitted per event (`scan.watermark.emit.strategy`).
+- Late data: Flink SQL window TVFs have no allowed lateness and drop late rows silently. The job
+  computes the window operator's own lateness test (`window_end - 1 ms <= CURRENT_WATERMARK`) in
+  the same chained step and routes those rows to `<rollup>_late` (append) while the rest go
+  through TUMBLE to `<rollup>_ontime`. Both inserts run in one statement set (one job, one
+  source). A batch fold writes `<rollup>` = SUM/MAX over both. So nothing is dropped and the
+  result does not depend on when the watermark moved. The parity test checks the late path ran
+  and that `_ontime` alone differs (the test can see the difference).
+- Exactly-once: checkpoints every 10 s; Kafka offsets live in the checkpoint and the Iceberg
+  sink commits per checkpoint (final checkpoint at end of a bounded replay).
+- Modes: `stream` (live hours; bounded for a replay), `batch` (backfill; the same SQL, nothing is
+  late), `fold` (batch). Limit: the stream is append-only, so a re-parsed hour that was already
+  produced needs a batch rebuild of its windows in this engine (DuckDB handles it in place);
+  Phase 9/10 wire that rebuild into the backfill and the profile fallback.
+
+## ADR-025 (2026-10-20) `free` rollup: DuckDB recomputes touched windows from silver
+- State: one DuckDB file (`data/rollup/rollup.duckdb`) with the rollup tables and
+  `rollup_files` (silver hour, SHA-256, event-time range). A run finds new, re-parsed (SHA
+  differs) and removed hours, takes every window their old and new ranges touch, reads every
+  silver hour whose range overlaps those windows (from `hour_types`, so a late hour corrects
+  earlier windows), and deletes and re-inserts those windows in one transaction.
+- Options: add deltas per hour (rejected: not idempotent on re-parse), MERGE per key (rejected:
+  a re-parse would leave stale keys), recompute touched windows (chosen).
+- Why: idempotent (a re-run is a no-op), independent of arrival order (tested: incremental in
+  arrival and reversed order equals a full run), and bounded: a run reads only overlapping hours.
+
+## ADR-024 (2026-10-20) Rollup logic once, in portable SQL
+- Each rollup is one ANSI contribution query in `src/keystone/rollup/sql/` (one row per event:
+  event time, keys, 0/1 measure columns) with a header naming the window (`1 hour` or `1 day`),
+  the keys and the MAX measures (all others SUM). `input.sql` holds the shared filter. DuckDB
+  wraps a query with `date_trunc` and GROUP BY; Flink with TUMBLE. Neither engine has its own
+  copy of a measure. SQLFluff (ANSI dialect) lints the files; a test rejects engine functions.
+- Tables: `repo_hour` (repo, era, event type: events, human events, opened, closed, reopened,
+  merged and `merge_known`, published, added, newest fetch) and `repo_actor_day` (repo, salted
+  actor key, era: pushes, PRs opened/closed/merged, issues opened/closed, releases, members
+  added, comments; bots excluded; internal only, never published). Era is a key everywhere, so
+  eras never mix; `merged` counts only where `merge_known` does (E1, E2).
+- Rules: windows are UTC; ADR-020's overlap rule (E1 rows from 2015-01-01 00:00Z dropped) is in
+  `input.sql`; timestamps are cut to milliseconds (the Avro contract) in both engines.
+- Watermark delay 1 h. Measured on the 151 sampled silver hours (hour_types): every E0, E2 and
+  E3 file holds only its own UTC hour; E1 files (Pacific names) span at most 60.1 minutes and 68
+  of 72 cross a UTC hour boundary by seconds. Replayed in event-time order, nothing is late.
+  Late arrival (a healed gap, an out-of-order replay) is handled by ADR-025/026, not by a longer
+  delay.
+
 ## ADR-023 (2026-10-20) Contracts with datacontract-cli, expectations with Great Expectations
 - Contracts: ODCS v3.2.0 YAML in `contracts/` (events, hour_types, quarantine), tested by
   datacontract-cli 1.2.7 (DuckDB over the Parquet files). Column-level rules (required, patterns,

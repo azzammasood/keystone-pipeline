@@ -3,8 +3,8 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
-Phase 3 (parse, contracts and quality) gate passed and reviewed (`docs/reviews/phase-3.md`);
-ADR-019 to 023. Phases 0 to 3 pushed. Next phase: **Phase 4** (see Next).
+Phase 4 (rollup engines) gate checks pass (parity on fixtures and on a one-day replay); ADR-024 to
+027. Review and CI result: `docs/reviews/phase-4.md`. Next phase: **Phase 5** (see Next).
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -29,11 +29,19 @@ ADR-019 to 023. Phases 0 to 3 pushed. Next phase: **Phase 4** (see Next).
   lint-test, contracts, security; checked with gh as azzammasood).
   Measured boundaries: E1 from 2012-03-10 09h (Pacific file names, E1/E2 8 h overlap), E3 from
   2025-10-08 17h with the push trim at 16:59:22Z, C2 from 2025-05-23 16h, C3 from 2025-10-14 21h.
+- 2026-10-20 Phase 4 rollups: logic once in portable SQL (`rollup/sql`, SQLFluff ANSI), tables
+  `repo_hour` and `repo_actor_day`; `free` = incremental DuckDB (recomputes touched windows from
+  silver, ADR-025); `full` = silver replay to Redpanda (Avro, registry BACKWARD) and a Flink 2.2.1
+  SQL job to Iceberg (Lakekeeper + RustFS) with late rows routed and folded, not dropped (ADR-026).
+  Gate: parity tests pass on the stack (synthetic late/out-of-order scenario in stream and batch
+  mode, the committed fixture hours, live schema compatibility); one-day replay of 2026-10-19
+  (1,042,693 events) matches row for row in stream, batch and a shuffled-hours stream run
+  (854,442 late contributions folded). CI: `parity.yml` (path-filtered, weekly).
 
 ## Next
-1. **Phase 4** (next in the brief). Inputs from Phase 3: silver `events`/`hour_types` Parquet with
-   lineage; event-time windows use `created_at` and drop E1 rows from 2015-01-01 00:00Z (ADR-020);
-   C4/C5 starts are still bracketed (ADR-021); lakehouse components to confirm (ADR-014).
+1. **Phase 5** (next in the brief): Iceberg + REST catalog are running (ADR-027); dbt on dbt-duckdb
+   over the rollups, `dim_repo`, `fct_repo_day`, metric models per era; Spark reads the same tables.
+   Known Phase 4 limit: a re-parsed hour already streamed needs a Flink batch rebuild (ADR-026).
 2. Owner: set the production `KEYSTONE_ACTOR_SALT` as a secret before any non-sample parse (the
    local one in `.env` is for samples only; changing it changes every actor key).
 3. Backfill (Phase 9) still waits on the owner (disk below 50 GB). Do not start it. Before it:
@@ -66,3 +74,11 @@ ADR-019 to 023. Phases 0 to 3 pushed. Next phase: **Phase 4** (see Next).
 | 2026-10-20 | Parse throughput (1 core, E3 hour, drift on) | 25k to 27k events/s |
 | 2026-10-20 | Phase 3 downloads (samples, probes; deleted after) | about 1.5 GB (estimate summed from run logs); 8 oracle hours kept (167 MB) |
 | 2026-10-20 | Disk free after Phase 3 (C:) | 25 GB (df) |
+| 2026-10-20 | Day 2026-10-19 silver | 24 hours, 1,042,693 events, 85 MB Parquet |
+| 2026-10-20 | DuckDB rollup, that day (fresh state) | 2.7 s; 771,868 repo_hour + 374,592 repo_actor_day rows |
+| 2026-10-20 | DuckDB rollup, 151 sample hours | 6.1 s, 2.30M events; re-run 0 changed |
+| 2026-10-20 | Produce to Redpanda (Avro, lz4, 1 partition) | 52k-57k records/s; 189.8 MB Avro for the day |
+| 2026-10-20 | Flink stream job, the day (bounded replay) | 49 s incl. startup (~21k events/s); fold 23 s |
+| 2026-10-20 | Flink batch job, the day | 34 s; fold 19 s |
+| 2026-10-20 | Phase 4 stack RAM (docker stats) | 1.4 GB idle, 3.0 GB after the replay (VM 8.2 GB) |
+| 2026-10-20 | Disk free after Phase 4 (C:) | 25.6 GB; stack images 2.4 GB (docker images, uncompressed) |

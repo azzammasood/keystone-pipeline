@@ -58,9 +58,16 @@ uv run keystone parse gharchive --start .. [--end ..]     # parse kept raw hours
 uv run keystone parse files <hour.json.gz>... --root DIR  # local files (fixtures, CI)
 uv run keystone parse learn-drift --start ..              # add kept hours to the drift registry; review diff
 uv run keystone quality contracts|gx [--root DIR]        # ODCS contracts (datacontract-cli) / GX suites
-uv sync --all-groups                      # includes the `quality` group (datacontract-cli, GX)
+uv sync --all-groups                      # adds `quality` (datacontract-cli, GX), `streaming` (kafka, avro)
+docker compose -f compose/docker-compose.yml --profile streaming --profile catalog up -d  # Phase 4 stack
+uv run keystone rollup run [--root DIR]                   # free engine: incremental DuckDB rollup
+uv run keystone stream produce [--root DIR] [--topic T] [--fresh] [--shuffle-seed N]  # silver -> Redpanda
+uv run keystone stream check-schema [--schema F.avsc]     # registry BACKWARD compatibility check
+uv run keystone rollup flink --namespace NS [--topic T] [--mode stream|batch]  # full engine + fold
+uv run keystone rollup parity --namespace NS [--root DIR] # row-for-row diff; exit 1 on any
 uv run pytest                             # network tests skip unless KEYSTONE_NETWORK_TESTS=1
-uv run ruff check . ; uv run ruff format .
+KEYSTONE_STACK_TESTS=1 uv run pytest tests/parity  # engine parity on the running stack
+uv run ruff check . ; uv run ruff format . ; uv run sqlfluff lint src/keystone/rollup/sql
 uv run mypy
 uv run pre-commit run --all-files
 ```
@@ -70,11 +77,13 @@ uv run pre-commit run --all-files
 src/keystone/            cli.py (Typer), paths.py, policy.py, machine.py
   fetch/ sources/        polite client + DuckDB manifest; GH Archive + OSV ingestion (Phase 2)
   parsers/ quality/      era-aware parser, privacy, drift, Parquet sink; contracts + GX (Phase 3)
-  planned subpackages:   eras rollup resolve metrics score backtest bench
+  rollup/                sql/ (the logic, once), duck (free), stream + flink (full), compare (Phase 4)
+  planned subpackages:   eras resolve metrics score backtest bench
                          profile lineage telemetry narrate export (created when a phase needs them)
 config/                  policy.yml (UA, limits, disk budget); later sources.yml, incidents.yml
-contracts/               ODCS contracts (*.odcs.yaml) and drift/gharchive.yml (learned registry)
-dbt/ metadata/ compose/  (filled in by later phases)
+contracts/               ODCS contracts (*.odcs.yaml), drift/gharchive.yml, avro/ (event topic schema)
+compose/                 docker-compose.yml (profiles), flink/Dockerfile (pinned jars), catalog/init.sh
+dbt/ metadata/           (filled in by later phases)
 tests/                   tests/fixtures/ (small, committed), tests/parity/ (Flink vs DuckDB)
 docs/                    PLAN, PROGRESS, DECISIONS, roshni-patterns, reviews/
 data/                    generated, git-ignored
