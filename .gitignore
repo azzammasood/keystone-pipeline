@@ -36,3 +36,7 @@ dbt/.user.yml
 
 # Local Claude Code config
 .claude/
+
+# dbt run output (the CLI writes target and logs under data/warehouse/)
+dbt/target/
+dbt/logs/

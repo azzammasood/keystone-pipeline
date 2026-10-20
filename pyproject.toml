@@ -39,6 +39,10 @@ streaming = [
     "confluent-kafka>=2.6",
     "fastavro>=1.9",
 ]
+warehouse = [
+    "dbt-core>=1.10",
+    "dbt-duckdb>=1.9",
+]
 
 [build-system]
 requires = ["hatchling"]
