@@ -125,10 +125,9 @@ class GhArchiveSink:
         self.write(stem, ctx, result)
 
     def write(self, stem: str, ctx: FileContext, result: ParseResult) -> None:
+        # The events file is written last: `is_done` checks it, so a crash part-way leaves the
+        # hour not done and the next run parses it again.
         part = f"date={ctx.hour:%Y-%m-%d}"
-        write_rows(
-            result.events, EVENT_SCHEMA, self.silver_dir / "events" / part / f"{stem}.parquet"
-        )
         write_rows(
             result.hour_types,
             HOUR_TYPE_SCHEMA,
@@ -139,6 +138,9 @@ class GhArchiveSink:
             write_rows(result.quarantine, QUARANTINE_SCHEMA, qpath)
         else:
             qpath.unlink(missing_ok=True)  # a re-parse that is now clean
+        write_rows(
+            result.events, EVENT_SCHEMA, self.silver_dir / "events" / part / f"{stem}.parquet"
+        )
         self.totals["files"] += 1
         self.totals["events"] += len(result.events)
         self.totals["quarantined"] += len(result.quarantine)

@@ -193,7 +193,10 @@ def parse_gharchive(
         except driftmod.DriftError as exc:
             failed += 1
             typer.echo(f"drift: {exc}", err=True)
-    typer.echo(" ".join(f"parsed_{k}={v}" for k, v in sink.totals.items()) + f" drift={failed}")
+        except Exception as exc:  # one bad file (corrupt gzip, ...) must not stop the batch
+            failed += 1
+            typer.echo(f"error: {path.name}: {exc!r}"[:300], err=True)
+    typer.echo(" ".join(f"parsed_{k}={v}" for k, v in sink.totals.items()) + f" failed={failed}")
     if failed:
         raise typer.Exit(1)
 
@@ -227,7 +230,10 @@ def parse_files(
         except driftmod.DriftError as exc:
             failed += 1
             typer.echo(f"drift: {exc}", err=True)
-    typer.echo(" ".join(f"parsed_{k}={v}" for k, v in sink.totals.items()) + f" drift={failed}")
+        except Exception as exc:  # one bad file (corrupt gzip, ...) must not stop the batch
+            failed += 1
+            typer.echo(f"error: {path.name}: {exc!r}"[:300], err=True)
+    typer.echo(" ".join(f"parsed_{k}={v}" for k, v in sink.totals.items()) + f" failed={failed}")
     if failed:
         raise typer.Exit(1)
 
@@ -247,6 +253,9 @@ def parse_learn_drift(
         shape = [f for f in result.drift if f.kind == "era_shape"]
         if shape:
             typer.echo(f"not learned, era shape: {shape[0].line()}", err=True)
+            raise typer.Exit(1)
+        if result.quarantine:  # learn only from hours whose every record parsed
+            typer.echo(f"not learned, {len(result.quarantine)} quarantined: {path.name}", err=True)
             raise typer.Exit(1)
         added = result.observer.merge_into(registry, ctx.era)
         typer.echo(f"{path.name} {ctx.era}: {result.lines} lines, {added} new entries")
@@ -356,6 +365,7 @@ def _glob(root: Path, rel: str) -> tuple[str, bool]:
 @quality_app.command("contracts")
 def quality_contracts(
     root: Path = typer.Option(DATA_DIR, help="Data directory holding silver/ and quarantine/."),
+    require_all: bool = typer.Option(False, help="Fail if any contract's table has no rows (CI)."),
 ) -> None:
     """Test every ODCS contract in contracts/ with datacontract-cli; fail on any violation."""
     from keystone.quality.contracts import contract_files, load_contract, run_contract
@@ -365,6 +375,7 @@ def quality_contracts(
         rows, present = _glob(root, load_contract(path)["servers"][0]["path"])
         if not present:
             typer.echo(f"{path.name}: no rows under {rows} (skipped)")
+            bad += require_all
             continue
         result = run_contract(path, rows)
         status = "ok" if result.ok else "FAILED"
