@@ -2,11 +2,6 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
-## ADR-015 (2026-10-20) gh CLI allowed (owner)
-- Owner amended the brief: `gh` may be used on Keystone repos (CI status, runs, issues, PRs).
-- Guard: run `gh api user --jq .login` first; proceed only if it prints `azzammasood` (the keyring
-  also holds azzamverse). Still never `gh repo create`, visibility or settings changes without asking.
-
 ## ADR-018 (2026-10-20) OSV increments: head of modified_id.csv plus ecosystem zips as baseline
 - Context: `modified_id.csv` is 151 MB, sorted newest first, and is rewritten often (its ETag
   changed within an hour on 2026-10-20). `all.zip` is 2.78 GB.
@@ -37,6 +32,11 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   (`--head-only`) maps sizes cheaply without downloading. Files are deleted after the `on_file`
   hook unless `--keep`; the disk guard (budget = 70% of free disk, optionally lower) is a hard stop.
 - Limitation: DuckDB holds a file lock, so `gaps`/`status` cannot run during an ingest.
+
+## ADR-015 (2026-10-20) gh CLI allowed (owner)
+- Owner amended the brief: `gh` may be used on Keystone repos (CI status, runs, issues, PRs).
+- Guard: run `gh api user --jq .login` first; proceed only if it prints `azzammasood` (the keyring
+  also holds azzamverse). Still never `gh repo create`, visibility or settings changes without asking.
 
 ## ADR-014 (2026-10-20) Provisional lakehouse components (confirm in Phases 4-5)
 - Catalog: **Lakekeeper** over Polaris (Rust single binary plus Postgres, smaller memory footprint on a
