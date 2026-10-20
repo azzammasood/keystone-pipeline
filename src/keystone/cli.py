@@ -474,14 +474,22 @@ def stream_produce(
     root: Path = typer.Option(DATA_DIR, help="Data directory holding silver/."),
     topic: str = typer.Option("keystone.gharchive.events.v1", help="Kafka topic."),
     fresh: bool = typer.Option(False, help="Delete and recreate the topic first."),
+    shuffle_seed: int = typer.Option(
+        None, help="Replay hours in a seeded random order (late-data test) instead of event time."
+    ),
 ) -> None:
     """Replay silver hours into Redpanda (Avro, schema registry), in event-time order."""
+    import random
+
     from keystone.rollup import stream as st
 
     if fresh:
         st.delete_topic(st.DEFAULT_BOOTSTRAP, topic)
     st.ensure_topic(st.DEFAULT_BOOTSTRAP, topic)
     files = st.files_in_event_order(root / "silver" / "gharchive")
+    if shuffle_seed is not None:
+        random.Random(shuffle_seed).shuffle(files)
+        typer.echo("order: " + " ".join(p.stem.rsplit("-", 1)[1] for p in files))
     stats = st.produce(files, topic)
     rate = stats.records / stats.seconds if stats.seconds else 0.0
     _log_run(root, {"engine": "redpanda", "topic": topic, **vars(stats)})
