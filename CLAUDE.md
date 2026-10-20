@@ -74,7 +74,7 @@ src/keystone/            cli.py (Typer), paths.py, policy.py, machine.py
                          profile lineage telemetry narrate export (created when a phase needs them)
 config/                  policy.yml (UA, limits, disk budget); later sources.yml, incidents.yml
 contracts/               ODCS contracts (*.odcs.yaml) and drift/gharchive.yml (learned registry)
-dbt/ metadata/ compose/  (filled in from Phase 4 on)
+dbt/ metadata/ compose/  (filled in by later phases)
 tests/                   tests/fixtures/ (small, committed), tests/parity/ (Flink vs DuckDB)
 docs/                    PLAN, PROGRESS, DECISIONS, roshni-patterns, reviews/
 data/                    generated, git-ignored

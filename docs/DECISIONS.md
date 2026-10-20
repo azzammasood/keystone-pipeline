@@ -26,9 +26,14 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   written, a value-free report goes to `data/quality/drift/`, and the manifest marks the hour
   `error` so the next run retries it. `keystone parse learn-drift` adds a reviewed sample to the
   registry; its git diff is the review.
-- Measured: a 6-hour baseline flagged 49 of 123 sample hours (rare types, null-only fields). A
+- Measured: a 6-hour baseline flagged 49 of the 123 hours kept at that point (rare types,
+  null-only fields). A
   backfill will hit drift in hours unlike the samples; that is the intended stop, not a bug.
   Phase 9 learns from a stratified sample (one day per quarter) before the run.
+- Known edge (review): a late event inside an E3 file created before the trim instant but
+  without `payload.size` would fail its hour on every retry. None was seen in the sampled E3
+  hours; Phase 9 measures late pushes before the backfill and either handles them or keeps them
+  as drift with an ADR. `learn-drift` refuses hours with quarantined records.
 
 ## ADR-021 (2026-10-20) Completeness boundaries refined from parsed counts
 - C2 starts 2025-05-23 16h (was 18h): capture falls inside 16h from about 16:35Z (per-minute
@@ -43,8 +48,9 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - E1 starts at file 2012-03-10 09h (E0 ends at 08h, which holds one event; 09h to 21h are empty;
   the first E1 data is 22h). E1 file names are Pacific-local hours (DST included), so the E1 files
   of 2014-12-31 16h-23h cover 2015-01-01 00:00 to 08:00 UTC, which E2 files also cover.
-- Rule for rollups (Phase 4): event-time windows take E2 rows from 2015-01-01 00:00Z and drop E1
-  rows with `created_at >= 2015-01-01 00:00Z`. Silver keeps both, faithful to the source.
+- Rule for rollups (the first phase that aggregates events): event-time windows take E2 rows
+  from 2015-01-01 00:00Z and drop E1 rows with `created_at >= 2015-01-01 00:00Z`. Silver keeps
+  both, faithful to the source.
 - E3 starts at file 2025-10-08 17h. GitHub's payload trim is an instant, 2025-10-08 16:59:22Z
   (`payload_trim_at`): push shape is checked against each event's created_at, not the file era.
 - Early E1 `created_at` uses `YYYY/MM/DD HH:MM:SS -0800` until 2012-06-01 09h, and `public` may be

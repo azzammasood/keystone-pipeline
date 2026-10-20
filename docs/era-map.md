@@ -27,7 +27,8 @@ the path. `config/sources.yml` (`eras`, `payload_trim_at`) is the machine-readab
 
 - **E1 file names are Pacific-local hours.** File `2012-06-15-12` holds events from 19:01 to 20:01
   UTC; on 2012-03-11 (US DST start) there is no file `-2`. Events inside an E1 file span about
-  xx:05 to xx+1:05 local, not the clock hour.
+  xx:05 to xx+1:05 local, not the clock hour. Silver's `date=` partition and `hour_types.hour`
+  follow the file label; event-time windows must use `created_at` (UTC).
 - **E0 to E1 capture gap:** the last E0 event is 2012-03-10 08:00:00Z (file 08h holds 1 event,
   09h to 21h are empty files of 20 B), and E1 starts at 2012-03-11 06:36Z (file 22h PST): about
   22.6 hours without events.

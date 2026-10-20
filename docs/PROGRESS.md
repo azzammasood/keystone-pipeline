@@ -3,8 +3,8 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
-Phase 2 (ingestion) gate passed and reviewed (`docs/reviews/phase-2.md`); ADR-016 to 018.
-Phases 0 to 2 pushed; `gh` allowed with an identity check (ADR-015).
+Phase 3 (parse, contracts and quality) gate passed and reviewed (`docs/reviews/phase-3.md`);
+ADR-019 to 023. Phases 0 to 3 pushed. Next phase: **Phase 4** (see Next).
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -20,11 +20,23 @@ Phases 0 to 2 pushed; `gh` allowed with an identity check (ADR-015).
   Gate: 2026-10-19 clean (24 new, 232.7 MB streamed and deleted, 46 s); re-run 24 unchanged (304s);
   injected gap (dropped row + 404) reported and healed. Review: 3 major, 8 minor, all fixed.
   CI + Scorecard green on GitHub (run 39384836335, checked with gh as azzammasood).
+- 2026-10-20 Phase 3 parse: era-aware parser (E0-E3) to typed Parquet via pydantic, privacy at
+  read time (salted HMAC keys, allow-list projection), quarantine without content, drift registry
+  that fails the hour, 3 ODCS contracts (datacontract-cli) and GX suites, golden tests on the
+  oracle hours, scrubbed fixtures for every era. Gate: 152 sample hours from every era parse
+  (2,363,426 events, 0 quarantined, 0 drift); seeded drift (6 kinds) and seeded contract/GX
+  violations are caught; CI green (run 39394423463: lint-test, contracts, security).
+  Measured boundaries: E1 from 2012-03-10 09h (Pacific file names, E1/E2 8 h overlap), E3 from
+  2025-10-08 17h with the push trim at 16:59:22Z, C2 from 2025-05-23 16h, C3 from 2025-10-14 21h.
 
 ## Next
-1. Phase 3 parsing: plug parsers into `ingest_hours(on_file=...)` (Parquet + quarantine, era-aware,
-   ADR-013 privacy at read time); refine completeness boundaries from parsed counts.
-2. Backfill (Phase 9) still waits on the owner (disk below 50 GB). Do not start it.
+1. **Phase 4** (next in the brief). Inputs from Phase 3: silver `events`/`hour_types` Parquet with
+   lineage; event-time windows use `created_at` and drop E1 rows from 2015-01-01 00:00Z (ADR-020);
+   C4/C5 starts are still bracketed (ADR-021); lakehouse components to confirm (ADR-014).
+2. Owner: set the production `KEYSTONE_ACTOR_SALT` as a secret before any non-sample parse (the
+   local one in `.env` is for samples only; changing it changes every actor key).
+3. Backfill (Phase 9) still waits on the owner (disk below 50 GB). Do not start it. Before it:
+   learn drift from a stratified sample, measure late pushes (ADR-022), parallelise parsing.
 
 ## Blockers (hard stops)
 - GH Archive completeness after 2025-05-23 (ADR-012): the owner should know activity signals end there.
@@ -50,3 +62,6 @@ Phases 0 to 2 pushed; `gh` allowed with an identity check (ADR-015).
 | 2026-10-20 | Re-run of a checked day (304s, 2 req/s) | 25 requests, 14 s, 0 B |
 | 2026-10-20 | GAP start (HEAD scan) | 2025-10-08 17h (17h-03h: 109 to 250 KB per hour) |
 | 2026-10-20 | OSV first increment / next | 1 MB head, 19,144 rows / one 256 KB chunk |
+| 2026-10-20 | Parse throughput (1 core, E3 hour, drift on) | 25k to 27k events/s |
+| 2026-10-20 | Phase 3 downloads (samples, probes; deleted after) | about 1.5 GB (estimate summed from run logs); 8 oracle hours kept (167 MB) |
+| 2026-10-20 | Disk free after Phase 3 (C:) | 25 GB (df) |

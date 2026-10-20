@@ -64,14 +64,15 @@ full days 2011-02-12 (E0), 2012-03-10 22h to 2012-03-11 21h, 2012-06-15, 2014-12
 - Golden: the 8 kept oracle hours parse to exactly the oracle event counts, per-type counts and
   created_at range (UTC), with 0 quarantine and 0 drift (`tests/test_golden.py`).
 - Drift baseline experiment: a registry learned from 6 oracle hours (one per era step) flagged 49
-  of 123 sample hours (rare event types such as ForkApplyEvent and PullRequestReviewEvent, fields
-  seen only as null in the baseline). After learning all samples (1,420 lines in
-  `contracts/drift/gharchive.yml`), 2025-05-23 16h, an unlearned E2 hour, parsed with no drift.
+  of the 123 hours kept at that point (the 6 baseline hours among them) (rare event types such as ForkApplyEvent and PullRequestReviewEvent, fields
+  seen only as null in the baseline). After learning all samples (1,468 lines in
+  `contracts/drift/gharchive.yml` at the end of Phase 3), 2025-05-23 16h, an unlearned E2 hour, parsed with no drift.
 - Throughput (one core, E3 hour 2026-10-19 12h, 46,849 events): 25k to 27k events/s with drift
   checks; row building is about 40% of the time and the drift walk most of the rest. Phase 9
   must parallelise across hours or optimise (raw orjson parse is 315k/s, spike-report section 3).
 - Quality over all sample output: 3 ODCS contracts pass (108 + 36 checks; quarantine had no rows),
-  Great Expectations passed on 298 Parquet files.
+  Great Expectations passed on 304 Parquet files (events and hour_types for 152 parsed
+  hours; one of them, an early-E1 hour, has no events, so the table above counts 151).
 - Boundaries measured (sources.yml, ADR-020/021): E1 from file 2012-03-10 09h (first data 22h);
   created_at format switch at 2012-06-01 09h; E3 from file 2025-10-08 17h with the push trim at
   16:59:22Z; C2 from 2025-05-23 16h (capture falls from about 16:35Z: 4.1k to 2.5k events per
