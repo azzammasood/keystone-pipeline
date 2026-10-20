@@ -54,6 +54,11 @@ uv run keystone machine [--json]          # disk, RAM, CPUs, Docker, disk budget
 uv run keystone ingest gharchive --start 2026-10-19 [--end ..] [--keep] [--head-only]
 uv run keystone ingest gaps --start .. [--end ..] [--json]   # gaps, late, near-empty + period
 uv run keystone ingest osv [--ecosystem PyPI] [--no-zips]   ; uv run keystone ingest status
+uv run keystone parse gharchive --start .. [--end ..]     # parse kept raw hours (needs KEYSTONE_ACTOR_SALT)
+uv run keystone parse files <hour.json.gz>... --root DIR  # local files (fixtures, CI)
+uv run keystone parse learn-drift --start ..              # add kept hours to the drift registry; review diff
+uv run keystone quality contracts|gx [--root DIR]        # ODCS contracts (datacontract-cli) / GX suites
+uv sync --all-groups                      # includes the `quality` group (datacontract-cli, GX)
 uv run pytest                             # network tests skip unless KEYSTONE_NETWORK_TESTS=1
 uv run ruff check . ; uv run ruff format .
 uv run mypy
@@ -64,10 +69,12 @@ uv run pre-commit run --all-files
 ```
 src/keystone/            cli.py (Typer), paths.py, policy.py, machine.py
   fetch/ sources/        polite client + DuckDB manifest; GH Archive + OSV ingestion (Phase 2)
-  planned subpackages:   parsers eras rollup resolve metrics score backtest bench
+  parsers/ quality/      era-aware parser, privacy, drift, Parquet sink; contracts + GX (Phase 3)
+  planned subpackages:   eras rollup resolve metrics score backtest bench
                          profile lineage telemetry narrate export (created when a phase needs them)
 config/                  policy.yml (UA, limits, disk budget); later sources.yml, incidents.yml
-dbt/ contracts/ metadata/ compose/   (filled in from Phase 3 on)
+contracts/               ODCS contracts (*.odcs.yaml) and drift/gharchive.yml (learned registry)
+dbt/ metadata/ compose/  (filled in from Phase 4 on)
 tests/                   tests/fixtures/ (small, committed), tests/parity/ (Flink vs DuckDB)
 docs/                    PLAN, PROGRESS, DECISIONS, roshni-patterns, reviews/
 data/                    generated, git-ignored

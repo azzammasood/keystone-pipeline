@@ -54,6 +54,9 @@ Completeness periods (separate from the schema eras in `era-map.md`):
   from 126 to 74 MB within the day). This matches upstream issue igrigorik/gharchive.org#310.
 - **Gap:** 2025-10-08 about 20h to 2025-10-14. The files exist but hold only 0.1 to 0.4 MB each.
   *Update 2026-10-20 (Phase 2, ADR-017): a HEAD scan shows the near-empty files start at 17h (16h is full).*
+  *Update 2026-10-20 (Phase 3, ADR-021): parsed counts put the C2 drop inside 2025-05-23 16h (from about
+  16:35Z), and the gap ends at 2025-10-14 20h (21h is 30 MB, a full hour). The gap hours already carry
+  trimmed payloads (schema era E3 from 2025-10-08 17h, ADR-020). Spike numbers above are unchanged.*
 - **C3 trimmed:** 2025-10-15 to about 2026-03. GitHub's payload trim applies, and non-push types
   fall further.
 - **C4 push-only:** about 2026-04 to 2026-08. Non-push types fall to near zero (77 PRs in an hour).

@@ -46,6 +46,39 @@ Evidence: `data/spike/boundary_heads.csv` from `scripts/spike/boundary_heads.py`
 | 2011-02-12 | CommitCommentEvent | 410 | 410 | 0 |
 | 2015-06-15 | ReleaseEvent | 2,146 | 2,113 | 33 |
 
+## Phase 3 parse (2026-10-20)
+
+Sample set (all downloads deleted afterwards except the 8 oracle hours used by the golden tests):
+full days 2011-02-12 (E0), 2012-03-10 22h to 2012-03-11 21h, 2012-06-15, 2014-12-31 (E1),
+2015-01-01 (E2), 2026-10-19 (E3), plus hours 2012-03-10 08h, 2013-06-15 12h, 2019-06-15 12h,
+2025-05-23 16h, 2025-10-06 12h, 2025-10-08 16h (E2) and 2025-10-10 12h-13h (E3, near-empty).
+
+| Era | Files with events | Events | Event types | Quarantined | Drift |
+| --- | --- | --- | --- | --- | --- |
+| E0 | 25 | 32,198 | 15 | 0 | 0 |
+| E1 | 72 | 477,389 | 18 | 0 | 0 |
+| E2 | 28 | 808,680 | 15 | 0 | 0 |
+| E3 | 26 | 1,045,159 | 16 | 0 | 0 |
+| All | 151 | 2,363,426 | | 0 | 0 |
+
+- Golden: the 8 kept oracle hours parse to exactly the oracle event counts, per-type counts and
+  created_at range (UTC), with 0 quarantine and 0 drift (`tests/test_golden.py`).
+- Drift baseline experiment: a registry learned from 6 oracle hours (one per era step) flagged 49
+  of 123 sample hours (rare event types such as ForkApplyEvent and PullRequestReviewEvent, fields
+  seen only as null in the baseline). After learning all samples (1,420 lines in
+  `contracts/drift/gharchive.yml`), 2025-05-23 16h, an unlearned E2 hour, parsed with no drift.
+- Throughput (one core, E3 hour 2026-10-19 12h, 46,849 events): 25k to 27k events/s with drift
+  checks; row building is about 40% of the time and the drift walk most of the rest. Phase 9
+  must parallelise across hours or optimise (raw orjson parse is 315k/s, spike-report section 3).
+- Quality over all sample output: 3 ODCS contracts pass (108 + 36 checks; quarantine had no rows),
+  Great Expectations passed on 298 Parquet files.
+- Boundaries measured (sources.yml, ADR-020/021): E1 from file 2012-03-10 09h (first data 22h);
+  created_at format switch at 2012-06-01 09h; E3 from file 2025-10-08 17h with the push trim at
+  16:59:22Z; C2 from 2025-05-23 16h (capture falls from about 16:35Z: 4.1k to 2.5k events per
+  minute); GAP to 2025-10-14 20h, C3 from 21h (HEAD: 20h 0.25 MB, 21h 30.5 MB).
+
 ## Privacy note
-E1 events (2012 to 2014) contain `actor_attributes.email` and `name`. The spike scripts counted only
-key paths and stored no values. Parsers must drop these fields (see era-map.md).
+E1 events (2012 to 2014) contain `actor_attributes.email` and `name` (also `blog`, `company`,
+`location`). The spike scripts counted only key paths and stored no values. The Phase 3 parser is an
+allow-list projection and copies none of them; the committed fixtures are scrubbed (every string
+and id replaced by a counter-based placeholder, emails by `redacted@example.invalid`).

@@ -2,6 +2,69 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-023 (2026-10-20) Contracts with datacontract-cli, expectations with Great Expectations
+- Contracts: ODCS v3.2.0 YAML in `contracts/` (events, hour_types, quarantine), tested by
+  datacontract-cli 1.2.7 (DuckDB over the Parquet files). Column-level rules (required, patterns,
+  valid values) plus SQL rules (one row per source line, key kind per era, ids per era, repo name
+  form, the payload-trim rule). datacontract-cli does not check column types on Parquet (it warns);
+  `tests/test_contracts.py` checks names, types, required and descriptions against the Arrow
+  schemas instead. Any other warning, failure or error fails the run.
+- Expectations: Great Expectations 1.24 (ephemeral context, one Parquet file per batch), for the
+  per-era rules with row conditions (E1 keys by login, offsets only in E1, trimmed pushes by event
+  time). GX usage analytics are switched off in code before import.
+- Both live in the `quality` dependency group. CI: `contracts` job (lint every contract, parse the
+  scrubbed fixtures, run contracts and GX) and the pytest suite (seeded violations must fail).
+- Why both: contracts are the published interface (ODCS, portable to dbt and Databricks later);
+  GX holds cross-column and per-era rules. Each does real work and each caught a seeded violation.
+
+## ADR-022 (2026-10-20) Schema drift: learned registry per era, fail the hour loudly
+- The registry `contracts/drift/gharchive.yml` lists key paths up to 3 levels deep (array
+  elements as `[]`) and JSON types per era and event type; paths outside the payload are shared
+  per era. `null` is accepted anywhere. It holds paths and type names only, never values.
+- An unknown event type, field or type, or a record whose shape does not match its era (or a
+  push whose shape contradicts the payload-trim instant), fails the whole hour: nothing is
+  written, a value-free report goes to `data/quality/drift/`, and the manifest marks the hour
+  `error` so the next run retries it. `keystone parse learn-drift` adds a reviewed sample to the
+  registry; its git diff is the review.
+- Measured: a 6-hour baseline flagged 49 of 123 sample hours (rare types, null-only fields). A
+  backfill will hit drift in hours unlike the samples; that is the intended stop, not a bug.
+  Phase 9 learns from a stratified sample (one day per quarter) before the run.
+
+## ADR-021 (2026-10-20) Completeness boundaries refined from parsed counts
+- C2 starts 2025-05-23 16h (was 18h): capture falls inside 16h from about 16:35Z (per-minute
+  counts); C1 ends at the last complete hour, 15h. GAP ends at 2025-10-14 20h and C3 starts at
+  21h (was 2025-10-15 00h): 21h is 30.5 MB, 20h 0.25 MB.
+- C4 and C5 starts are unchanged: the oracle hours show non-push types falling gradually from
+  2026-03 to 2026-08, not a step, so a cheap exact boundary does not exist. They stay bracketed.
+- `tests/test_ingest.py::test_hour_names_and_periods` pins config boundaries, not a docs oracle;
+  it was updated to the measured values. Spike oracles and data-audit numbers are unchanged.
+
+## ADR-020 (2026-10-20) Schema eras measured; E1/E2 overlap rule
+- E1 starts at file 2012-03-10 09h (E0 ends at 08h, which holds one event; 09h to 21h are empty;
+  the first E1 data is 22h). E1 file names are Pacific-local hours (DST included), so the E1 files
+  of 2014-12-31 16h-23h cover 2015-01-01 00:00 to 08:00 UTC, which E2 files also cover.
+- Rule for rollups (Phase 4): event-time windows take E2 rows from 2015-01-01 00:00Z and drop E1
+  rows with `created_at >= 2015-01-01 00:00Z`. Silver keeps both, faithful to the source.
+- E3 starts at file 2025-10-08 17h. GitHub's payload trim is an instant, 2025-10-08 16:59:22Z
+  (`payload_trim_at`): push shape is checked against each event's created_at, not the file era.
+- Early E1 `created_at` uses `YYYY/MM/DD HH:MM:SS -0800` until 2012-06-01 09h, and `public` may be
+  the integer 0 in 2012-03; both are parsed faithfully, never guessed.
+
+## ADR-019 (2026-10-20) Parser: allow-list projection to typed Parquet, privacy at read time
+- One pydantic model per table (strict, extra fields forbidden); the Arrow schema is derived from
+  the model, so Parquet types cannot drift from it. One Parquet file per source hour and table
+  (`data/silver/gharchive/{events,hour_types}/date=YYYY-MM-DD/`), written atomically, so a re-run
+  overwrites (idempotent). Every row keeps `source_file`, `source_sha256`, `fetched_at` and
+  `source_line`.
+- Privacy: the event row copies only repository-level and event facts. People appear only as
+  `HMAC-SHA256(KEYSTONE_ACTOR_SALT, kind:value)`, first 32 hex characters, by account id (E0, E2,
+  E3) or lower-cased login (E1, `actor_key_kind = login`); PR and issue authors use the same kind.
+  No salt, no run (no default). Bots are flagged (`[bot]` suffix, `config/bots.yml`).
+- Quarantine rows hold the reason, line number, line hash and length, never record content.
+- Ingest hook: `GhArchiveSink` is `on_file`; `is_done` makes ingest fetch and parse hours that
+  were verified before parsing existed (Phase 2), instead of skipping them as unchanged.
+- E0 `repo.name = "/"` (no repository) is stored as null; other malformed names fail the contract.
+
 ## ADR-018 (2026-10-20) OSV increments: head of modified_id.csv plus ecosystem zips as baseline
 - Context: `modified_id.csv` is 151 MB, sorted newest first, and is rewritten often (its ETag
   changed within an hour on 2026-10-20). `all.zip` is 2.78 GB.
