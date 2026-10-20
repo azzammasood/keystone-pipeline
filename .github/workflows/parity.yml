@@ -2,8 +2,8 @@ name: parity
 
 # Engine parity (Phase 4): the DuckDB and Flink rollups must match row for row on shared
 # fixtures, including late and out-of-order events. Needs the compose stack (Redpanda, Flink,
-# Lakekeeper, RustFS), so it runs only when rollup code changes, weekly, or by hand: about
-# 10 runner minutes per run against the free 2,000 a month (private repo).
+# Lakekeeper, RustFS), so it runs only when rollup code changes, weekly, or by hand: measured
+# 2.6 runner minutes (run 39465097650) against the free 2,000 a month (private repo).
 on:
   push:
     branches: [main]

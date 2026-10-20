@@ -4,7 +4,7 @@ Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
 Phase 4 (rollup engines) gate checks pass (parity on fixtures and on a one-day replay); ADR-024 to
-027. Review: `docs/reviews/phase-4.md` (1 major, 13 minor/nit, fixed but one owner question). Next phase: **Phase 5** (see Next).
+027. Review: `docs/reviews/phase-4.md` (1 major, 13 minor/nit, all fixed except one owner question); CI green. Next phase: **Phase 5** (see Next).
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -36,7 +36,10 @@ Phase 4 (rollup engines) gate checks pass (parity on fixtures and on a one-day r
   Gate: parity tests pass on the stack (synthetic late/out-of-order scenario in stream and batch
   mode, the committed fixture hours, live schema compatibility); one-day replay of 2026-10-19
   (1,042,693 events) matches row for row in stream, batch and a shuffled-hours stream run
-  (854,442 late contributions folded). CI: `parity.yml` (path-filtered, weekly).
+  (854,442 late contributions folded). CI: `parity.yml` (path-filtered, weekly). Review: 1 major
+  (re-parse detection), fixed. CI green on 7f5a72c: ci, parity (2.6 min on the runner, stack
+  built from scratch) and scorecard (runs 39465097661, 39465097650, 39465097750; checked with gh
+  as azzammasood).
 
 ## Next
 1. **Phase 5** (next in the brief): Iceberg + REST catalog are running (ADR-027); dbt on dbt-duckdb
