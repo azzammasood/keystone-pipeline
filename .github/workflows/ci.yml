@@ -19,11 +19,47 @@ jobs:
         with:
           enable-cache: true
       - run: uv python install
-      - run: uv sync --frozen
+      - run: uv sync --frozen --all-groups
       - run: uv run ruff check .
       - run: uv run ruff format --check .
       - run: uv run mypy
+      # Golden oracle hours (tests/test_golden.py): about 16 MB, fetched once politely and cached.
+      - id: golden
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: data/raw/gharchive
+          key: golden-${{ hashFiles('tests/fixtures/oracles/gharchive_hours.json') }}-v1
+      - if: steps.golden.outputs.cache-hit != 'true'
+        run: |
+          for h in 2011-02-12T00 2012-06-15T12 2013-06-15T12 2015-01-01T12 2026-10-19T12; do
+            end=$(date -u -d "${h/T/ } +1 hour" +%Y-%m-%dT%H)
+            uv run keystone ingest gharchive --start "$h" --end "$end" --keep --no-parse
+          done
       - run: uv run pytest
+        env:
+          KEYSTONE_ACTOR_SALT: ci-only-salt-not-a-secret-0000
+
+  contracts:
+    runs-on: ubuntu-latest
+    env:
+      # Fixtures are synthetic (scrubbed), so a public salt is fine here and only here.
+      KEYSTONE_ACTOR_SALT: ci-only-salt-not-a-secret-0000
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --frozen --all-groups
+      - run: |
+          for c in contracts/*.odcs.yaml; do uv run datacontract lint "$c"; done
+      - run: >-
+          uv run keystone parse files tests/fixtures/gharchive/*.json.gz
+          tests/fixtures/gharchive/quarantine/*.json.gz --root ci-data
+      - run: uv run keystone quality contracts --root ci-data
+      - run: uv run keystone quality gx --root ci-data
 
   security:
     runs-on: ubuntu-latest
