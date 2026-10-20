@@ -24,7 +24,7 @@ MockTransport.
 | n3 | nit | `ingest osv` never exited non-zero | Fixed: exit 1 on a zip error, exit 2 on the disk budget |
 | n4 | nit | Bad lines just above the cursor are quarantined again on every run | Accepted: harmless; none seen live |
 | n5 | nit | A robots.txt 3xx is treated as allow-all | Accepted: neither host redirects robots.txt; revisit if a new host does |
-| n6 | nit | The DuckDB manifest is locked during a run, so `gaps`/`status` cannot run at the same time | Accepted: documented in ADR-015 |
+| n6 | nit | The DuckDB manifest is locked during a run, so `gaps`/`status` cannot run at the same time | Accepted: documented in ADR-016 |
 
 ## Recheck
 After the fixes: ruff, mypy (strict) and pre-commit are clean, 27 tests pass (1 network test is

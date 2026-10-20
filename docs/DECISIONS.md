@@ -7,7 +7,7 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - Guard: run `gh api user --jq .login` first; proceed only if it prints `azzammasood` (the keyring
   also holds azzamverse). Still never `gh repo create`, visibility or settings changes without asking.
 
-## ADR-017 (2026-10-20) OSV increments: head of modified_id.csv plus ecosystem zips as baseline
+## ADR-018 (2026-10-20) OSV increments: head of modified_id.csv plus ecosystem zips as baseline
 - Context: `modified_id.csv` is 151 MB, sorted newest first, and is rewritten often (its ETag
   changed within an hour on 2026-10-20). `all.zip` is 2.78 GB.
 - Choice: read the head in 256 KB Range chunks until the stored cursor (nanosecond timestamp
@@ -18,13 +18,13 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   are quarantined.
 - Measured: the first run read 1 MB (19,144 rows); later runs read one chunk.
 
-## ADR-016 (2026-10-20) GAP period starts at 2025-10-08 17h (measured)
+## ADR-017 (2026-10-20) GAP period starts at 2025-10-08 17h (measured)
 - A Phase 2 HEAD-only scan found that 2025-10-08 17h, 18h and 19h are already near-empty
   (166 to 250 KB), while 16h was 97 MB (era-map). `config/sources.yml` now starts GAP at 17h
   instead of the bracketed "about 20h". Spike oracles are unchanged; spike-report section 4
   carries a dated note.
 
-## ADR-015 (2026-10-20) Ingestion manifest in DuckDB; stream and delete by default
+## ADR-016 (2026-10-20) Ingestion manifest in DuckDB; stream and delete by default
 - Options: JSONL log, SQLite, DuckDB. Choice: **DuckDB** (`data/manifest/manifest.duckdb`, already
   a dependency): `files` holds one row per URL, idempotent `INSERT OR REPLACE`, and `checks` is an
   append-only log. Each check commits on its own, so an interrupted run resumes. Timestamps are

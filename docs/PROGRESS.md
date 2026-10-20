@@ -3,8 +3,8 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
-Phase 1 (spike) written: `docs/spike-report.md`, `era-map.md`, `data-audit.md`; ADR-009 to 014.
-Phase 0 and 1 pushed; `gh` now allowed with an identity check (ADR-015).
+Phase 2 (ingestion) gate passed and reviewed (`docs/reviews/phase-2.md`); ADR-016 to 018.
+Phases 0 to 2 pushed; `gh` allowed with an identity check (ADR-015).
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
