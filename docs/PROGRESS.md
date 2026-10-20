@@ -19,6 +19,7 @@ Phases 0 to 2 pushed; `gh` allowed with an identity check (ADR-015).
   detection with completeness period, OSV Range increments + zips. 27 tests (MockTransport).
   Gate: 2026-10-19 clean (24 new, 232.7 MB streamed and deleted, 46 s); re-run 24 unchanged (304s);
   injected gap (dropped row + 404) reported and healed. Review: 3 major, 8 minor, all fixed.
+  CI + Scorecard green on GitHub (run 39384836335, checked with gh as azzammasood).
 
 ## Next
 1. Phase 3 parsing: plug parsers into `ingest_hours(on_file=...)` (Parquet + quarantine, era-aware,
