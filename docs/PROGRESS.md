@@ -14,10 +14,16 @@ Phase 0 and 1 pushed; `gh` now allowed with an identity check (ADR-015).
 - 2026-10-20 Phase 0 pushed to `origin/main`; review in `docs/reviews/phase-0.md` (1 major, 4 minor, all fixed).
 - 2026-10-20 Phase 1 spike: 33 sample hours (1.31 GB downloaded, all deleted), 822-hour HEAD sweep,
   OSV, ecosyste.ms, deps.dev, HF mirror, tooling versions. Oracles frozen (tests/test_oracles.py).
+- 2026-10-20 Phase 2 ingestion: `keystone ingest gharchive|gaps|osv|status`; polite async client
+  (policy limits, robots, retries, MD5-verified conditional GET), DuckDB manifest, gap/late/near-empty
+  detection with completeness period, OSV Range increments + zips. 27 tests (MockTransport).
+  Gate: 2026-10-19 clean (24 new, 232.7 MB streamed and deleted, 46 s); re-run 24 unchanged (304s);
+  injected gap (dropped row + 404) reported and healed. Review: 3 major, 8 minor, all fixed.
 
 ## Next
-1. Phase 1 independent review -> `docs/reviews/phase-1.md`.
-2. Phase 2 ingestion (hourly manifest, resumable, gap and late-file detection, OSV incremental).
+1. Phase 3 parsing: plug parsers into `ingest_hours(on_file=...)` (Parquet + quarantine, era-aware,
+   ADR-013 privacy at read time); refine completeness boundaries from parsed counts.
+2. Backfill (Phase 9) still waits on the owner (disk below 50 GB). Do not start it.
 
 ## Blockers (hard stops)
 - GH Archive completeness after 2025-05-23 (ADR-012): the owner should know activity signals end there.
@@ -39,3 +45,7 @@ Phase 0 and 1 pushed; `gh` now allowed with an identity check (ADR-015).
 | 2026-10-20 | GH Archive download, single stream | median 6.96 MB/s (1.94 to 10.64) |
 | 2026-10-20 | Parse: orjson / DuckDB | 315k events/s / 107 MB JSON/s (medians) |
 | 2026-10-20 | Archive size estimate (gz) | about 4.86 TB total (backfill window, ADR-009); to 2025-05-23 about 4.25 TB |
+| 2026-10-20 | GH Archive day 2026-10-19 (24 h, gz) | 232.7 MB; 46 s at 2 streams |
+| 2026-10-20 | Re-run of a checked day (304s, 2 req/s) | 25 requests, 14 s, 0 B |
+| 2026-10-20 | GAP start (HEAD scan) | 2025-10-08 17h (17h-03h: 109 to 250 KB per hour) |
+| 2026-10-20 | OSV first increment / next | 1 MB head, 19,144 rows / one 256 KB chunk |

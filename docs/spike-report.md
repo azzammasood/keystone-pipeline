@@ -53,6 +53,7 @@ Completeness periods (separate from the schema eras in `era-map.md`):
 - **C2 reduced:** from 2025-05-23 (bracketed 12h to 18h), every major type drops 35 to 43% at once (gz size goes
   from 126 to 74 MB within the day). This matches upstream issue igrigorik/gharchive.org#310.
 - **Gap:** 2025-10-08 about 20h to 2025-10-14. The files exist but hold only 0.1 to 0.4 MB each.
+  *Update 2026-10-20 (Phase 2, ADR-016): a HEAD scan shows the near-empty files start at 17h (16h is full).*
 - **C3 trimmed:** 2025-10-15 to about 2026-03. GitHub's payload trim applies, and non-push types
   fall further.
 - **C4 push-only:** about 2026-04 to 2026-08. Non-push types fall to near zero (77 PRs in an hour).

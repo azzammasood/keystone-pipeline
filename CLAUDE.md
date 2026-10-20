@@ -51,6 +51,9 @@ Gates auto-advance when clean. Update PROGRESS.md at every gate and before long 
 uv sync ; uv run pre-commit install       # install (Python 3.12) + git hooks
 uv run keystone --help
 uv run keystone machine [--json]          # disk, RAM, CPUs, Docker, disk budget
+uv run keystone ingest gharchive --start 2026-10-19 [--end ..] [--keep] [--head-only]
+uv run keystone ingest gaps --start .. [--end ..] [--json]   # gaps, late, near-empty + period
+uv run keystone ingest osv [--ecosystem PyPI] [--no-zips]   ; uv run keystone ingest status
 uv run pytest                             # network tests skip unless KEYSTONE_NETWORK_TESTS=1
 uv run ruff check . ; uv run ruff format .
 uv run mypy
@@ -60,7 +63,8 @@ uv run pre-commit run --all-files
 ## Layout
 ```
 src/keystone/            cli.py (Typer), paths.py, policy.py, machine.py
-  planned subpackages:   sources fetch parsers eras rollup resolve metrics score backtest bench
+  fetch/ sources/        polite client + DuckDB manifest; GH Archive + OSV ingestion (Phase 2)
+  planned subpackages:   parsers eras rollup resolve metrics score backtest bench
                          profile lineage telemetry narrate export (created when a phase needs them)
 config/                  policy.yml (UA, limits, disk budget); later sources.yml, incidents.yml
 dbt/ contracts/ metadata/ compose/   (filled in from Phase 3 on)
