@@ -99,3 +99,65 @@ class HourTypeRow(_Row):
     events: int = Field(ge=0)
     created_at_min: Utc
     created_at_max: Utc
+
+
+# OSV (one zip per ecosystem). Allow-list again: no `details`, `summary`, `credits` (people) or
+# `database_specific.iocs`; only identifiers, dates, severity labels and package/repo pointers.
+RepoRefKind = Literal["git_range", "fix_reference"]
+
+
+class _OsvRow(_Row):
+    source_file: str
+    source_sha256: Sha256
+    fetched_at: Utc
+    source_member: str
+
+
+class OsvVulnRow(_OsvRow):
+    """One OSV record."""
+
+    vuln_id: str
+    schema_version: str | None
+    published_at: Utc | None
+    modified_at: Utc
+    withdrawn_at: Utc | None
+    alias_count: int = Field(ge=0)
+    affected_count: int = Field(ge=0)
+    is_malicious: bool
+    severity_label: str | None
+    cvss_v3_vector: str | None
+    cvss_v4_vector: str | None
+    github_reviewed: bool | None
+
+
+class OsvAffectedRow(_OsvRow):
+    """One `affected[]` entry: the package and whether a fixed version is known."""
+
+    vuln_id: str
+    affected_index: int = Field(ge=0)
+    ecosystem: str
+    package_name: str
+    purl: str | None
+    range_count: int = Field(ge=0)
+    version_count: int = Field(ge=0)
+    has_fixed: bool
+
+
+class OsvRepoRefRow(_OsvRow):
+    """A pointer from a record to a source repository: a GIT range of one affected package, or
+    a FIX reference of the whole record (`affected_index` null)."""
+
+    vuln_id: str
+    affected_index: int | None
+    kind: RepoRefKind
+    url: str
+    repo_host: str
+    repo_full_name: str  # owner/name, lower case (GitHub names are case-insensitive)
+
+
+class OsvQuarantineRow(_OsvRow):
+    """An unparseable OSV record; no record content (credits may name people)."""
+
+    reason: str
+    member_sha256: Sha256
+    member_bytes: int = Field(ge=0)

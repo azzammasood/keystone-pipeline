@@ -291,8 +291,8 @@ async def fetch_zips(
     """Conditional, MD5-verified download of `<ecosystem>/all.zip`; files are kept."""
     results: list[ZipResult] = []
     for ecosystem in ecosystems:
-        url = cfg.base_url.rstrip("/") + f"/{quote(ecosystem)}/all.zip"
-        dest = out_dir / "zips" / _safe_dir(ecosystem) / "all.zip"
+        url = zip_url(cfg, ecosystem)
+        dest = out_dir / "zips" / safe_dir(ecosystem) / "all.zip"
         previous = manifest.get(url)
         conditional = previous is not None and previous.sha256 is not None and dest.exists()
         fetched_at = datetime.now(UTC)
@@ -330,7 +330,11 @@ async def fetch_zips(
     return results
 
 
-def _safe_dir(ecosystem: str) -> str:
+def zip_url(cfg: OsvConfig, ecosystem: str) -> str:
+    return cfg.base_url.rstrip("/") + f"/{quote(ecosystem)}/all.zip"
+
+
+def safe_dir(ecosystem: str) -> str:
     """`Debian:11` -> `Debian_11`: no NTFS stream separators or path characters."""
     return re.sub(r"[^A-Za-z0-9._-]", "_", ecosystem)
 

@@ -20,7 +20,16 @@ from pydantic import BaseModel
 from keystone.fetch.manifest import FileRecord
 from keystone.parsers.drift import DriftError, Registry
 from keystone.parsers.gharchive import FileContext, ParseResult, parse_file
-from keystone.parsers.models import EventRow, HourTypeRow, QuarantineRow
+from keystone.parsers.models import (
+    EventRow,
+    HourTypeRow,
+    OsvAffectedRow,
+    OsvQuarantineRow,
+    OsvRepoRefRow,
+    OsvVulnRow,
+    QuarantineRow,
+)
+from keystone.parsers.osv import OsvResult
 from keystone.parsers.privacy import ActorHasher
 from keystone.sources import GhArchiveConfig
 from keystone.sources.gharchive import hour_name
@@ -154,3 +163,28 @@ class GhArchiveSink:
             "findings": [f.__dict__ for f in result.drift],
         }
         (self.drift_dir / f"{stem}.json").write_text(json.dumps(report, indent=1), "utf-8")
+
+
+OSV_SCHEMAS = {
+    "vulns": arrow_schema(OsvVulnRow),
+    "affected": arrow_schema(OsvAffectedRow),
+    "repo_refs": arrow_schema(OsvRepoRefRow),
+}
+OSV_QUARANTINE_SCHEMA = arrow_schema(OsvQuarantineRow)
+
+
+def write_osv(name: str, result: OsvResult, silver_dir: Path, quarantine_dir: Path) -> None:
+    """One file per ecosystem zip and table (`<table>/<name>.parquet`), replaced atomically, so
+    a re-parse of a newer zip overwrites the old rows. `vulns` is written last (done marker)."""
+    write_rows(
+        result.affected, OSV_SCHEMAS["affected"], silver_dir / "affected" / f"{name}.parquet"
+    )
+    write_rows(
+        result.repo_refs, OSV_SCHEMAS["repo_refs"], silver_dir / "repo_refs" / f"{name}.parquet"
+    )
+    qpath = quarantine_dir / f"{name}.parquet"
+    if result.quarantine:
+        write_rows(result.quarantine, OSV_QUARANTINE_SCHEMA, qpath)
+    else:
+        qpath.unlink(missing_ok=True)
+    write_rows(result.vulns, OSV_SCHEMAS["vulns"], silver_dir / "vulns" / f"{name}.parquet")
