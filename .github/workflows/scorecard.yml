@@ -1,5 +1,6 @@
 # OpenSSF Scorecard: Keystone applies to itself what it measures in others.
-# Results are published to the Scorecard API only once the repo is public.
+# Publishing and SARIF upload need a public repo: set repo variable KEYSTONE_PUBLIC=true
+# when the repo goes public (schedule payloads carry no repository.private flag).
 name: scorecard
 
 on:
@@ -25,7 +26,7 @@ jobs:
         with:
           results_file: results.sarif
           results_format: sarif
-          publish_results: ${{ !github.event.repository.private }}
+          publish_results: ${{ vars.KEYSTONE_PUBLIC == 'true' }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: scorecard-sarif
@@ -33,6 +34,6 @@ jobs:
           retention-days: 14
       - uses: github/codeql-action/upload-sarif@6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee # v4.39.0
         # Code scanning is free on public repos only; skip upload while private.
-        if: ${{ !github.event.repository.private }}
+        if: ${{ vars.KEYSTONE_PUBLIC == 'true' }}
         with:
           sarif_file: results.sarif

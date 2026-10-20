@@ -2,8 +2,8 @@
 
 Open-source supply-chain risk radar on GH Archive + OSV + a package-to-repo mapping. Backend only
 in this repo; the site (`keystone-site`) comes later. The full brief lives outside git; its rules
-are summarised here. Long facts go in `docs/` (`spike-report.md`, `era-map.md`, `data-audit.md`,
-`benchmarks.md`). Decisions: `docs/DECISIONS.md` (ADRs). Status and resume point: `docs/PROGRESS.md`.
+are summarised here. Long facts go in `docs/` (`spike-report.md`, `era-map.md`, `data-audit.md` from Phase 1;
+`benchmarks.md` from Phase 9). Decisions: `docs/DECISIONS.md` (ADRs). Status and resume point: `docs/PROGRESS.md`.
 
 ## Hard rules
 - **Privacy:** repository and package level only. Never publish, rank or label people. No raw logins
@@ -46,7 +46,7 @@ Gates auto-advance when clean. Update PROGRESS.md at every gate and before long 
 
 ## Commands (PowerShell or Git Bash)
 ```
-uv sync                                   # install (Python 3.12)
+uv sync ; uv run pre-commit install       # install (Python 3.12) + git hooks
 uv run keystone --help
 uv run keystone machine [--json]          # disk, RAM, CPUs, Docker, disk budget
 uv run pytest                             # network tests skip unless KEYSTONE_NETWORK_TESTS=1

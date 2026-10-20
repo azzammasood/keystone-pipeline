@@ -15,7 +15,8 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 ## ADR-006 (2026-10-20) Scorecard while private
 - Context: Scorecard publishing and code-scanning SARIF upload need a public repo (or paid GHAS).
 - Choice: workflow runs now, keeps SARIF as an artifact; publish + upload switch on automatically
-  when the repo becomes public (`github.event.repository.private`). Why: $0, no later edit needed.
+  when repo variable `KEYSTONE_PUBLIC=true` is set at go-public (review finding: schedule
+  payloads have no `repository.private`). Why: $0, one switch at launch.
 
 ## ADR-005 (2026-10-20) Type checker: mypy (strict on `src/`)
 - Options: mypy, pyright, ty. Choice: mypy. Why: most widely known in data-engineering teams,

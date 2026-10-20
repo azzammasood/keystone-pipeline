@@ -6,7 +6,9 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "duckdb>=1.5.6",
     "httpx>=0.28",
+    "orjson>=3.13.0",
     "psutil>=6.0",
     "pydantic>=2.8",
     "pyyaml>=6.0",

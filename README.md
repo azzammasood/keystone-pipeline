@@ -15,8 +15,9 @@ Not affiliated with GitHub, GH Archive, OSV or any project maintainer.
 
 ```
 uv sync
+uv run pre-commit install
 uv run keystone --help
-uv run pytest
+uv run ruff check . ; uv run mypy ; uv run pytest
 ```
 
 License: MIT.
