@@ -25,7 +25,8 @@ ADR-019 to 023. Phases 0 to 3 pushed. Next phase: **Phase 4** (see Next).
   that fails the hour, 3 ODCS contracts (datacontract-cli) and GX suites, golden tests on the
   oracle hours, scrubbed fixtures for every era. Gate: 152 sample hours from every era parse
   (2,363,426 events, 0 quarantined, 0 drift); seeded drift (6 kinds) and seeded contract/GX
-  violations are caught; CI green (run 39394423463: lint-test, contracts, security).
+  violations are caught; CI green (runs 39394423463 and, after the review fixes, 39456605593:
+  lint-test, contracts, security; checked with gh as azzammasood).
   Measured boundaries: E1 from 2012-03-10 09h (Pacific file names, E1/E2 8 h overlap), E3 from
   2025-10-08 17h with the push trim at 16:59:22Z, C2 from 2025-05-23 16h, C3 from 2025-10-14 21h.
 
