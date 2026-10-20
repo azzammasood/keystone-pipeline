@@ -139,12 +139,21 @@ def test_hour_names_and_periods() -> None:
     assert gha.hour_name(datetime(2015, 1, 1, 0, tzinfo=UTC)) == "2015-01-01-0.json.gz"
     assert gha.hour_name(datetime(2015, 1, 1, 15, tzinfo=UTC)) == "2015-01-01-15.json.gz"
     p = CFG.period_for
-    assert p(datetime(2025, 5, 23, 17, tzinfo=UTC)) == "C1"
-    assert p(datetime(2025, 5, 23, 18, tzinfo=UTC)) == "C2"
+    # Boundaries refined in Phase 3 from parsed counts (ADR-021): C2 from 16h, C3 from 10-14 21h.
+    assert p(datetime(2025, 5, 23, 15, tzinfo=UTC)) == "C1"
+    assert p(datetime(2025, 5, 23, 16, tzinfo=UTC)) == "C2"
     assert p(datetime(2025, 10, 8, 16, tzinfo=UTC)) == "C2"
     assert p(datetime(2025, 10, 8, 17, tzinfo=UTC)) == "GAP"  # measured in the Phase 2 gate
-    assert p(datetime(2025, 10, 15, 0, tzinfo=UTC)) == "C3"
+    assert p(datetime(2025, 10, 14, 20, tzinfo=UTC)) == "GAP"
+    assert p(datetime(2025, 10, 14, 21, tzinfo=UTC)) == "C3"
     assert p(datetime(2026, 10, 19, tzinfo=UTC)) == "C5"
+    e = CFG.era_for  # schema eras, measured in Phase 3 (ADR-020)
+    assert e(datetime(2012, 3, 10, 8, tzinfo=UTC)) == "E0"
+    assert e(datetime(2012, 3, 10, 9, tzinfo=UTC)) == "E1"
+    assert e(datetime(2014, 12, 31, 23, tzinfo=UTC)) == "E1"
+    assert e(datetime(2015, 1, 1, 0, tzinfo=UTC)) == "E2"
+    assert e(datetime(2025, 10, 8, 16, tzinfo=UTC)) == "E2"
+    assert e(datetime(2025, 10, 8, 17, tzinfo=UTC)) == "E3"
 
 
 def test_clean_day_then_rerun_is_unchanged(manifest: Manifest, tmp_path: Path) -> None:
