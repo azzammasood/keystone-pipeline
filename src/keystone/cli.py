@@ -3,25 +3,35 @@
 import asyncio
 import json as jsonlib
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import typer
 
 from keystone import __version__
 from keystone.fetch.client import DiskBudgetExceeded, DiskGuard, PoliteClient
-from keystone.fetch.manifest import Manifest
+from keystone.fetch.manifest import FileRecord, Manifest
 from keystone.machine import measure
-from keystone.paths import DATA_DIR, REPO_ROOT
+from keystone.parsers import drift as driftmod
+from keystone.parsers.gharchive import parse_file
+from keystone.parsers.parquet import GhArchiveSink
+from keystone.parsers.privacy import ActorHasher, SaltMissing, salt_from_env
+from keystone.paths import DATA_DIR, QUALITY_DIR, QUARANTINE_DIR, REPO_ROOT, SILVER_DIR
 from keystone.policy import load_policy
+from keystone.sources import GhArchiveConfig, load_sources, osv
 from keystone.sources import gharchive as gha
-from keystone.sources import load_sources, osv
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 ingest_app = typer.Typer(no_args_is_help=True, help="Polite, resumable ingestion (Phase 2).")
 app.add_typer(ingest_app, name="ingest")
+parse_app = typer.Typer(no_args_is_help=True, help="Era-aware parsing to Parquet (Phase 3).")
+app.add_typer(parse_app, name="parse")
 
 MANIFEST_PATH = DATA_DIR / "manifest" / "manifest.duckdb"
 GHARCHIVE_DIR = DATA_DIR / "raw" / "gharchive"
 OSV_DIR = DATA_DIR / "raw" / "osv"
+GHARCHIVE_SILVER = SILVER_DIR / "gharchive"
+GHARCHIVE_QUARANTINE = QUARANTINE_DIR / "gharchive"
+DRIFT_DIR = QUALITY_DIR / "drift"
 
 
 def _version(value: bool) -> None:
@@ -89,11 +99,13 @@ def ingest_gharchive(
     keep: bool = typer.Option(False, help="Keep verified files under data/raw (else delete)."),
     head_only: bool = typer.Option(False, help="HEAD only: sizes and ETags, no download."),
     max_gb: float | None = typer.Option(None, help="Disk cap in GB (never above the budget)."),
+    parse: bool = typer.Option(True, help="Parse each verified hour to Parquet (Phase 3)."),
 ) -> None:
-    """Check GH Archive hours: conditional GET, MD5 check, manifest update, stream and delete."""
+    """Check GH Archive hours: conditional GET, MD5 check, manifest update, parse, delete."""
     begin, finish = _range(start, end)
     cfg = load_sources().gharchive
     disk = _disk_guard(max_gb)
+    sink = _sink(cfg) if parse and not head_only else None
 
     async def run() -> gha.RunSummary:
         manifest = Manifest(MANIFEST_PATH)
@@ -109,6 +121,8 @@ def ingest_gharchive(
                     disk,
                     keep=keep,
                     head_only=head_only,
+                    on_file=sink,
+                    is_done=sink.is_done if sink is not None else None,
                 )
         finally:
             manifest.close()
@@ -119,8 +133,124 @@ def ingest_gharchive(
         typer.echo(f"stopped: {exc}", err=True)
         raise typer.Exit(2) from exc
     typer.echo(summary.line())
+    if sink is not None:
+        typer.echo(" ".join(f"parsed_{k}={v}" for k, v in sink.totals.items()))
     if summary.counts.get("error"):
         raise typer.Exit(1)
+
+
+def _sink(cfg: GhArchiveConfig) -> GhArchiveSink:
+    try:
+        hasher = ActorHasher(salt_from_env())
+    except SaltMissing as exc:
+        typer.echo(f"stopped: {exc}", err=True)
+        raise typer.Exit(2) from exc
+    return GhArchiveSink(
+        cfg,
+        GHARCHIVE_SILVER,
+        GHARCHIVE_QUARANTINE,
+        DRIFT_DIR,
+        hasher,
+        driftmod.load_registry(),
+    )
+
+
+def _kept_hours(start: str, end: str | None) -> list[tuple[Path, FileRecord]]:
+    """Kept raw hours in the range whose manifest SHA-256 matches the local file."""
+    begin, finish = _range(start, end)
+    manifest = Manifest(MANIFEST_PATH)
+    try:
+        rows = manifest.records(gha.SOURCE, begin, finish)
+    finally:
+        manifest.close()
+    out = []
+    for hour, rec in sorted(rows.items()):
+        path = GHARCHIVE_DIR / f"{hour:%Y}" / f"{hour:%m}" / gha.hour_name(hour)
+        if not path.exists() or rec.sha256 is None:
+            continue
+        if gha.sha256_file(path) != rec.sha256:
+            typer.echo(f"skip {path.name}: local copy differs from the manifest", err=True)
+            continue
+        out.append((path, rec))
+    if not out:
+        typer.echo(
+            f"no kept, verified hours in {begin:%Y-%m-%dT%H} .. {finish:%Y-%m-%dT%H}", err=True
+        )
+    return out
+
+
+@parse_app.command("gharchive")
+def parse_gharchive(
+    start: str = typer.Option(..., help="First hour or day, UTC."),
+    end: str | None = typer.Option(None, help="Exclusive end, UTC. Default: start + 1 day."),
+) -> None:
+    """Parse kept, verified raw hours (data/raw) to Parquet; drift fails the hour."""
+    sink = _sink(load_sources().gharchive)
+    failed = 0
+    for path, rec in _kept_hours(start, end):
+        try:
+            sink(path, rec)
+        except driftmod.DriftError as exc:
+            failed += 1
+            typer.echo(f"drift: {exc}", err=True)
+    typer.echo(" ".join(f"parsed_{k}={v}" for k, v in sink.totals.items()) + f" drift={failed}")
+    if failed:
+        raise typer.Exit(1)
+
+
+@parse_app.command("files")
+def parse_files(
+    files: list[Path] = typer.Argument(..., help="Hourly files named YYYY-MM-DD-H.json.gz."),
+    root: Path = typer.Option(DATA_DIR, help="Data directory to write silver/ and quarantine/."),
+) -> None:
+    """Parse local hour files outside the manifest (fixtures, CI). Lineage: the file's own
+    SHA-256 and modification time stand in for the manifest's fetch facts."""
+    cfg = load_sources().gharchive
+    sink = _sink(cfg)
+    sink.silver_dir = root / "silver" / "gharchive"
+    sink.quarantine_dir = root / "quarantine" / "gharchive"
+    sink.drift_dir = root / "quality" / "drift"
+    failed = 0
+    for path in files:
+        day, _, h = path.name.removesuffix(".json.gz").rpartition("-")
+        hour = datetime.fromisoformat(day).replace(hour=int(h), tzinfo=UTC)
+        rec = FileRecord(
+            url=gha.hour_url(cfg, hour),
+            source=gha.SOURCE,
+            fetched_at=datetime.fromtimestamp(path.stat().st_mtime, UTC),
+            status="new",
+            hour=hour,
+            sha256=gha.sha256_file(path),
+        )
+        try:
+            sink(path, rec)
+        except driftmod.DriftError as exc:
+            failed += 1
+            typer.echo(f"drift: {exc}", err=True)
+    typer.echo(" ".join(f"parsed_{k}={v}" for k, v in sink.totals.items()) + f" drift={failed}")
+    if failed:
+        raise typer.Exit(1)
+
+
+@parse_app.command("learn-drift")
+def parse_learn_drift(
+    start: str = typer.Option(..., help="First hour or day, UTC."),
+    end: str | None = typer.Option(None, help="Exclusive end, UTC. Default: start + 1 day."),
+) -> None:
+    """Add the key paths and types of kept hours to the drift registry (review the diff)."""
+    cfg = load_sources().gharchive
+    sink = _sink(cfg)
+    registry = driftmod.load_registry()
+    for path, rec in _kept_hours(start, end):
+        ctx = sink.context(rec)
+        result = parse_file(path, ctx, sink.hasher, None)
+        shape = [f for f in result.drift if f.kind == "era_shape"]
+        if shape:
+            typer.echo(f"not learned, era shape: {shape[0].line()}", err=True)
+            raise typer.Exit(1)
+        added = result.observer.merge_into(registry, ctx.era)
+        typer.echo(f"{path.name} {ctx.era}: {result.lines} lines, {added} new entries")
+    driftmod.save_registry(registry)
 
 
 @ingest_app.command("gaps")
@@ -205,3 +335,63 @@ def ingest_status() -> None:
         manifest.close()
     for source, status, n, size in rows:
         typer.echo(f"{source:<10} {status:<10} {n:>7} files {size or 0:>15,} B")
+
+
+quality_app = typer.Typer(no_args_is_help=True, help="Contracts and expectations (Phase 3).")
+app.add_typer(quality_app, name="quality")
+
+# Contract server paths start with `data/`; `--root` points them at another data directory.
+_TABLE_DIRS = {
+    "events": ("silver", "gharchive", "events"),
+    "hour_types": ("silver", "gharchive", "hour_types"),
+    "quarantine": ("quarantine", "gharchive"),
+}
+
+
+def _glob(root: Path, rel: str) -> tuple[str, bool]:
+    path = root / Path(rel).relative_to("data")
+    return path.as_posix(), any(path.parent.parent.glob("*/*.parquet"))
+
+
+@quality_app.command("contracts")
+def quality_contracts(
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding silver/ and quarantine/."),
+) -> None:
+    """Test every ODCS contract in contracts/ with datacontract-cli; fail on any violation."""
+    from keystone.quality.contracts import contract_files, load_contract, run_contract
+
+    bad = 0
+    for path in contract_files():
+        rows, present = _glob(root, load_contract(path)["servers"][0]["path"])
+        if not present:
+            typer.echo(f"{path.name}: no rows under {rows} (skipped)")
+            continue
+        result = run_contract(path, rows)
+        status = "ok" if result.ok else "FAILED"
+        typer.echo(f"{path.name}: {status} ({len(result.checks)} checks)")
+        for c in result.problems:
+            bad += 1
+            typer.echo(f"  {c.result}: {c.field or ''} {c.name} | {c.reason}"[:300])
+    if bad:
+        raise typer.Exit(1)
+
+
+@quality_app.command("gx")
+def quality_gx(
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding silver/ and quarantine/."),
+) -> None:
+    """Validate every parsed Parquet file with its Great Expectations suite."""
+    from keystone.quality.expectations import Validator
+
+    validator = Validator()
+    files = bad = 0
+    for table, parts in _TABLE_DIRS.items():
+        for path in sorted(root.joinpath(*parts).glob("*/*.parquet")):
+            files += 1
+            result = validator.validate(table, path)
+            if not result.ok:
+                bad += 1
+                typer.echo(f"FAILED {table} {path.name}: {'; '.join(result.failed)}"[:500])
+    typer.echo(f"gx files={files} failed={bad}")
+    if bad:
+        raise typer.Exit(1)

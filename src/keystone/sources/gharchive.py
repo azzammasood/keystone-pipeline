@@ -8,6 +8,7 @@ run resumes where it stopped and a re-run reports `unchanged`.
 """
 
 import asyncio
+import hashlib
 import statistics
 from collections import Counter
 from collections.abc import Callable, Iterator
@@ -23,6 +24,17 @@ SOURCE = "gharchive"
 HOUR = timedelta(hours=1)
 
 OnFile = Callable[[Path, FileRecord], None]
+# Has `on_file` already processed this hour? If not, the hour is fetched in full (no conditional
+# request) and handed to `on_file` even when unchanged, so a consumer added later catches up.
+IsDone = Callable[[datetime], bool]
+
+
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def hour_floor(value: datetime) -> datetime:
@@ -85,6 +97,7 @@ async def ingest_hours(
     keep: bool = False,
     head_only: bool = False,
     on_file: OnFile | None = None,
+    is_done: IsDone | None = None,
     now: datetime | None = None,
 ) -> RunSummary:
     """Check every hour in `[start, end)`; returns status counts for this run."""
@@ -114,6 +127,7 @@ async def ingest_hours(
                 keep=keep,
                 head_only=head_only,
                 on_file=on_file,
+                is_done=is_done,
             )
             counts[record.status] += 1
             if record.status in ("new", "changed", "empty") and not head_only:
@@ -134,14 +148,17 @@ async def check_hour(
     keep: bool = False,
     head_only: bool = False,
     on_file: OnFile | None = None,
+    is_done: IsDone | None = None,
 ) -> FileRecord:
     url = hour_url(cfg, hour)
     previous = manifest.get(url)
     verified = previous is not None and previous.sha256 is not None
     dest = work_dir / f"{hour:%Y}" / f"{hour:%m}" / hour_name(hour)
     have_copy = dest.exists()
-    # Conditional only when the stored copy was verified and is not needed again locally.
-    conditional = verified and (not keep or have_copy)
+    # Conditional only when the stored copy was verified and is not needed again locally,
+    # and the consumer (if any) has already processed it.
+    pending = on_file is not None and not head_only and is_done is not None and not is_done(hour)
+    conditional = verified and (not keep or have_copy) and not pending
     fetched_at = datetime.now(UTC)
     base = FileRecord(
         url=url,
@@ -185,7 +202,11 @@ async def check_hour(
         base.md5, base.sha256 = previous.md5, previous.sha256
     base.status = _status(previous, base, verified_body=not head_only)
     try:
-        if result.path is not None and on_file is not None and base.status != "unchanged":
+        if (
+            result.path is not None
+            and on_file is not None
+            and (base.status != "unchanged" or pending)
+        ):
             on_file(result.path, base)
     except Exception as exc:  # a consumer failure is this hour's error, not the run's
         base.status, base.error = "error", f"on_file: {exc!r}"

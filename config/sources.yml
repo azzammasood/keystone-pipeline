@@ -10,15 +10,30 @@ gharchive:
   # 2025-10-14 gap holds 0.1 to 0.4 MB files). Earlier hours are small by nature (2011 mean 0.5 MB).
   near_empty_bytes: 1000000
   near_empty_from: "2015-01-01T00:00:00Z"
-  # Completeness periods, spike-report section 4 and ADR-012. Boundaries are bracketed by
-  # samples, not exact; Phase 3 refines them from parsed counts. Each starts at `start`.
+  # Completeness periods, spike-report section 4 and ADR-012. C2, GAP and C3 starts are measured
+  # (Phase 2 HEAD sizes, Phase 3 parsed counts); C4 and C5 stay bracketed by monthly samples
+  # (the decline is gradual, ADR-021). Each starts at `start`.
   completeness_periods:
     - {name: C1, label: full, start: "2011-02-12T00:00:00Z"}
-    - {name: C2, label: reduced, start: "2025-05-23T18:00:00Z"}
+    # Capture falls from about 16:35Z (parsed per minute, Phase 3); 16h is the first reduced hour.
+    - {name: C2, label: reduced, start: "2025-05-23T16:00:00Z"}
     - {name: GAP, label: near-empty, start: "2025-10-08T17:00:00Z"}  # measured Phase 2
-    - {name: C3, label: trimmed, start: "2025-10-15T00:00:00Z"}
+    - {name: C3, label: trimmed, start: "2025-10-14T21:00:00Z"}  # measured Phase 3 (30 MB)
     - {name: C4, label: push-only, start: "2026-04-01T00:00:00Z"}
     - {name: C5, label: erratic, start: "2026-09-01T00:00:00Z"}
+  # Schema eras (docs/era-map.md): which fields exist. A file's hour picks its era; the parser
+  # checks each file's shape against it and fails loudly on a mismatch (Phase 3).
+  eras:
+    - {name: E0, label: timeline-early, start: "2011-02-12T00:00:00Z"}
+    # E0 files end at 2012-03-10 08h (08h holds 1 event; 09h-21h are empty); the first E1 file
+    # is 22h. E1 file names are Pacific-local hours (Phase 3, era-map.md).
+    - {name: E1, label: timeline, start: "2012-03-10T09:00:00Z"}
+    - {name: E2, label: events, start: "2015-01-01T00:00:00Z"}
+    # E3: the first file whose pushes are all trimmed (Phase 3: the gap hours are trimmed too).
+    - {name: E3, label: events-trimmed, start: "2025-10-08T17:00:00Z"}
+  # GitHub's payload trim by event time (measured in 2025-10-08 16h: every push up to 16:59:22Z
+  # has payload.size, every later one does not). Push shape is checked against this instant.
+  payload_trim_at: "2025-10-08T16:59:22Z"
 
 osv:
   base_url: "https://osv-vulnerabilities.storage.googleapis.com/"

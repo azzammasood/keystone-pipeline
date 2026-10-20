@@ -31,12 +31,14 @@ class GhArchiveConfig(BaseModel):
     near_empty_bytes: int = Field(ge=0)
     near_empty_from: UtcDatetime
     completeness_periods: list[Period]
+    eras: list[Period]
+    payload_trim_at: UtcDatetime
 
-    @field_validator("completeness_periods")
+    @field_validator("completeness_periods", "eras")
     @classmethod
     def _sorted(cls, periods: list[Period]) -> list[Period]:
         if not periods or [p.start for p in periods] != sorted(p.start for p in periods):
-            raise ValueError("completeness_periods must be non-empty and sorted by start")
+            raise ValueError("periods and eras must be non-empty and sorted by start")
         return periods
 
     def period_for(self, hour: datetime) -> str:
@@ -46,6 +48,15 @@ class GhArchiveConfig(BaseModel):
         for period in self.completeness_periods:
             if hour >= period.start:
                 name = period.name
+        return name
+
+    def era_for(self, hour: datetime) -> str:
+        """Schema era (docs/era-map.md) of the file for `hour`; `PRE` before the first era."""
+        hour = _utc(hour)
+        name = "PRE"
+        for era in self.eras:
+            if hour >= era.start:
+                name = era.name
         return name
 
 

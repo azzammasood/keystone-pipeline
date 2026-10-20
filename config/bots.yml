@@ -1,0 +1,15 @@
+# Bot accounts (CLAUDE.md privacy rules: filter bots). A login ending in "[bot]" is always a bot
+# (GitHub Apps). This list adds well-known automation accounts that predate GitHub Apps and are
+# plain user accounts. Lower case. Add an entry only with evidence (the account's own profile or
+# docs say it is automation), never by guessing from activity.
+logins:
+  - dependabot-preview
+  - greenkeeperio-bot
+  - renovate-bot
+  - snyk-bot
+  - pyup-bot
+  - imgbot
+  - codecov-io
+  - coveralls
+  - allcontributors
+  - web-flow
