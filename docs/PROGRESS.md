@@ -4,7 +4,7 @@ Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
 Phase 1 (spike) written: `docs/spike-report.md`, `era-map.md`, `data-audit.md`; ADR-009 to 014.
-Phase 0 is pushed; its CI result is unconfirmed (no `gh` on Keystone repos; owner to check).
+Phase 0 and 1 pushed; `gh` now allowed with an identity check (ADR-015).
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -20,7 +20,6 @@ Phase 0 is pushed; its CI result is unconfirmed (no `gh` on Keystone repos; owne
 2. Phase 2 ingestion (hourly manifest, resumable, gap and late-file detection, OSV incremental).
 
 ## Blockers (hard stops)
-- CI status on GitHub not observable here (the brief forbids `gh` on Keystone repos).
 - GH Archive completeness after 2025-05-23 (ADR-012): the owner should know activity signals end there.
 - **Disk: 28.2 GB free on C: (below the brief's 50 GB threshold).** Phase 1 spike is fine; any
   backfill or full Compose stack needs more space or another drive.

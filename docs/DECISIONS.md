@@ -2,6 +2,11 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-015 (2026-10-20) gh CLI allowed (owner)
+- Owner amended the brief: `gh` may be used on Keystone repos (CI status, runs, issues, PRs).
+- Guard: run `gh api user --jq .login` first; proceed only if it prints `azzammasood` (the keyring
+  also holds azzamverse). Still never `gh repo create`, visibility or settings changes without asking.
+
 ## ADR-014 (2026-10-20) Provisional lakehouse components (confirm in Phases 4-5)
 - Catalog: **Lakekeeper** over Polaris (Rust single binary plus Postgres, smaller memory footprint on a
   16.8 GB machine). Object store: **RustFS or SeaweedFS** over MinIO (MinIO's last community

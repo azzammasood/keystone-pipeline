@@ -33,7 +33,9 @@ If a stop affects one rung only, skip it, log it in PROGRESS.md and continue.
 
 ## Repo and git safety
 - Remote: `git@github-azzammasood:azzammasood/keystone-pipeline.git` (SSH alias in `~/.ssh/config`,
-  same as Roshni). **Do not run `gh` against Keystone repos; never `gh repo create`.**
+  same as Roshni). `gh` is allowed (owner, 2026-10-20, ADR-015) **only after `gh api user --jq .login`
+  prints `azzammasood`**; the keyring also holds azzamverse, so check before each session's first use
+  and stop if it differs. Never `gh repo create`, never change repo visibility or settings without asking.
 - Commit identity set per repo (azzammasood, ahmaduzzammasood@gmail.com). Never touch global git config.
 - Never force-push without asking. Private until the owner says go public. Never commit secrets (`.env`).
 - Small conventional commits (`feat:`, `fix:`, `build:`, `ci:`, `docs:`, `test:`, `chore:`).
