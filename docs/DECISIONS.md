@@ -2,6 +2,53 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-014 (2026-10-20) Provisional lakehouse components (confirm in Phases 4-5)
+- Catalog: **Lakekeeper** over Polaris (Rust single binary plus Postgres, smaller memory footprint on a
+  16.8 GB machine). Object store: **RustFS or SeaweedFS** over MinIO (MinIO's last community
+  release tag is 2025-10-15). Flink: the newest version that both flink-connector-kafka and the
+  Iceberg Flink runtime support (Kafka 5.0.0 supports 2.1/2.2; Flink 2.3.0 is the latest). Each is
+  tested before it is fixed; the ADR is then updated.
+
+## ADR-013 (2026-10-20) Timeline-era privacy and identity
+- E1 (2012-2014) events carry `actor_attributes.email` and `name`, and no `actor.id`. Parsers drop
+  both fields at read time. The salted actor hash uses the login in E1 (`actor_key_kind = login`),
+  and distinct-actor metrics are versioned at the E1/E2 boundary. In 2012 repos have no id, so
+  they are resolved by name with a stored confidence.
+
+## ADR-012 (2026-10-20) Completeness periods drive metric windows (owner informed)
+- Context: measured capture drops (spike-report section 4): -36% from 2025-05-23 18h, a near-empty
+  gap from 2025-10-08 20h to 2025-10-14, and non-push types near zero from about 2026-04.
+- Options: (a) treat all data alike (rejected: the signals would measure artifacts); (b) stop at
+  2025-05-23; (c) ingest everything, publish a per-type completeness series, and compute activity
+  signals only on periods that pass a completeness check, with the as-of date shown.
+- Choice: **(c)**. Score windows default to ending at the last complete period. Periods after it
+  are flagged and excluded from counts and trends unless a type-level check passes. Shares (for
+  example concentration) may use a degraded period only if its per-type completeness is uniform,
+  which a test checks. The live refresh keeps OSV, criticality and freshness current. This keeps the
+  site updating at $0 and honest about what changed upstream.
+
+## ADR-011 (2026-10-20) Hugging Face mirror rejected
+- open-index/open-github: unofficial, last modified 2026-04-09, missing 33 of 2,146 releases on
+  2015-06-15, no files for 2019/2024/2026 probes. GH Archive stays the only event source.
+
+## ADR-010 (2026-10-20) Criticality and mapping: ecosyste.ms API plus registry cross-check
+- Options: deps.dev API (robots `Disallow: /`, so excluded), deps.dev BigQuery (needs a project),
+  ecosyste.ms dump (63.7 GB, over budget), ecosyste.ms API (open, 5,000 req/h anonymous, CC BY-SA 4.0,
+  `critical` flag, dependents, downloads, `repository_url`), registry metadata.
+- Choice: the ecosyste.ms API for the critical set and criticality inputs, cached and refreshed
+  weekly within its limit, cross-checked with npm/PyPI `repository` fields for exact matches.
+  The site attributes ecosyste.ms (CC BY-SA 4.0). Non-commercial use only.
+
+## ADR-009 (2026-10-20) Backfill window: the whole archive, 2011-02-12 00h to the present
+- Rule (brief section 10): the largest $0 window with an estimated 7 days or less unattended,
+  minimum 12 months.
+- Estimate (`scripts/spike/size_estimate.py`): 4.86 TB gz, about 4.0 days at 2 polite streams
+  (median 6.96 MB/s each); parsing overlaps (about 2.8 days serial).
+- Score windows are a separate choice (ADR-012): signals end by default at the last complete
+  period, 2025-05-23 (bracketed 12h to 18h). The first draft chose C1 only; corrected after review.
+- Executed newest-first and resumable in Phase 9. The run waits on the owner because free disk is
+  below 50 GB (brief section 1).
+
 ## ADR-008 (2026-10-20) Subpackages created when a phase needs them
 - Context: brief section 9c lists 15 subpackages. Options: create all now (empty), or on demand.
 - Choice: on demand; CLAUDE.md lists the planned layout. Why: empty packages are noise and fail
