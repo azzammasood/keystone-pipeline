@@ -4,6 +4,7 @@ import asyncio
 import json as jsonlib
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 
 import typer
 
@@ -405,4 +406,144 @@ def quality_gx(
                 typer.echo(f"FAILED {table} {path.name}: {'; '.join(result.failed)}"[:500])
     typer.echo(f"gx files={files} failed={bad}")
     if bad:
+        raise typer.Exit(1)
+
+
+rollup_app = typer.Typer(no_args_is_help=True, help="Rollup engines: DuckDB and Flink (Phase 4).")
+app.add_typer(rollup_app, name="rollup")
+stream_app = typer.Typer(no_args_is_help=True, help="Redpanda replay of silver hours (Phase 4).")
+app.add_typer(stream_app, name="stream")
+ROLLUP_DIR = DATA_DIR / "rollup"
+
+
+def _log_run(root: Path, record: dict[str, object]) -> None:
+    """Append one measured run to `rollup/runs.jsonl` (the pipeline-metrics feed, Phase 6)."""
+    path = root / "rollup" / "runs.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    record = {"at": datetime.now(UTC).isoformat(), **record}
+    with path.open("a", encoding="utf-8") as fh:
+        fh.write(jsonlib.dumps(record, default=str) + "\n")
+
+
+@rollup_app.command("run")
+def rollup_run(
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding silver/; state in rollup/."),
+    json: bool = typer.Option(False, "--json", help="Print JSON."),
+) -> None:
+    """`free` engine: incremental DuckDB rollup of new, re-parsed or removed silver hours."""
+    from dataclasses import asdict
+
+    from keystone.rollup.duck import DuckRollup
+
+    duck = DuckRollup(root / "rollup" / "rollup.duckdb", root / "silver" / "gharchive")
+    try:
+        stats = duck.run()
+        counts = duck.counts()
+    finally:
+        duck.close()
+    out = {"engine": "duckdb", **asdict(stats), "table_rows": counts}
+    _log_run(root, out)
+    if json:
+        typer.echo(jsonlib.dumps(out, indent=2))
+        return
+    typer.echo(
+        f"changed={stats.changed_files} removed={stats.removed_files} inputs={stats.input_files} "
+        f"windows={stats.windows} written={stats.rows_written} seconds={stats.seconds:.1f}"
+    )
+    typer.echo(" ".join(f"{k}={v}" for k, v in counts.items()))
+
+
+@stream_app.command("check-schema")
+def stream_check_schema(
+    schema: Path = typer.Option(None, help="Candidate .avsc (default: the contract)."),
+    topic: str = typer.Option("keystone.gharchive.events.v1", help="Topic whose subject to check."),
+) -> None:
+    """Ask the schema registry whether a schema may follow the subject's latest version."""
+    from keystone.rollup import stream as st
+    from keystone.rollup.contract import schema_text
+
+    text = schema.read_text(encoding="utf-8") if schema else schema_text()
+    ok = st.Registry().is_compatible(st.subject_for(topic), text)
+    typer.echo(f"{st.subject_for(topic)}: {'compatible' if ok else 'INCOMPATIBLE'}")
+    if not ok:
+        raise typer.Exit(1)
+
+
+@stream_app.command("produce")
+def stream_produce(
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding silver/."),
+    topic: str = typer.Option("keystone.gharchive.events.v1", help="Kafka topic."),
+    fresh: bool = typer.Option(False, help="Delete and recreate the topic first."),
+) -> None:
+    """Replay silver hours into Redpanda (Avro, schema registry), in event-time order."""
+    from keystone.rollup import stream as st
+
+    if fresh:
+        st.delete_topic(st.DEFAULT_BOOTSTRAP, topic)
+    st.ensure_topic(st.DEFAULT_BOOTSTRAP, topic)
+    files = st.files_in_event_order(root / "silver" / "gharchive")
+    stats = st.produce(files, topic)
+    rate = stats.records / stats.seconds if stats.seconds else 0.0
+    _log_run(root, {"engine": "redpanda", "topic": topic, **vars(stats)})
+    typer.echo(
+        f"files={stats.files} records={stats.records} bytes={stats.bytes} "
+        f"seconds={stats.seconds:.1f} records_per_s={rate:.0f}"
+    )
+
+
+@rollup_app.command("flink")
+def rollup_flink(
+    namespace: str = typer.Option(..., help="Iceberg namespace to write (one per run)."),
+    topic: str = typer.Option("keystone.gharchive.events.v1", help="Kafka topic to read."),
+    mode: str = typer.Option("stream", help="stream (live and replay) or batch (backfill)."),
+    unbounded: bool = typer.Option(False, help="Stream mode: keep running for new hours."),
+    root: Path = typer.Option(DATA_DIR, help="Data directory for the run log."),
+) -> None:
+    """`full` engine: Flink SQL job (Redpanda to Iceberg), then the fold of late rows."""
+    from keystone.rollup import flink as fl
+
+    if mode not in ("stream", "batch"):
+        raise typer.BadParameter("mode is stream or batch")
+    job = fl.submit(
+        fl.render_job(namespace, topic, cast(fl.Mode, mode), bounded=not unbounded),
+        f"{namespace}-{mode}",
+    )
+    fold = fl.submit(fl.render_fold(namespace), f"{namespace}-fold")
+    _log_run(
+        root,
+        {
+            "engine": "flink",
+            "mode": mode,
+            "namespace": namespace,
+            "topic": topic,
+            "job_seconds": job.seconds,
+            "fold_seconds": fold.seconds,
+        },
+    )
+    typer.echo(f"{mode} job {job.seconds:.0f}s, fold {fold.seconds:.0f}s -> ice.{namespace}")
+
+
+@rollup_app.command("parity")
+def rollup_parity(
+    namespace: str = typer.Option(..., help="Iceberg namespace the Flink run wrote."),
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding rollup/rollup.duckdb."),
+    json: bool = typer.Option(False, "--json", help="Print JSON."),
+) -> None:
+    """Compare DuckDB and Flink rollups row for row; exit 1 on any difference."""
+    from keystone.rollup import compare
+
+    results = compare.compare(root / "rollup" / "rollup.duckdb", namespace)
+    late = compare.late_rows(namespace)
+    out = [{**vars(r), "ok": r.ok, "late_rows": late[r.table]} for r in results]
+    _log_run(root, {"engine": "parity", "namespace": namespace, "tables": out})
+    if json:
+        typer.echo(jsonlib.dumps(out, indent=2))
+    else:
+        for r in out:
+            typer.echo(
+                f"{r['table']}: {'ok' if r['ok'] else 'DIFF'} free={r['free_rows']} "
+                f"full={r['full_rows']} only_free={r['only_free']} only_full={r['only_full']} "
+                f"late_rows={r['late_rows']}"
+            )
+    if not all(r.ok for r in results):
         raise typer.Exit(1)
