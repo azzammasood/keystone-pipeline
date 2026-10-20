@@ -1,0 +1,22 @@
+{
+  "type": "record",
+  "name": "GhArchiveEvent",
+  "namespace": "io.keystone.rollup.v1",
+  "doc": "One silver GH Archive event, projected to what the rollups read (Phase 4, ADR-024). Repository and event facts only; people appear as salted keys. Timestamps are UTC milliseconds.",
+  "fields": [
+    {"name": "source_file", "type": "string", "doc": "GH Archive hourly file name"},
+    {"name": "source_sha256", "type": "string", "doc": "SHA-256 of the source file"},
+    {"name": "fetched_at", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "When the source file was fetched (UTC)"},
+    {"name": "source_line", "type": "long", "doc": "1-based line in the source file"},
+    {"name": "era", "type": "string", "doc": "Schema era of the source file (E0 to E3)"},
+    {"name": "period", "type": "string", "doc": "Completeness period of the source hour"},
+    {"name": "event_type", "type": "string", "doc": "GitHub event type"},
+    {"name": "created_at", "type": {"type": "long", "logicalType": "timestamp-millis"}, "doc": "Event time (UTC)"},
+    {"name": "actor_key", "type": ["null", "string"], "default": null, "doc": "Salted actor key (never a login)"},
+    {"name": "actor_key_kind", "type": ["null", "string"], "default": null, "doc": "id or login: what the key was derived from"},
+    {"name": "actor_is_bot", "type": "boolean", "doc": "Actor flagged as a bot"},
+    {"name": "repo_id", "type": ["null", "long"], "default": null, "doc": "GitHub repository id"},
+    {"name": "action", "type": ["null", "string"], "default": null, "doc": "Payload action"},
+    {"name": "pr_merged", "type": ["null", "boolean"], "default": null, "doc": "PR merged flag (E1 and E2 only)"}
+  ]
+}

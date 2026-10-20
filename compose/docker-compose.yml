@@ -1,0 +1,141 @@
+# Keystone local stacks (brief section 9, rule 6): start only the profiles a phase needs.
+#   docker compose -f compose/docker-compose.yml --profile streaming --profile catalog up -d
+# Phase 4 needs `streaming` (Redpanda, Flink) and `catalog` (Iceberg REST catalog + object store).
+# Every port binds to 127.0.0.1. The credentials below are local-only defaults for a stack that
+# never leaves this machine or CI; override them in `.env` (KEYSTONE_S3_*, KEYSTONE_PG_*).
+name: keystone
+
+x-flink-env: &flink-env
+  FLINK_PROPERTIES: |
+    jobmanager.rpc.address: jobmanager
+    jobmanager.memory.process.size: 1024m
+    taskmanager.memory.process.size: 1600m
+    taskmanager.numberOfTaskSlots: 4
+    parallelism.default: 1
+    rest.address: jobmanager
+    table.local-time-zone: UTC
+    execution.checkpointing.dir: file:///flink-state/checkpoints
+    execution.checkpointing.savepoint-dir: file:///flink-state/savepoints
+  AWS_REGION: local-01
+  AWS_ACCESS_KEY_ID: ${KEYSTONE_S3_ACCESS_KEY:-keystone-local}
+  AWS_SECRET_ACCESS_KEY: ${KEYSTONE_S3_SECRET_KEY:-keystone-local-only}
+
+services:
+  # --- streaming ---------------------------------------------------------------------------
+  redpanda:
+    profiles: [streaming]
+    image: redpandadata/redpanda:v26.2.5
+    command:
+      - redpanda
+      - start
+      - --kafka-addr=internal://0.0.0.0:9092,external://0.0.0.0:19092
+      - --advertise-kafka-addr=internal://redpanda:9092,external://127.0.0.1:19092
+      - --schema-registry-addr=internal://0.0.0.0:8081,external://0.0.0.0:18081
+      - --mode=dev-container
+      - --smp=1
+      - --memory=768M
+      - --default-log-level=warn
+    ports:
+      - 127.0.0.1:19092:19092
+      - 127.0.0.1:18081:18081
+    volumes: [redpanda:/var/lib/redpanda/data]
+    mem_limit: 1200m
+    healthcheck:
+      test: ["CMD", "rpk", "cluster", "health", "--exit-when-healthy"]
+      interval: 5s
+      retries: 30
+
+  console:
+    profiles: [streaming]
+    image: redpandadata/console:v3.12.0
+    environment:
+      KAFKA_BROKERS: redpanda:9092
+      SCHEMAREGISTRY_ENABLED: "true"
+      SCHEMAREGISTRY_URLS: http://redpanda:8081
+    ports: [127.0.0.1:8080:8080]
+    mem_limit: 256m
+    depends_on: {redpanda: {condition: service_healthy}}
+
+  jobmanager:
+    profiles: [streaming]
+    build: ./flink
+    image: keystone-flink:2.2.1
+    command: jobmanager
+    environment: *flink-env
+    ports: [127.0.0.1:8081:8081]
+    volumes:
+      - flink-state:/flink-state
+      - ../data/flink/jobs:/jobs:ro
+    mem_limit: 1200m
+
+  taskmanager:
+    profiles: [streaming]
+    image: keystone-flink:2.2.1
+    command: taskmanager
+    environment: *flink-env
+    volumes: [flink-state:/flink-state]
+    mem_limit: 1800m
+    depends_on: [jobmanager]
+
+  # --- catalog -----------------------------------------------------------------------------
+  rustfs:
+    profiles: [catalog]
+    image: rustfs/rustfs:1.0.3
+    environment:
+      RUSTFS_ACCESS_KEY: ${KEYSTONE_S3_ACCESS_KEY:-keystone-local}
+      RUSTFS_SECRET_KEY: ${KEYSTONE_S3_SECRET_KEY:-keystone-local-only}
+      RUSTFS_VOLUMES: /data
+    ports: [127.0.0.1:9000:9000]
+    volumes: [rustfs:/data]
+    mem_limit: 512m
+
+  catalog-db:
+    profiles: [catalog]
+    image: postgres:17.6-alpine
+    environment:
+      POSTGRES_PASSWORD: ${KEYSTONE_PG_PASSWORD:-keystone-local-only}
+      POSTGRES_DB: lakekeeper
+    volumes: [catalog-db:/var/lib/postgresql/data]
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 3s
+      retries: 30
+
+  lakekeeper-migrate:
+    profiles: [catalog]
+    image: &lakekeeper quay.io/lakekeeper/catalog:v0.14.1
+    command: [migrate]
+    environment: &lakekeeper-env
+      LAKEKEEPER__PG_DATABASE_URL_READ: postgresql://postgres:${KEYSTONE_PG_PASSWORD:-keystone-local-only}@catalog-db:5432/lakekeeper
+      LAKEKEEPER__PG_DATABASE_URL_WRITE: postgresql://postgres:${KEYSTONE_PG_PASSWORD:-keystone-local-only}@catalog-db:5432/lakekeeper
+      LAKEKEEPER__PG_ENCRYPTION_KEY: ${KEYSTONE_PG_ENCRYPTION_KEY:-keystone-local-only-encryption}
+    depends_on: {catalog-db: {condition: service_healthy}}
+    restart: "no"
+
+  lakekeeper:
+    profiles: [catalog]
+    image: *lakekeeper
+    command: [serve]
+    environment: *lakekeeper-env
+    ports: [127.0.0.1:8181:8181]
+    mem_limit: 256m
+    depends_on: {lakekeeper-migrate: {condition: service_completed_successfully}}
+
+  # One-shot: create the bucket, bootstrap Lakekeeper and register the `keystone` warehouse.
+  catalog-init:
+    profiles: [catalog]
+    image: curlimages/curl:8.16.0
+    entrypoint: [sh, /init.sh]
+    environment:
+      S3_ACCESS_KEY: ${KEYSTONE_S3_ACCESS_KEY:-keystone-local}
+      S3_SECRET_KEY: ${KEYSTONE_S3_SECRET_KEY:-keystone-local-only}
+    volumes: [./catalog/init.sh:/init.sh:ro]
+    depends_on: [lakekeeper, rustfs]
+    restart: "no"
+
+volumes:
+  redpanda:
+  flink-state:
+  rustfs:
+  catalog-db:
