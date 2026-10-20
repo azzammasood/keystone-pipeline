@@ -10,6 +10,7 @@ dependencies = [
     "httpx>=0.28",
     "orjson>=3.13.0",
     "psutil>=6.0",
+    "pyarrow>=26.0.0",
     "pydantic>=2.8",
     "pyyaml>=6.0",
     "typer>=0.12",
@@ -23,10 +24,15 @@ dev = [
     "mypy>=1.11",
     "pip-audit>=2.7",
     "pre-commit>=3.7",
+    "pyarrow-stubs>=20.0.0.20260819",
     "pytest>=8.2",
     "ruff>=0.6",
     "types-psutil>=6.0",
     "types-pyyaml>=6.0",
+]
+quality = [
+    "datacontract-cli[duckdb,parquet]>=1.2.7",
+    "great-expectations>=1.5",
 ]
 
 [build-system]
@@ -54,6 +60,11 @@ files = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests", "src"]
 addopts = "-ra --strict-markers"
+filterwarnings = [
+    # third-party deprecations inside datacontract-cli (ibis) and great-expectations
+    "ignore::DeprecationWarning:ibis.*",
+    "ignore::DeprecationWarning:pydantic.v1.*",
+]
 markers = [
     "network: talks to a real host; skipped unless KEYSTONE_NETWORK_TESTS=1",
 ]
