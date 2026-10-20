@@ -10,11 +10,17 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import duckdb
+import httpx
 
+from keystone.rollup.flink import check_namespace
 from keystone.rollup.spec import rollups
 
 CATALOG_URL = "http://127.0.0.1:8181/catalog"
 S3_ENDPOINT = "127.0.0.1:9000"
+
+
+def _lit(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
 
 
 @dataclass(frozen=True)
@@ -39,8 +45,9 @@ def iceberg_connection(con: duckdb.DuckDBPyConnection | None = None) -> duckdb.D
     key = os.environ.get("KEYSTONE_S3_ACCESS_KEY", "keystone-local")
     secret = os.environ.get("KEYSTONE_S3_SECRET_KEY", "keystone-local-only")
     con.execute(
-        f"""CREATE OR REPLACE SECRET keystone_s3 (TYPE s3, KEY_ID '{key}', SECRET '{secret}',
-        ENDPOINT '{S3_ENDPOINT}', URL_STYLE 'path', USE_SSL false, REGION 'local-01')"""
+        f"""CREATE OR REPLACE SECRET keystone_s3 (TYPE s3, KEY_ID {_lit(key)},
+        SECRET {_lit(secret)}, ENDPOINT '{S3_ENDPOINT}', URL_STYLE 'path', USE_SSL false,
+        REGION 'local-01')"""
     )
     con.execute(
         f"""ATTACH OR REPLACE 'keystone' AS ice (TYPE iceberg, ENDPOINT '{CATALOG_URL}',
@@ -55,8 +62,9 @@ def _count(con: duckdb.DuckDBPyConnection, sql: str) -> int:
 
 
 def compare(free_db: Path, namespace: str, table_suffix: str = "") -> list[TableParity]:
+    check_namespace(namespace)
     con = iceberg_connection()
-    con.execute(f"ATTACH '{free_db.as_posix()}' AS free (READ_ONLY)")
+    con.execute(f"ATTACH {_lit(free_db.as_posix())} AS free (READ_ONLY)")
     out = []
     for r in rollups():
         cols = ", ".join(r.columns)
@@ -77,6 +85,7 @@ def compare(free_db: Path, namespace: str, table_suffix: str = "") -> list[Table
 
 def late_rows(namespace: str) -> dict[str, int]:
     """Rows the stream job routed to `<rollup>_late` (late events corrected by the fold)."""
+    check_namespace(namespace)
     con = iceberg_connection()
     out = {
         r.name: _count(con, f'SELECT count(*) FROM ice."{namespace}".{r.name}_late')
@@ -84,3 +93,37 @@ def late_rows(namespace: str) -> dict[str, int]:
     }
     con.close()
     return out
+
+
+def contributed_events(namespace: str) -> dict[str, int]:
+    """sum(events) over `_ontime` plus `_late`: every input row lands in exactly one of them."""
+    check_namespace(namespace)
+    con = iceberg_connection()
+    out = {}
+    for r in rollups():
+        ns = f'ice."{namespace}".{r.name}'
+        out[r.name] = _count(
+            con,
+            f"SELECT (SELECT coalesce(sum(events), 0) FROM {ns}_ontime)"
+            f" + (SELECT coalesce(sum(events), 0) FROM {ns}_late)",
+        )
+    con.close()
+    return out
+
+
+def drop_namespace(namespace: str, base: str = "http://127.0.0.1:8181/catalog/v1") -> None:
+    """Purge a run's tables and namespace through the REST catalog (test and replay cleanup)."""
+    check_namespace(namespace)
+    with httpx.Client(timeout=30) as http:
+        cfg = http.get(f"{base}/config", params={"warehouse": "keystone"}).raise_for_status()
+        body = cfg.json()
+        prefix = {**body.get("defaults", {}), **body.get("overrides", {})}["prefix"]
+        root = f"{base}/{prefix}/namespaces/{namespace}"
+        tables = http.get(f"{root}/tables")
+        if tables.status_code == 404:
+            return
+        for ident in tables.raise_for_status().json().get("identifiers", []):
+            http.delete(
+                f"{root}/tables/{ident['name']}", params={"purgeRequested": "true"}
+            ).raise_for_status()
+        http.delete(root).raise_for_status()

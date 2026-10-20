@@ -65,6 +65,8 @@ jobs:
             fi
             sleep 2
           done
+          curl -fs http://127.0.0.1:8081/overview >/dev/null
+          docker compose -f compose/docker-compose.yml exec -T redpanda rpk cluster health --exit-when-healthy
           docker stats --no-stream --format '{{.Name}} {{.MemUsage}}'
       - run: uv run pytest tests/parity -v
         env:

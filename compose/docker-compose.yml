@@ -1,7 +1,7 @@
 # Keystone local stacks (brief section 9, rule 6): start only the profiles a phase needs.
 #   docker compose -f compose/docker-compose.yml --profile streaming --profile catalog up -d
 # Phase 4 needs `streaming` (Redpanda, Flink) and `catalog` (Iceberg REST catalog + object store).
-# Every port binds to 127.0.0.1. The credentials below are local-only defaults for a stack that
+# Images are pinned by digest. Every port binds to 127.0.0.1. The credentials below are local-only defaults for a stack that
 # never leaves this machine or CI; override them in `.env` (KEYSTONE_S3_*, KEYSTONE_PG_*).
 name: keystone
 
@@ -24,7 +24,7 @@ services:
   # --- streaming ---------------------------------------------------------------------------
   redpanda:
     profiles: [streaming]
-    image: redpandadata/redpanda:v26.2.5
+    image: redpandadata/redpanda:v26.2.5@sha256:badca2d958f81da675c3055a9ecb6ebb590325582bcf16936148ffd65e96e920
     command:
       - redpanda
       - start
@@ -44,17 +44,6 @@ services:
       test: ["CMD", "rpk", "cluster", "health", "--exit-when-healthy"]
       interval: 5s
       retries: 30
-
-  console:
-    profiles: [streaming]
-    image: redpandadata/console:v3.12.0
-    environment:
-      KAFKA_BROKERS: redpanda:9092
-      SCHEMAREGISTRY_ENABLED: "true"
-      SCHEMAREGISTRY_URLS: http://redpanda:8081
-    ports: [127.0.0.1:8080:8080]
-    mem_limit: 256m
-    depends_on: {redpanda: {condition: service_healthy}}
 
   jobmanager:
     profiles: [streaming]
@@ -80,7 +69,7 @@ services:
   # --- catalog -----------------------------------------------------------------------------
   rustfs:
     profiles: [catalog]
-    image: rustfs/rustfs:1.0.3
+    image: rustfs/rustfs:1.0.3@sha256:9ca9559533b537d10482fe923288b676ad08f92a7069d9a17327fbae3cab688b
     environment:
       RUSTFS_ACCESS_KEY: ${KEYSTONE_S3_ACCESS_KEY:-keystone-local}
       RUSTFS_SECRET_KEY: ${KEYSTONE_S3_SECRET_KEY:-keystone-local-only}
@@ -91,7 +80,7 @@ services:
 
   catalog-db:
     profiles: [catalog]
-    image: postgres:17.6-alpine
+    image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
     environment:
       POSTGRES_PASSWORD: ${KEYSTONE_PG_PASSWORD:-keystone-local-only}
       POSTGRES_DB: lakekeeper
@@ -104,7 +93,7 @@ services:
 
   lakekeeper-migrate:
     profiles: [catalog]
-    image: &lakekeeper quay.io/lakekeeper/catalog:v0.14.1
+    image: &lakekeeper quay.io/lakekeeper/catalog:v0.14.1@sha256:7c5d6b178a1b5ae230bd7d3e7a09da4704ce58fafc66a8b90c3b6edb69ba9817
     command: [migrate]
     environment: &lakekeeper-env
       LAKEKEEPER__PG_DATABASE_URL_READ: postgresql://postgres:${KEYSTONE_PG_PASSWORD:-keystone-local-only}@catalog-db:5432/lakekeeper
@@ -125,7 +114,7 @@ services:
   # One-shot: create the bucket, bootstrap Lakekeeper and register the `keystone` warehouse.
   catalog-init:
     profiles: [catalog]
-    image: curlimages/curl:8.16.0
+    image: curlimages/curl:8.16.0@sha256:463eaf6072688fe96ac64fa623fe73e1dbe25d8ad6c34404a669ad3ce1f104b6
     entrypoint: [sh, /init.sh]
     environment:
       S3_ACCESS_KEY: ${KEYSTONE_S3_ACCESS_KEY:-keystone-local}

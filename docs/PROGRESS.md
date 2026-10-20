@@ -4,7 +4,7 @@ Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
 Phase 4 (rollup engines) gate checks pass (parity on fixtures and on a one-day replay); ADR-024 to
-027. Review and CI result: `docs/reviews/phase-4.md`. Next phase: **Phase 5** (see Next).
+027. Review: `docs/reviews/phase-4.md` (1 major, 13 minor/nit, fixed but one owner question). Next phase: **Phase 5** (see Next).
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -48,6 +48,8 @@ Phase 4 (rollup engines) gate checks pass (parity on fixtures and on a one-day r
    learn drift from a stratified sample, measure late pushes (ADR-022), parallelise parsing.
 
 ## Blockers (hard stops)
+- **Owner: Lakekeeper terms of use.** Its bootstrap requires `accept-terms-of-use: true`; the
+  local `catalog-init` (and parity CI) send it. Please confirm or say no (then swap the catalog).
 - GH Archive completeness after 2025-05-23 (ADR-012): the owner should know activity signals end there.
 - **Disk: 28.2 GB free on C: (below the brief's 50 GB threshold).** Phase 1 spike is fine; any
   backfill or full Compose stack needs more space or another drive.

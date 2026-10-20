@@ -1,7 +1,7 @@
 # Flink with the connectors the rollup job needs (Phase 4, ADR-024). Versions: the newest Flink
 # that both flink-connector-kafka and the Iceberg Flink runtime support (ADR-014). Every jar is
 # pinned by SHA-256 (cross-checked against Maven Central's .sha1 on 2026-10-20).
-FROM flink:2.2.1-scala_2.12-java17
+FROM flink:2.2.1-scala_2.12-java17@sha256:c5124717afe3829cc2d7c9b538bfe0b9d66cae3107a174d8f0e0392abe6375b8
 
 ARG MAVEN=https://repo1.maven.org/maven2
 RUN set -eu; cd /opt/flink/lib; \

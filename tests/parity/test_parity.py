@@ -5,8 +5,10 @@ out-of-order events. Skipped unless KEYSTONE_STACK_TESTS=1 (CI: .github/workflow
 import json
 import os
 import uuid
+from collections.abc import Iterator
 from pathlib import Path
 
+import duckdb
 import pytest
 
 from keystone.rollup import compare, flink, stream
@@ -19,6 +21,22 @@ from . import scenario
 pytestmark = pytest.mark.skipif(
     os.environ.get("KEYSTONE_STACK_TESTS") != "1", reason="needs the compose stack"
 )
+
+
+@pytest.fixture
+def namespaces() -> Iterator[list[str]]:
+    """Namespaces a test wrote; purged afterwards so local runs stay inside the disk budget."""
+    made: list[str] = []
+    yield made
+    for ns in made:
+        compare.drop_namespace(ns)
+
+
+def _input_rows(db: Path) -> int:
+    con = duckdb.connect(str(db), read_only=True)
+    row = con.execute("SELECT sum(events) FROM repo_hour").fetchone()
+    con.close()
+    return int(row[0]) if row and row[0] is not None else 0
 
 
 def _engines(tmp: Path, files: list[Path], silver: Path, ns: str, mode: flink.Mode) -> Path:
@@ -47,13 +65,18 @@ def scenario_silver(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, lis
 
 
 @pytest.mark.parametrize("mode", ["stream", "batch"])
-def test_scenario_parity(scenario_silver: tuple[Path, list[Path], Path], mode: str) -> None:
+def test_scenario_parity(
+    scenario_silver: tuple[Path, list[Path], Path], mode: str, namespaces: list[str]
+) -> None:
     tmp, files, silver = scenario_silver
     ns = f"parity_{mode}_{uuid.uuid4().hex[:8]}"
+    namespaces.append(ns)
     db = _engines(tmp, files, silver, ns, mode)  # type: ignore[arg-type]
     results = compare.compare(db, ns)
     assert all(r.ok for r in results), results
     late = compare.late_rows(ns)
+    # Conservation: every filtered input row is in exactly one of _ontime and _late.
+    assert compare.contributed_events(ns)["repo_hour"] == _input_rows(db)
     if mode == "stream":
         # The late hours really took the late path (watermark per event, one partition) ...
         assert late["repo_hour"] > 0 and late["repo_actor_day"] > 0, late
@@ -64,10 +87,13 @@ def test_scenario_parity(scenario_silver: tuple[Path, list[Path], Path], mode: s
         assert late == {r.name: 0 for r in rollups()}
 
 
-def test_fixture_hours_parity(parsed_fixtures: object, tmp_path: Path) -> None:
+def test_fixture_hours_parity(
+    parsed_fixtures: object, tmp_path: Path, namespaces: list[str]
+) -> None:
     root: Path = parsed_fixtures.root  # type: ignore[attr-defined]
     silver = root / "silver" / "gharchive"
     ns = f"parity_fixtures_{uuid.uuid4().hex[:8]}"
+    namespaces.append(ns)
     db = _engines(tmp_path, stream.files_in_event_order(silver), silver, ns, "stream")
     results = compare.compare(db, ns)
     assert all(r.ok for r in results) and all(r.free_rows > 0 for r in results), results

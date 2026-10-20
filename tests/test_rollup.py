@@ -93,10 +93,10 @@ def test_reparsed_and_removed_hours(tmp_path: Path) -> None:
     for name, rows in scenario.hours():
         scenario.write_hour(silver, name, rows)
     duck.run()
-    # Re-parse one hour with different content (new sha): its windows are replaced, not added.
+    # Re-parse one hour with different content: its windows are replaced, not added.
     target = "2026-01-02-1"
     rows = dict(scenario.hours())[target][:50]
-    rows = [r.model_copy(update={"source_sha256": "f" * 64}) for r in rows]
+    # Same raw file and source sha, different silver content (a parser or bot-list fix).
     scenario.write_hour(silver, target, rows)
     assert duck.run().changed_files == 1
     duck.close()

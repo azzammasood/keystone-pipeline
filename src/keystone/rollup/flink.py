@@ -14,6 +14,7 @@ Rendered from the same contribution queries as DuckDB (`spec.py`). One job per r
 Jobs run through the SQL client inside the `jobmanager` container (`docker compose exec`).
 """
 
+import re
 import subprocess
 import time
 from dataclasses import dataclass
@@ -27,6 +28,7 @@ from keystone.rollup.spec import Rollup, input_sql, rollups, strip_comments
 Mode = Literal["stream", "batch"]
 COMPOSE = ["docker", "compose", "-f", str(REPO_ROOT / "compose" / "docker-compose.yml")]
 JOBS_DIR = DATA_DIR / "flink" / "jobs"  # mounted at /jobs in the jobmanager
+NAMESPACE = re.compile(r"[a-z][a-z0-9_]{0,62}")
 WATERMARK_DELAY = "1"  # hours; ADR-024 (sampled files hold only their own hour's events)
 
 CATALOG = """CREATE CATALOG ice WITH (
@@ -75,7 +77,9 @@ def source_ddl(topic: str, group: str, bounded: bool) -> str:
         "topic": topic,
         "properties.bootstrap.servers": "redpanda:9092",
         "properties.group.id": group,
-        "scan.startup.mode": "earliest-offset",
+        # A replay reads the whole topic; a live job resumes from its committed offsets.
+        "scan.startup.mode": "earliest-offset" if bounded else "group-offsets",
+        "properties.auto.offset.reset": "earliest",
         "scan.watermark.emit.strategy": "on-event",
         "scan.watermark.idle-timeout": "30 s",
         "format": "avro-confluent",
@@ -96,12 +100,22 @@ def _late_flag(r: Rollup, mode: Mode) -> str:
     return f"COALESCE(TIMESTAMPADD(MILLISECOND, -1, {end}) <= CURRENT_WATERMARK(created_at), FALSE)"
 
 
+def check_namespace(namespace: str) -> str:
+    if not NAMESPACE.fullmatch(namespace):
+        raise ValueError(f"namespace must match {NAMESPACE.pattern}: {namespace!r}")
+    return namespace
+
+
 def render_job(namespace: str, topic: str, mode: Mode, bounded: bool = True) -> str:
+    """A bounded run (replay, backfill) rebuilds its tables; a live (unbounded) run keeps them
+    and resumes from its consumer group, so a restart does not replay or lose history."""
+    check_namespace(namespace)
     ns = f"ice.`{namespace}`"
     out = [
         f"SET 'execution.runtime-mode' = '{'streaming' if mode == 'stream' else 'batch'}';",
         "SET 'execution.checkpointing.interval' = '10 s';",
-        "SET 'table.dml-sync' = 'true';",
+        # Bounded: wait for the job to finish. Live: submit and return (fold it periodically).
+        f"SET 'table.dml-sync' = '{'true' if bounded else 'false'}';",
         "SET 'table.local-time-zone' = 'UTC';",
         f"SET 'pipeline.name' = 'keystone-rollup-{mode}-{namespace}';",
         CATALOG,
@@ -123,8 +137,9 @@ def render_job(namespace: str, topic: str, mode: Mode, bounded: bool = True) -> 
             f"SELECT * FROM {r.name}_flagged WHERE NOT is_late;"
         )
         for suffix in ("ontime", "late"):
-            out.append(f"DROP TABLE IF EXISTS {ns}.{r.name}_{suffix};")
-            out.append(_table_ddl(r, f"{ns}.{r.name}_{suffix}"))
+            if bounded:
+                out.append(f"DROP TABLE IF EXISTS {ns}.{r.name}_{suffix};")
+            out.append(_table_ddl(r, f"{ns}.{r.name}_{suffix}", if_not_exists=not bounded))
         aggs = ", ".join(_agg(r, m) for m in r.measures)
         inserts.append(
             f"INSERT INTO {ns}.{r.name}_ontime\n"
@@ -144,6 +159,7 @@ def render_job(namespace: str, topic: str, mode: Mode, bounded: bool = True) -> 
 
 
 def render_fold(namespace: str) -> str:
+    check_namespace(namespace)
     ns = f"ice.`{namespace}`"
     out = [
         "SET 'execution.runtime-mode' = 'batch';",

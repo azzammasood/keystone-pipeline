@@ -11,13 +11,19 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - Flink writes through the REST catalog with S3FileIO; DuckDB reads the same tables through the
   REST catalog (`ATTACH ... TYPE iceberg`) with its own S3 secret. Credentials are local-only
   defaults, overridable in `.env`; every port binds to 127.0.0.1.
+- Open owner question: Lakekeeper's bootstrap call requires `"accept-terms-of-use": true`.
+  `catalog-init` sent it for the local stack and the parity CI does too. Accepting terms is an
+  owner decision, so it is listed under Blockers in PROGRESS.md until the owner confirms.
 - Measured (docker stats, Docker VM 8.2 GB): both profiles use about 1.4 GB idle and about
   3.0 GB after the one-day replay (taskmanager 1.37 GB, jobmanager 0.68 GB, RustFS 0.45 GB).
 
 ## ADR-026 (2026-10-20) `full` rollup: Redpanda + Avro + Flink 2.2.1 to Iceberg, late rows kept
 - Versions: Flink 2.2.1 (newest supported by both flink-connector-kafka 5.0.0-2.2 and
   iceberg-flink-runtime-2.2 1.12.0, ADR-014), Redpanda v26.2.5 (Kafka API and schema registry).
-  Connector jars are pinned by SHA-256 in `compose/flink/Dockerfile`.
+  Connector jars are pinned by SHA-256 in `compose/flink/Dockerfile`; images by digest. License:
+  Redpanda is BSL 1.1 (source-available, not OSI open source), allowed for this non-commercial,
+  self-hosted use; Flink, Iceberg, Lakekeeper and RustFS are Apache-2.0. Redpanda Console was
+  dropped: nothing used it (tool-credibility rule).
 - Topic value: Avro (`contracts/avro/gharchive_event.avsc`, the columns the rollups read plus
   lineage), Confluent wire format, subject `<topic>-value` with BACKWARD compatibility; the
   producer checks compatibility before registering, `keystone stream check-schema` checks a
@@ -25,24 +31,35 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - Replay: GH Archive is hourly files, not a firehose. Hours are produced in arrival order (event
   time of their content by default) to a one-partition topic, so the topic order is the arrival
   order. Watermark `created_at - 1 h`, emitted per event (`scan.watermark.emit.strategy`).
-- Late data: Flink SQL window TVFs have no allowed lateness and drop late rows silently. The job
-  computes the window operator's own lateness test (`window_end - 1 ms <= CURRENT_WATERMARK`) in
-  the same chained step and routes those rows to `<rollup>_late` (append) while the rest go
-  through TUMBLE to `<rollup>_ontime`. Both inserts run in one statement set (one job, one
+- Late data: Flink SQL window TVFs have no allowed lateness and drop late rows silently. This is
+  a deliberate deviation from the brief's "allowed lateness": instead of keeping windows open,
+  the job applies the window operator's own lateness test (`window_end - 1 ms <= watermark`) with
+  `CURRENT_WATERMARK` in the Calc after the source and routes those rows to `<rollup>_late`
+  (append) while the rest go through TUMBLE to `<rollup>_ontime`. Why it is exact: the Calc's
+  watermark is never behind the window operator's (same chain at parallelism 1; after a hash
+  exchange the window operator takes the minimum over its inputs), so a row flagged on time is
+  never dropped, and the two filters split every row exactly once. The parity test checks this
+  conservation (`sum(events)` over both tables equals the filtered input). Both inserts run in one statement set (one job, one
   source). A batch fold writes `<rollup>` = SUM/MAX over both. So nothing is dropped and the
   result does not depend on when the watermark moved. The parity test checks the late path ran
   and that `_ontime` alone differs (the test can see the difference).
-- Exactly-once: checkpoints every 10 s; Kafka offsets live in the checkpoint and the Iceberg
-  sink commits per checkpoint (final checkpoint at end of a bounded replay).
-- Modes: `stream` (live hours; bounded for a replay), `batch` (backfill; the same SQL, nothing is
-  late), `fold` (batch). Limit: the stream is append-only, so a re-parsed hour that was already
+- Exactly-once is *configured*, not yet failure-tested: checkpoints every 10 s (default
+  exactly-once mode), Kafka offsets live in the checkpoint and the Iceberg sink commits per
+  checkpoint (final checkpoint at the end of a bounded replay). A kill-the-taskmanager recovery
+  test is a Phase 9 benchmark item.
+- Modes: `stream` (bounded replay: rebuilds its tables and waits; live with `--unbounded`: keeps
+  its tables, resumes from its consumer group, returns after submit, and needs `rollup fold`
+  periodically, so corrections appear at fold time, not in the streaming output), `batch`
+  (backfill; the same SQL, nothing is late), `fold` (batch). Limit: the stream is append-only, so a re-parsed hour that was already
   produced needs a batch rebuild of its windows in this engine (DuckDB handles it in place);
   Phase 9/10 wire that rebuild into the backfill and the profile fallback.
 
 ## ADR-025 (2026-10-20) `free` rollup: DuckDB recomputes touched windows from silver
 - State: one DuckDB file (`data/rollup/rollup.duckdb`) with the rollup tables and
-  `rollup_files` (silver hour, SHA-256, event-time range). A run finds new, re-parsed (SHA
-  differs) and removed hours, takes every window their old and new ranges touch, reads every
+  `rollup_files` (silver hour, event-time range and a fingerprint: source SHA-256 plus size and
+  mtime of the hour's silver files, which are replaced atomically). The source SHA alone would
+  miss a re-parse of the same raw file (parser fix, bot list, salt); the test re-parses with an
+  unchanged source SHA. A run finds new, rewritten and removed hours, takes every window their old and new ranges touch, reads every
   silver hour whose range overlaps those windows (from `hour_types`, so a late hour corrects
   earlier windows), and deletes and re-inserts those windows in one transaction.
 - Options: add deltas per hour (rejected: not idempotent on re-parse), MERGE per key (rejected:

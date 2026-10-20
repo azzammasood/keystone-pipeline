@@ -100,12 +100,13 @@ def files_in_event_order(silver_dir: Path) -> list[Path]:
     explicit arrival order is given; E1 file names are Pacific hours, so names do not sort)."""
     import duckdb
 
-    pattern = (silver_dir / "hour_types" / "*" / "*.parquet").as_posix()
-    if not any((silver_dir / "hour_types").glob("*/*.parquet")):
+    types = sorted(p.as_posix() for p in (silver_dir / "hour_types").glob("*/*.parquet"))
+    if not types:
         return []
-    rows = duckdb.sql(
-        f"""SELECT any_value(filename) AS f, min(created_at_min) AS m
-        FROM read_parquet('{pattern}', filename = true) GROUP BY source_file ORDER BY m, f"""
+    rows = duckdb.execute(
+        """SELECT any_value(filename) AS f, min(created_at_min) AS m
+        FROM read_parquet(?, filename = true) GROUP BY source_file ORDER BY m, f""",
+        [types],
     ).fetchall()
     out = []
     for f, _ in rows:

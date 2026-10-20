@@ -1,12 +1,13 @@
 """`free` rollup engine: DuckDB, incremental and idempotent (Phase 4, ADR-025).
 
 State lives in one DuckDB file: the rollup tables and `rollup_files`, the silver hours already
-rolled up (with their SHA-256 and event-time range). A run compares silver with that state;
-for every new, re-parsed or removed hour it recomputes each *window* the hour touches (old range
-and new), reading every silver hour whose event-time range overlaps those windows (from the
-`hour_types` table, so a late hour corrects earlier windows), then deletes and re-inserts those
-windows in one transaction. Recomputing from silver, never adding deltas, makes a re-run a no-op
-and the result independent of arrival order.
+rolled up (with a fingerprint of their silver files and their event-time range). A run
+compares silver with that state; for every new, rewritten (re-parsed) or removed hour it
+recomputes each *window* the hour touches (old range and new), reading every silver hour whose
+event-time range overlaps those windows (from the `hour_types` table, so a late hour corrects
+earlier windows), then deletes and re-inserts those windows in one transaction. Recomputing
+from silver, never adding deltas, makes a re-run a no-op and the result independent of arrival
+order.
 """
 
 from dataclasses import dataclass, field
@@ -26,7 +27,8 @@ CREATE TABLE IF NOT EXISTS rollup_files (
     created_min TIMESTAMPTZ NOT NULL,
     created_max TIMESTAMPTZ NOT NULL,
     rolled_at TIMESTAMPTZ NOT NULL
-)
+);
+ALTER TABLE rollup_files ADD COLUMN IF NOT EXISTS fingerprint VARCHAR;
 """
 
 
@@ -85,39 +87,50 @@ class DuckRollup:
         )
 
     def _silver_hours(self) -> None:
-        """Temp table `silver_hours`: one row per silver hour (from hour_types)."""
-        pattern = (self.silver_dir / "hour_types" / "*" / "*.parquet").as_posix()
+        """Temp table `silver_hours`: one row per silver hour (from hour_types), with a
+        fingerprint of the silver output itself. The source SHA-256 alone is not enough: a
+        re-parse (parser fix, bot list, salt) rewrites silver from the same raw file. Silver
+        files are replaced atomically, so their size and mtime change on every rewrite."""
         self.con.execute(
             """CREATE OR REPLACE TEMP TABLE silver_hours (
                 source_file VARCHAR, source_sha256 VARCHAR, events_path VARCHAR,
-                created_min TIMESTAMPTZ, created_max TIMESTAMPTZ)"""
+                created_min TIMESTAMPTZ, created_max TIMESTAMPTZ, fingerprint VARCHAR)"""
         )
-        if not any((self.silver_dir / "hour_types").glob("*/*.parquet")):
+        types = sorted((self.silver_dir / "hour_types").glob("*/*.parquet"))
+        if not types:
             return
-        self.con.execute(
-            f"""INSERT INTO silver_hours
-            SELECT source_file, any_value(source_sha256),
-                   replace(replace(any_value(filename), '\\', '/'), '/hour_types/', '/events/'),
+        rows = self.con.execute(
+            f"""SELECT source_file, any_value(source_sha256), any_value(filename),
                    min(created_at_min), max(created_at_max)
-            FROM read_parquet('{pattern}', filename = true)
+            FROM read_parquet({_sql_list([t.as_posix() for t in types])}, filename = true)
             GROUP BY source_file"""
-        )
+        ).fetchall()
+        out = []
+        for source_file, sha, fname, cmin, cmax in rows:
+            t = Path(fname)
+            events = self.silver_dir / "events" / t.parent.name / t.name
+            stamps = [
+                f"{x.stat().st_size}:{x.stat().st_mtime_ns}" if x.exists() else "-"
+                for x in (events, t)
+            ]
+            out.append((source_file, sha, events.as_posix(), cmin, cmax, ":".join([sha, *stamps])))
+        self.con.executemany("INSERT INTO silver_hours VALUES (?, ?, ?, ?, ?, ?)", out)
 
     def run(self) -> RunStats:
         started = datetime.now(UTC)
         stats = RunStats()
         self._silver_hours()
         con = self.con
-        # Hours whose content changed: new, re-parsed (sha differs) or gone from silver.
+        # Hours whose content changed: new, rewritten (fingerprint differs) or gone from silver.
         con.execute(
             """CREATE OR REPLACE TEMP TABLE changed AS
             SELECT s.source_file, s.created_min, s.created_max FROM silver_hours s
             LEFT JOIN rollup_files f USING (source_file)
-            WHERE f.source_file IS NULL OR f.source_sha256 <> s.source_sha256
+            WHERE f.source_file IS NULL OR f.fingerprint IS DISTINCT FROM s.fingerprint
             UNION ALL
             SELECT f.source_file, f.created_min, f.created_max FROM rollup_files f
             LEFT JOIN silver_hours s USING (source_file)
-            WHERE s.source_file IS NULL OR f.source_sha256 <> s.source_sha256"""
+            WHERE s.source_file IS NULL OR f.fingerprint IS DISTINCT FROM s.fingerprint"""
         )
         stats.changed_files = con.execute(
             "SELECT count(DISTINCT source_file) FROM changed WHERE source_file IN "
@@ -143,7 +156,8 @@ class DuckRollup:
             )
             con.execute(
                 """INSERT INTO rollup_files
-                SELECT source_file, source_sha256, events_path, created_min, created_max, ?
+                SELECT source_file, source_sha256, events_path, created_min, created_max, ?,
+                       fingerprint
                 FROM silver_hours WHERE source_file IN (SELECT source_file FROM changed)""",
                 [started],
             )

@@ -516,6 +516,9 @@ def rollup_flink(
         fl.render_job(namespace, topic, cast(fl.Mode, mode), bounded=not unbounded),
         f"{namespace}-{mode}",
     )
+    if unbounded:
+        typer.echo(f"live job submitted ({job.seconds:.0f}s); run `rollup fold` to merge late rows")
+        return
     fold = fl.submit(fl.render_fold(namespace), f"{namespace}-fold")
     _log_run(
         root,
@@ -529,6 +532,16 @@ def rollup_flink(
         },
     )
     typer.echo(f"{mode} job {job.seconds:.0f}s, fold {fold.seconds:.0f}s -> ice.{namespace}")
+
+
+@rollup_app.command("fold")
+def rollup_fold(namespace: str = typer.Option(..., help="Iceberg namespace to fold.")) -> None:
+    """Merge `<rollup>_ontime` and `<rollup>_late` into `<rollup>` (batch; live jobs need it
+    periodically, bounded runs do it themselves)."""
+    from keystone.rollup import flink as fl
+
+    fold = fl.submit(fl.render_fold(namespace), f"{namespace}-fold")
+    typer.echo(f"fold {fold.seconds:.0f}s -> ice.{namespace}")
 
 
 @rollup_app.command("parity")
