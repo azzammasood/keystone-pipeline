@@ -1,0 +1,30 @@
+# Source definitions for ingestion (Phase 2). Limits live in policy.yml, not here.
+gharchive:
+  base_url: "https://data.gharchive.org/"
+  first_hour: "2011-02-12T00:00:00Z"   # spike-report section 2
+  # Hours are published shortly after they end; younger hours are not requested yet.
+  publish_lag_hours: 2
+  # A file whose Last-Modified is this long after its hour ended is flagged late.
+  late_after_hours: 6
+  # From 2015 (Events API) an hour under this size is near-empty (the 2025-10-08 20h to
+  # 2025-10-14 gap holds 0.1 to 0.4 MB files). Earlier hours are small by nature (2011 mean 0.5 MB).
+  near_empty_bytes: 1000000
+  near_empty_from: "2015-01-01T00:00:00Z"
+  # Completeness periods, spike-report section 4 and ADR-012. Boundaries are bracketed by
+  # samples, not exact; Phase 3 refines them from parsed counts. Each starts at `start`.
+  completeness_periods:
+    - {name: C1, label: full, start: "2011-02-12T00:00:00Z"}
+    - {name: C2, label: reduced, start: "2025-05-23T18:00:00Z"}
+    - {name: GAP, label: near-empty, start: "2025-10-08T17:00:00Z"}  # measured Phase 2
+    - {name: C3, label: trimmed, start: "2025-10-15T00:00:00Z"}
+    - {name: C4, label: push-only, start: "2026-04-01T00:00:00Z"}
+    - {name: C5, label: erratic, start: "2026-09-01T00:00:00Z"}
+
+osv:
+  base_url: "https://osv-vulnerabilities.storage.googleapis.com/"
+  # modified_id.csv is sorted newest first; read its head in chunks of this size.
+  head_chunk_bytes: 262144
+  # First run (no cursor): read at most this much of the head; the zips are the baseline.
+  first_run_max_bytes: 1048576
+  # Ecosystems Keystone maps to repos (ADR-010); `ecosystems.txt` lists all 46.
+  ecosystems: [npm, PyPI, crates.io, Go, Maven, RubyGems, NuGet, Packagist]
