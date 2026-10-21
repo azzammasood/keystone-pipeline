@@ -59,7 +59,9 @@ def compact(root: Path, max_bytes: int, today: date) -> Compaction:
     for path in sorted(d.glob("*.jsonl")):
         if date.fromisoformat(path.stem) >= today:
             continue
-        with path.open("rb") as src, gzip.open(path.with_suffix(".jsonl.gz"), "wb") as dst:
+        # Append mode: late events for an archived day become another gzip member of the
+        # same file instead of replacing it.
+        with path.open("rb") as src, gzip.open(path.with_suffix(".jsonl.gz"), "ab") as dst:
             shutil.copyfileobj(src, dst)
         path.unlink()
         compressed += 1

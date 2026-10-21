@@ -109,6 +109,9 @@ jobs:
           # openlineage-flink wrote the batch job's datasets (Phase 6, ADR-033)
           uv run keystone lineage collect --root ci-data | tee lineage-collect.txt
           grep -E "^flink.jsonl: [1-9]" lineage-collect.txt
+          # Phase 6 gate on fixtures: hourly file to a published field, column chain complete
+          uv run keystone lineage dbt --root ci-data
+          uv run keystone metadata export --root ci-data --out ci-metadata --require-path
       - if: failure()
         run: docker compose -f compose/docker-compose.yml --profile streaming --profile catalog --profile trino logs --tail 200
       - if: always()

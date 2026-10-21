@@ -4,10 +4,13 @@ Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
 Phase 6 (metadata, lineage, observability) gate checks pass locally on the local data
-(2026-10-21): the path from a GH Archive hourly file to a published Iceberg field exists in
-the static `metadata/lineage.json`, in Marquez and in DataHub; completeness 100% (19/19
-models, 483/483 columns, 44/44 datasets complete, no owner missing); `pipeline_metrics.json`
-validates and equals Grafana on 50 of 50 values (ADR-031 to 035). Review and CI: see Done.
+(2026-10-21, after the review fixes): from a GH Archive hourly file to a published Iceberg
+field, table level for the parse hop (the file has no schema) and column level from silver
+`created_at` to the published field, in the static `metadata/lineage.json`, in Marquez (13
+nodes, 6 fields) and in DataHub (5 upstream datasets, 5 column hops with stored fine-grained
+lineage); completeness 100% (19/19 models, 483/483 columns, 44/44 datasets complete, no owner
+missing); `pipeline_metrics.json` validates and equals Grafana on 50 of 50 values (42
+independent stage values, 8 transport-only totals) (ADR-031 to 035). Review and CI: see Done.
 Next phase: **Phase 7**.
 
 ## Done
@@ -119,9 +122,9 @@ Next phase: **Phase 7**.
 | 2026-10-20 | Engine reads, 10 tables (fingerprint after review) | DuckDB+Spark+Flink 30/30 match (5.2 min); DuckDB+Trino 20/20 (2.2 min) |
 | 2026-10-20 | Reader RAM (docker stats) | Trino 0.91 GB idle, 1.45 GB peak (limit 1.5 GB); Flink TM 1.08 GB, JM 0.62 GB |
 | 2026-10-20 | Disk free after Phase 5 (C:) | 20 GB; spark 1.1 GB + trino 1.38 GB images; data/warehouse 403 MB |
-| 2026-10-21 | Gate run (local data, one run id, 18 stages) | parse 8 kept hours 294,072 events 27.9 s (10.5k/s); produce 2,363,426 records 56.1 s (42k/s); Flink batch + fold 96.8 s; publish 3,399,621 rows 8.1 s |
-| 2026-10-21 | Lineage graph (metadata/lineage.json) | 103 nodes, 118 edges, 256 column edges; dbt-ol 76 events, column lineage on 17 models, 61 unresolved column inputs dropped |
-| 2026-10-21 | Gate path present | static JSON, Marquez (11 of 11 nodes), DataHub (5 of 5 upstream datasets) |
+| 2026-10-21 | Final gate run (local data, one run id, 14 stages) | parse 8 kept hours 294,072 events 34.5 s (8.5k/s); rollup 832,958 rows 4.2 s; dbt build 19.9 s; produce 2,363,426 records 46.1 s (51k/s); Flink batch + fold 93.6 s (records not reported); publish 3,399,621 rows 7.8 s |
+| 2026-10-21 | Lineage graph (metadata/lineage.json) | 103 nodes, 118 edges, 294 column edges; dbt-ol 76 events, column lineage on 17 models, 61 unresolved column inputs dropped |
+| 2026-10-21 | Gate path present | static JSON (column chain complete), Marquez (13 of 13 nodes, 6 of 6 fields), DataHub (5 of 5 upstream datasets, 5 of 5 column hops) |
 | 2026-10-21 | Completeness | 19/19 models, 483/483 columns, 44/44 datasets, 0 owners missing |
 | 2026-10-21 | Grafana vs pipeline_metrics.json | 50 of 50 equal (tolerance 0.001); 15 engines with versions |
 | 2026-10-21 | DataHub ingestion | dbt 451 events, iceberg 261, kafka 6, 0 failures; 57 assertions; 53 datasets tagged and owned |

@@ -83,11 +83,17 @@
           "minimum": 0
         },
         "bytes_downloaded": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0
         },
         "bytes_parsed": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0
         },
         "files_parsed": {
@@ -384,7 +390,10 @@
       ],
       "properties": {
         "checks_passed": {
-          "type": "integer",
+          "type": [
+            "integer",
+            "null"
+          ],
           "minimum": 0
         },
         "dbt_tests_failed": {

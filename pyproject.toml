@@ -17,6 +17,7 @@ dependencies = [
     "pyarrow>=26.0.0",
     "pydantic>=2.8",
     "pyyaml>=6.0",
+    "sqlglot>=30.12",
     "typer>=0.12",
 ]
 

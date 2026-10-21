@@ -95,7 +95,7 @@ class Graph:
         node = self.jobs.setdefault(jid, {"id": jid, "name": job["name"], "tool": tool, "runs": 0})
         if state == "COMPLETE":
             node["runs"] += 1
-            node["last_run"] = event["eventTime"]
+            node["last_run"] = max(node.get("last_run", ""), event["eventTime"])
         for d in event.get("inputs") or []:
             self.edges.add((self._dataset(d), jid, "reads"))
             self.tools[tool]["table_edges"] += 1
@@ -133,13 +133,21 @@ def build(events: Iterable[dict[str, Any]]) -> Graph:
 
 
 def _cap_hour_files(g: Graph) -> None:
-    hours = sorted(d for d in g.datasets if d.startswith(naming.GHARCHIVE_NS + "/"))
+    hours = sorted(
+        (d for d in g.datasets if d.startswith(naming.GHARCHIVE_NS + "/")), key=_hour_key
+    )
     if len(hours) <= MAX_HOUR_FILES:
         return
     drop = set(hours[:-MAX_HOUR_FILES])
     for d in drop:
         g.datasets.pop(d, None)
     g.edges = {e for e in g.edges if e[0] not in drop}
+
+
+def _hour_key(did: str) -> tuple[str, int]:
+    """Chronological order of `.../YYYY-MM-DD-H.json.gz` (hours are not zero-padded)."""
+    day, _, hour = did.rsplit("/", 1)[1].removesuffix(".json.gz").rpartition("-")
+    return day, int(hour) if hour.isdigit() else -1
 
 
 def is_hour_file(did: str) -> bool:
@@ -165,6 +173,25 @@ def shortest_path(g: Graph, sources: set[str], targets: set[str]) -> list[str]:
                 prev[nxt] = cur
                 queue.append(nxt)
     return []
+
+
+def field_chain_along(g: Graph, path: list[str], target: str) -> list[str]:
+    """A column chain from `target` back along the datasets of a table-level `path`: at each
+    step a parent field in the previous dataset of the path (the same column name first)."""
+    parents: dict[str, list[str]] = defaultdict(list)
+    for src, dst, _ in g.field_edges:
+        parents[dst].append(src)
+    datasets = [d for d in path if not d.startswith("job:")]
+    chain = [target]
+    for prev in reversed(datasets[:-1]):
+        here = chain[-1]
+        col = here.split("#", 1)[1]
+        options = sorted(p for p in parents[here] if p.split("#", 1)[0] == prev)
+        if not options:
+            break
+        same = [p for p in options if p.split("#", 1)[1] == col]
+        chain.append((same or options)[0])
+    return chain
 
 
 def field_ancestry(g: Graph, target: str) -> list[str]:

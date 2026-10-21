@@ -8,9 +8,8 @@ Two parts, both with the `acryl-datahub` library (the `metadata` dependency grou
 2. Keystone's own metadata, emitted as aspects: the domains, the owner group, the glossary
    (config/metadata.yml), tags for layer, classification and freshness SLA, glossary terms on
    columns, a link to each dataset's contract, and every non-dbt job of the lineage graph
-   (CLI, Flink) as a DataJob with its inputs, outputs and column lineage. The rollup SQL's
-   column lineage comes from DataHub's schema-aware SQL parser (sqlglot), resolved against the
-   schema DataHub holds for the silver events table.
+   (CLI, Flink) as a DataJob with its inputs, outputs and column lineage (the rollup's from
+   sqlglot, lineage/sqllineage.py).
 
 Dataset URNs follow what the sources create, so both parts land on the same entities.
 """
@@ -132,33 +131,6 @@ def _term_urn(term: str) -> str:
     from datahub.emitter.mce_builder import make_term_urn
 
     return make_term_urn(f"{GLOSSARY_NODE}.{term.replace(' ', '_')}")
-
-
-def rollup_column_lineage(gms: str) -> dict[str, list[tuple[str, str, str]]]:
-    """Per rollup table: (downstream column, upstream dataset URN, upstream column), from
-    DataHub's SQL parser over the rollup SQL as the free engine runs it."""
-    from datahub.ingestion.graph.client import DatahubClientConfig, DataHubGraph
-    from datahub.sql_parsing.sqlglot_lineage import create_lineage_sql_parsed_result
-
-    from keystone.rollup.spec import duckdb_select, input_sql, rollups
-
-    graph = DataHubGraph(DatahubClientConfig(server=gms))
-    out: dict[str, list[tuple[str, str, str]]] = {}
-    for r in rollups():
-        sql = (
-            f"CREATE TABLE rollup.main.{r.name} AS WITH "
-            "events AS (SELECT * FROM keystone.silver.gharchive_events), "
-            f"rollup_input AS ({input_sql()}) {duckdb_select(r)}"
-        )
-        res = create_lineage_sql_parsed_result(
-            sql, default_db=None, platform="duckdb", platform_instance=None, env="PROD", graph=graph
-        )
-        rows = []
-        for cl in res.column_lineage or []:
-            for up in cl.upstreams:
-                rows.append((cl.downstream.column, up.table, up.column))
-        out[r.name] = rows
-    return out
 
 
 def emit(
@@ -286,7 +258,6 @@ def emit(
     # Non-dbt jobs (dbt's model lineage comes from the dbt source) as DataJobs.
     flow = make_data_flow_urn("keystone", FLOW_ID, "PROD")
     put(flow, s.DataFlowInfoClass(name="keystone pipeline"), "jobs")
-    rollup_cll = rollup_column_lineage(gms)
     reads: dict[str, list[str]] = defaultdict(list)
     writes: dict[str, list[str]] = defaultdict(list)
     for e in lineage["edges"]:
@@ -311,10 +282,6 @@ def emit(
         for fe in field_edges[job["id"]]:
             (src, scol), (dst, dcol) = fe["from"].split("#", 1), fe["to"].split("#", 1)
             fine.append((dataset_urn(src), scol, dataset_urn(dst), dcol))
-        if job["name"] == "rollup.duckdb":
-            for table, rows in rollup_cll.items():
-                dst = dataset_urn(f"{naming.DUCKDB_NS}/rollup.main.{table}")
-                fine += [(up, ucol, dst, dcol) for dcol, up, ucol in rows]
         put(
             jurn,
             s.DataJobInfoClass(
@@ -345,6 +312,17 @@ def emit(
         counts["column_edges"] += len(set(fine))
     emitter.close()
     return dict(counts)
+
+
+def job_urns(lineage: dict[str, Any]) -> set[str]:
+    """DataJob URNs `emit` writes: every non-dbt job of the lineage graph."""
+    from datahub.emitter.mce_builder import make_data_job_urn
+
+    return {
+        make_data_job_urn("keystone", FLOW_ID, j["name"], "PROD")
+        for j in lineage["jobs"]
+        if j["tool"] != "dbt (dbt-ol)"
+    }
 
 
 def _gql(gms: str, query: str, variables: dict[str, Any]) -> dict[str, Any]:
@@ -387,6 +365,63 @@ def gate_missing(gms: str, path: list[str], wait_s: float = 120.0) -> list[str]:
         if not missing or time.monotonic() > deadline:
             return missing
         time.sleep(5)
+
+
+def field_urn(field_id: str) -> str:
+    """`<dataset id>#<column>` -> the DataHub schemaField URN."""
+    from datahub.emitter.mce_builder import make_schema_field_urn
+
+    did, col = field_id.split("#", 1)
+    return make_schema_field_urn(dataset_urn(did), col)
+
+
+def _fine_grained_edges(gms: str, datasets: list[str], jobs: list[str]) -> set[tuple[str, str]]:
+    """(upstream field URN, downstream field URN) stored in DataHub: fine-grained lineage of
+    the datasets' UpstreamLineage (dbt source, both siblings) and of the jobs' inputs/outputs."""
+    from datahub.ingestion.graph.client import DatahubClientConfig, DataHubGraph
+    from datahub.metadata.schema_classes import DataJobInputOutputClass, UpstreamLineageClass
+
+    graph = DataHubGraph(DatahubClientConfig(server=gms))
+    fgl = []
+    for urn in datasets:
+        for alias in _aliases(urn):
+            ul = graph.get_aspect(alias, UpstreamLineageClass)
+            fgl += (ul.fineGrainedLineages or []) if ul else []
+    for urn in jobs:
+        io = graph.get_aspect(urn, DataJobInputOutputClass)
+        fgl += (io.fineGrainedLineages or []) if io else []
+    return {(u, d) for f in fgl for u in (f.upstreams or []) for d in (f.downstreams or [])}
+
+
+def field_gate_missing(gms: str, chain: list[str], jobs: list[str]) -> list[str]:
+    """Hops of the gate's column chain (`downstream <- upstream`) with no fine-grained lineage
+    edge in DataHub (either sibling of a dbt node counts)."""
+    datasets = sorted({dataset_urn(f.split("#", 1)[0]) for f in chain})
+    edges = _fine_grained_edges(gms, datasets, jobs)
+    missing = []
+    for down, up in zip(chain, chain[1:], strict=False):
+        ups, downs = _aliases(field_urn(up)), _aliases(field_urn(down))
+        if not any((u, d) in edges for u in ups for d in downs):
+            missing.append(f"{down} <- {up}")
+    return missing
+
+
+def remove_stale_jobs(gms: str, current: set[str]) -> list[str]:
+    """Soft-delete DataJobs of the keystone flow that the current lineage no longer has (a
+    renamed job would otherwise keep its old edges in DataHub)."""
+    from datahub.emitter.mcp import MetadataChangeProposalWrapper as Mcp
+    from datahub.emitter.rest_emitter import DatahubRestEmitter
+    from datahub.metadata.schema_classes import StatusClass
+
+    q = """query{ searchAcrossEntities(input:{types:[DATA_JOB], query:"*", start:0, count:1000})
+      { searchResults { entity { urn } } } }"""
+    found = {r["entity"]["urn"] for r in _gql(gms, q, {})["searchAcrossEntities"]["searchResults"]}
+    stale = sorted(u for u in found if f"({FLOW_ID},{FLOW_ID}," in u and u not in current)
+    emitter = DatahubRestEmitter(gms)
+    for urn in stale:
+        emitter.emit(Mcp(entityUrn=urn, aspect=StatusClass(removed=True)))
+    emitter.close()
+    return stale
 
 
 def count(gms: str, entity_type: str) -> int:

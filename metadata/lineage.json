@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-21T06:08:14.796920+00:00",
+ "generated_at": "2026-10-21T06:38:45.391034+00:00",
  "generator": "keystone metadata export",
  "datasets": [
   {
@@ -1121,351 +1121,351 @@
    "id": "job:keystone/keystone.intermediate.keystone.int_package_repo_evidence.build.run",
    "name": "keystone.intermediate.keystone.int_package_repo_evidence.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:38.575228Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:44.898190Z"
   },
   {
    "id": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run",
    "name": "keystone.intermediate.keystone.int_repo_name_hours.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:38.199115Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:44.711627Z"
   },
   {
    "id": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.test",
    "name": "keystone.intermediate.keystone.int_repo_name_hours.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run",
    "name": "keystone.marts.keystone.bridge_package_repo.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:48.424379Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:52.979730Z"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.test",
    "name": "keystone.marts.keystone.bridge_package_repo.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.dim_package.build.run",
    "name": "keystone.marts.keystone.dim_package.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:38.224181Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:44.718666Z"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.dim_package.build.test",
    "name": "keystone.marts.keystone.dim_package.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.dim_repo.build.run",
    "name": "keystone.marts.keystone.dim_repo.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:53.161113Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:55.081664Z"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.dim_repo.build.test",
    "name": "keystone.marts.keystone.dim_repo.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run",
    "name": "keystone.marts.keystone.dim_repo_name_history.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:45.302490Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:51.274611Z"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.test",
    "name": "keystone.marts.keystone.dim_repo_name_history.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run",
    "name": "keystone.marts.keystone.fct_repo_day.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:45.298972Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:50.817520Z"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.fct_repo_day.build.test",
    "name": "keystone.marts.keystone.fct_repo_day.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.fct_vuln.build.run",
    "name": "keystone.marts.keystone.fct_vuln.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:38.672863Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:44.967214Z"
   },
   {
    "id": "job:keystone/keystone.marts.keystone.fct_vuln.build.test",
    "name": "keystone.marts.keystone.fct_vuln.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run",
    "name": "keystone.metrics.keystone.metric_maint_v1_repo_day.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:49.834384Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:52.373024Z"
   },
   {
    "id": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.test",
    "name": "keystone.metrics.keystone.metric_maint_v1_repo_day.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run",
    "name": "keystone.metrics.keystone.metric_maint_v2_repo_day.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:53.166597Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:52.426203Z"
   },
   {
    "id": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.test",
    "name": "keystone.metrics.keystone.metric_maint_v2_repo_day.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.run",
    "name": "keystone.metrics.keystone.metric_release_v1_repo_day.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:53.786749Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:52.461926Z"
   },
   {
    "id": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.test",
    "name": "keystone.metrics.keystone.metric_release_v1_repo_day.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_gharchive__repo_names.build.run",
    "name": "keystone.staging.keystone.stg_gharchive__repo_names.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:36.122695Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:43.053691Z"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_gharchive__repo_names.build.test",
    "name": "keystone.staging.keystone.stg_gharchive__repo_names.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_osv__affected.build.run",
    "name": "keystone.staging.keystone.stg_osv__affected.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:36.645895Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:43.594088Z"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_osv__affected.build.test",
    "name": "keystone.staging.keystone.stg_osv__affected.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_osv__repo_refs.build.run",
    "name": "keystone.staging.keystone.stg_osv__repo_refs.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:36.813082Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:43.726119Z"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_osv__repo_refs.build.test",
    "name": "keystone.staging.keystone.stg_osv__repo_refs.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_osv__vulns.build.run",
    "name": "keystone.staging.keystone.stg_osv__vulns.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:36.125794Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:43.057116Z"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_osv__vulns.build.test",
    "name": "keystone.staging.keystone.stg_osv__vulns.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_ref__completeness_periods.build.run",
    "name": "keystone.staging.keystone.stg_ref__completeness_periods.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:36.938826Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:43.824231Z"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_ref__completeness_periods.build.test",
    "name": "keystone.staging.keystone.stg_ref__completeness_periods.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run",
    "name": "keystone.staging.keystone.stg_rollup__repo_hour.build.run",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:38.676410Z"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:44.971311Z"
   },
   {
    "id": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.test",
    "name": "keystone.staging.keystone.stg_rollup__repo_hour.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/parse.gharchive",
    "name": "parse.gharchive",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:13.643121+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:16.684053+00:00"
   },
   {
    "id": "job:keystone/parse.osv",
    "name": "parse.osv",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:20.223286+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:25.337575+00:00"
   },
   {
    "id": "job:keystone/rollup.duckdb",
    "name": "rollup.duckdb",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:02:26.453231+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:33:33.448414+00:00"
   },
   {
    "id": "job:keystone/rollup.flink.batch",
    "name": "rollup.flink.batch",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:06:00.045633+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:36:30.567323+00:00"
   },
   {
    "id": "job:keystone/rollup.main.source.keystone.rollup.repo_hour.build.test",
    "name": "rollup.main.source.keystone.rollup.repo_hour.build.test",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/stream.produce",
    "name": "stream.produce",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:04:20.198629+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:54.061825+00:00"
   },
   {
    "id": "job:keystone/test.keystone.assert_fct_repo_day_conserves_events",
    "name": "test.keystone.assert_fct_repo_day_conserves_events",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/test.keystone.assert_one_current_name",
    "name": "test.keystone.assert_one_current_name",
    "tool": "dbt (dbt-ol)",
-   "runs": 2,
-   "last_run": "2026-10-21T06:03:16.100951+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:34:02.567683+00:00"
   },
   {
    "id": "job:keystone/warehouse.publish.marts.bridge_package_repo",
    "name": "warehouse.publish.marts.bridge_package_repo",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:06:12.160663+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:36:42.198980+00:00"
   },
   {
    "id": "job:keystone/warehouse.publish.marts.dim_package",
    "name": "warehouse.publish.marts.dim_package",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:06:12.164304+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:36:42.202051+00:00"
   },
   {
    "id": "job:keystone/warehouse.publish.marts.dim_repo",
    "name": "warehouse.publish.marts.dim_repo",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:06:12.166239+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:36:42.205252+00:00"
   },
   {
    "id": "job:keystone/warehouse.publish.marts.dim_repo_name_history",
    "name": "warehouse.publish.marts.dim_repo_name_history",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:06:12.168797+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:36:42.208933+00:00"
   },
   {
    "id": "job:keystone/warehouse.publish.marts.fct_repo_day",
    "name": "warehouse.publish.marts.fct_repo_day",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:06:12.172908+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:36:42.213897+00:00"
   },
   {
    "id": "job:keystone/warehouse.publish.marts.fct_vuln",
    "name": "warehouse.publish.marts.fct_vuln",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:06:12.179035+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:36:42.218772+00:00"
   },
   {
    "id": "job:keystone/warehouse.publish.metrics.metric_maint_v1_repo_day",
    "name": "warehouse.publish.metrics.metric_maint_v1_repo_day",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:06:12.182712+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:36:42.222435+00:00"
   },
   {
    "id": "job:keystone/warehouse.publish.metrics.metric_maint_v2_repo_day",
    "name": "warehouse.publish.metrics.metric_maint_v2_repo_day",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:06:12.185265+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:36:42.225850+00:00"
   },
   {
    "id": "job:keystone/warehouse.publish.metrics.metric_release_v1_repo_day",
    "name": "warehouse.publish.metrics.metric_release_v1_repo_day",
    "tool": "keystone CLI",
-   "runs": 2,
-   "last_run": "2026-10-21T06:06:12.187775+00:00"
+   "runs": 3,
+   "last_run": "2026-10-21T06:36:42.227994+00:00"
   }
  ],
  "edges": [
@@ -3273,8 +3273,83 @@
   },
   {
    "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#issues_closed",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#issues_opened",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#members_added",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#prs_closed",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#prs_merged",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#prs_opened",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#releases",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_hour#added",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_hour#closed",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_hour#merge_known",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_hour#merged",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_hour#opened",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_hour#published",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "duckdb://keystone/rollup.main.repo_hour#reopened",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
    "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#action",
    "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#actor_is_bot",
+   "to": "duckdb://keystone/rollup.main.repo_hour#human_events",
+   "job": "job:keystone/rollup.duckdb"
   },
   {
    "from": "file://keystone/silver/gharchive/events#actor_is_bot",
@@ -3283,8 +3358,18 @@
   },
   {
    "from": "file://keystone/silver/gharchive/events#actor_key",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#actor_key",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#actor_key",
    "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#actor_key",
    "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#actor_key_kind",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#actor_key_kind",
+   "job": "job:keystone/rollup.duckdb"
   },
   {
    "from": "file://keystone/silver/gharchive/events#actor_key_kind",
@@ -3293,8 +3378,28 @@
   },
   {
    "from": "file://keystone/silver/gharchive/events#created_at",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#window_start",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#created_at",
+   "to": "duckdb://keystone/rollup.main.repo_hour#window_start",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#created_at",
    "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#created_at",
    "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#era",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#era",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#era",
+   "to": "duckdb://keystone/rollup.main.repo_hour#era",
+   "job": "job:keystone/rollup.duckdb"
   },
   {
    "from": "file://keystone/silver/gharchive/events#era",
@@ -3303,8 +3408,68 @@
   },
   {
    "from": "file://keystone/silver/gharchive/events#event_type",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#comments",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#event_type",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#issues_closed",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#event_type",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#issues_opened",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#event_type",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#members_added",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#event_type",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#prs_closed",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#event_type",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#prs_merged",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#event_type",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#prs_opened",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#event_type",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#pushes",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#event_type",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#releases",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#event_type",
+   "to": "duckdb://keystone/rollup.main.repo_hour#event_type",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#event_type",
    "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#event_type",
    "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#fetched_at",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#fetched_at_max",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#fetched_at",
+   "to": "duckdb://keystone/rollup.main.repo_hour#fetched_at_max",
+   "job": "job:keystone/rollup.duckdb"
   },
   {
    "from": "file://keystone/silver/gharchive/events#fetched_at",
@@ -3318,8 +3483,33 @@
   },
   {
    "from": "file://keystone/silver/gharchive/events#pr_merged",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#prs_merged",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#pr_merged",
+   "to": "duckdb://keystone/rollup.main.repo_hour#merge_known",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#pr_merged",
+   "to": "duckdb://keystone/rollup.main.repo_hour#merged",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#pr_merged",
    "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#pr_merged",
    "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#repo_id",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day#repo_id",
+   "job": "job:keystone/rollup.duckdb"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#repo_id",
+   "to": "duckdb://keystone/rollup.main.repo_hour#repo_id",
+   "job": "job:keystone/rollup.duckdb"
   },
   {
    "from": "file://keystone/silver/gharchive/events#repo_id",
@@ -3344,15 +3534,15 @@
  ],
  "tools": {
   "Flink (openlineage-flink)": {
-   "table_edges": 22
+   "table_edges": 33
   },
   "dbt (dbt-ol)": {
-   "table_edges": 244,
-   "column_edges": 804
+   "table_edges": 366,
+   "column_edges": 1206
   },
   "keystone CLI": {
-   "table_edges": 168,
-   "column_edges": 464
+   "table_edges": 252,
+   "column_edges": 772
   }
  },
  "unresolved_column_inputs": 61,
@@ -3362,25 +3552,26 @@
    "https://data.gharchive.org/2011-02-12-0.json.gz",
    "job:keystone/parse.gharchive",
    "file://keystone/silver/gharchive/events",
-   "job:keystone/keystone.staging.keystone.stg_gharchive__repo_names.build.run",
-   "duckdb://keystone/keystone.staging.stg_gharchive__repo_names",
-   "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run",
-   "duckdb://keystone/keystone.intermediate.int_repo_name_hours",
-   "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run",
-   "duckdb://keystone/keystone.marts.dim_repo_name_history",
-   "job:keystone/warehouse.publish.marts.dim_repo_name_history",
-   "iceberg://lakekeeper/keystone/marts.dim_repo_name_history"
+   "job:keystone/rollup.duckdb",
+   "duckdb://keystone/rollup.main.repo_hour",
+   "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run",
+   "duckdb://keystone/keystone.staging.stg_rollup__repo_hour",
+   "job:keystone/keystone.marts.keystone.fct_repo_day.build.run",
+   "duckdb://keystone/keystone.marts.fct_repo_day",
+   "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run",
+   "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day",
+   "job:keystone/warehouse.publish.metrics.metric_maint_v1_repo_day",
+   "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day"
   ],
   "field": [
-   "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#is_current",
-   "duckdb://keystone/keystone.marts.dim_repo_name_history#is_current",
-   "duckdb://keystone/keystone.intermediate.int_repo_name_hours#first_seen_at",
-   "duckdb://keystone/keystone.intermediate.int_repo_name_hours#repo_id",
-   "duckdb://keystone/keystone.intermediate.int_repo_name_hours#repo_name",
-   "duckdb://keystone/keystone.staging.stg_gharchive__repo_names#created_at",
-   "duckdb://keystone/keystone.staging.stg_gharchive__repo_names#repo_id",
-   "duckdb://keystone/keystone.staging.stg_gharchive__repo_names#repo_name"
-  ]
+   "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#activity_date",
+   "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#activity_date",
+   "duckdb://keystone/keystone.marts.fct_repo_day#activity_date",
+   "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#window_start",
+   "duckdb://keystone/rollup.main.repo_hour#window_start",
+   "file://keystone/silver/gharchive/events#created_at"
+  ],
+  "complete": true
  },
  "full_engine_path": [
   "https://data.gharchive.org/2011-02-12-0.json.gz",
@@ -3394,7 +3585,7 @@
  "summary": {
   "nodes": 103,
   "edges": 118,
-  "field_edges": 256,
+  "field_edges": 294,
   "datasets": 51,
   "jobs": 52
  }

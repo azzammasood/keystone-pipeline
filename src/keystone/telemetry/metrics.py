@@ -69,11 +69,32 @@ def _stage(r: StageRecord) -> dict[str, Any]:
         "bytes_in": r.bytes_in,
         "bytes_out": r.bytes_out,
         "duration_seconds": round(r.seconds, 3),
-        "records_per_second": round(r.records_per_second, 3) if r.records_per_second else None,
-        "mb_per_second": round(r.mb_per_second, 3) if r.mb_per_second else None,
+        "records_per_second": _round(r.records_per_second),
+        "mb_per_second": _round(r.mb_per_second),
         "status": r.status,
         "started_at": r.started_at,
     }
+
+
+def _round(v: float | None) -> float | None:
+    return None if v is None else round(v, 3)  # a measured 0.0 stays 0.0
+
+
+def _last_per_stage(recs: list[StageRecord]) -> list[StageRecord]:
+    """The last attempt of each stage, in order of first appearance: a stage re-run under the
+    same run id (a repeated check) replaces its earlier attempt."""
+    last: dict[str, StageRecord] = {}
+    for r in recs:
+        last.pop(r.stage, None)
+        last[r.stage] = r
+    order = list(dict.fromkeys(r.stage for r in recs))
+    return [last[s] for s in order]
+
+
+def _sum_or_none(values: list[int | None]) -> int | None:
+    """Sum of measured values; None when nothing was measured (not a measured zero)."""
+    known = [v for v in values if v is not None]
+    return sum(known) if known else None
 
 
 def engines(records: list[StageRecord], last_run_id: str | None) -> list[dict[str, Any]]:
@@ -181,7 +202,8 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
     ok = [r for r in records if r.status == "ok"]
     event_stages = [r for r in ok if r.stage in EVENT_STAGES]
     history = []
-    for run_id, recs in runs[-HISTORY_RUNS:]:
+    for run_id, all_recs in runs[-HISTORY_RUNS:]:
+        recs = _last_per_stage(all_recs)
         start = min(_ts(r.started_at) for r in recs)
         end = max(_ts(r.ended_at) for r in recs)
         history.append(
@@ -190,7 +212,7 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
                 "started_at": start.isoformat(),
                 "ended_at": end.isoformat(),
                 "wall_seconds": round((end - start).total_seconds(), 3),
-                "stages": len(recs),
+                "stages": len(recs),  # distinct stages (last attempt of each)
                 "events_processed": sum(r.records_out or 0 for r in recs if r in event_stages),
                 "status": "ok" if all(r.status == "ok" for r in recs) else "failed",
             }
@@ -215,7 +237,8 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
     disk = shutil.disk_usage(REPO_ROOT)
     from keystone.policy import load_policy
 
-    budget = disk.free * load_policy().disk_budget_fraction
+    fraction = load_policy().disk_budget_fraction
+    budget = disk.free * fraction
     data_bytes = sum(p.stat().st_size for p in root.rglob("*") if p.is_file())
     return {
         "generated_at": now.isoformat(),
@@ -224,8 +247,12 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
         "totals": {
             "events_processed": sum(r.records_out or 0 for r in event_stages),
             "events_stored": facts["events_stored"],
-            "bytes_downloaded": sum(r.bytes_in or 0 for r in ok if r.stage == "ingest"),
-            "bytes_parsed": sum(r.bytes_in or 0 for r in event_stages),
+            "bytes_downloaded": _sum_or_none([r.bytes_in for r in ok if r.stage == "ingest"]),
+            # ingest's bytes_in is the download; what it parsed is in detail.bytes_parsed
+            "bytes_parsed": _sum_or_none(
+                [r.bytes_in for r in ok if r.stage == "parse"]
+                + [r.detail.get("bytes_parsed") for r in ok if r.stage == "ingest"]
+            ),
             "files_parsed": sum(int(r.detail.get("files", 0)) for r in event_stages),
             "rollup_rows": facts["rollup_rows"],
             "date_range": {
@@ -237,7 +264,7 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
         },
         "last_run": {
             "run_id": last_id,
-            "stages": [_stage(r) for r in last],
+            "stages": [_stage(r) for r in _last_per_stage(last)],
         },
         "history": {"runs": history, "daily_volume": daily_rows},
         "freshness": {
@@ -249,8 +276,12 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
             "status": None if lag is None else ("ok" if lag <= slo else "breach"),
         },
         "quality": {
-            "checks_passed": (int(contracts.detail.get("checks_passed", 0)) if contracts else 0)
-            + (int(warehouse.detail.get("tests_passed", 0)) if warehouse else 0),
+            "checks_passed": _sum_or_none(
+                [
+                    int(contracts.detail["checks_passed"]) if contracts else None,
+                    int(warehouse.detail["tests_passed"]) if warehouse else None,
+                ]
+            ),
             "dbt_tests_failed": int(warehouse.detail.get("tests_failed", 0)) if warehouse else None,
             "quarantined_rows": facts["quarantined_rows"],
             "contract_violations": int(contracts.detail.get("violations", 0))
@@ -262,9 +293,12 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
             "basis": "no billing account exists for any service used (CLAUDE.md $0 rule)",
             "free_quota": [
                 {
-                    "name": "disk budget (70% of free disk)",
+                    "name": f"disk budget ({fraction:.0%} of free disk, config/policy.yml)",
                     "used_pct": round(100 * data_bytes / budget, 2) if budget else None,
-                }
+                },
+                # Not measurable from a local run; null until the production workflow reads
+                # the repository's Actions usage (Phase 10).
+                {"name": "GitHub Actions minutes (private repository)", "used_pct": None},
             ],
         },
         "lineage_summary": _lineage_summary(metadata_dir),

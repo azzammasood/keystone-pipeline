@@ -167,6 +167,11 @@ def completeness(catalog: dict[str, Any]) -> Completeness:
     )
 
 
+def _is_published_namespace(ns: str) -> bool:
+    """`marts`, `metrics`, or the same with a test prefix (`ci_marts`, ADR-029)."""
+    return any(ns == p or ns.endswith("_" + p) for p in PUBLISHED_NAMESPACES)
+
+
 def build_lineage(root: Path, meta: Metadata, catalog: dict[str, Any]) -> dict[str, Any]:
     g = lgraph.build(lgraph.read_events(root))
     known = {d["id"]: d for d in catalog["datasets"]}
@@ -189,25 +194,27 @@ def build_lineage(root: Path, meta: Metadata, catalog: dict[str, Any]) -> dict[s
         d
         for d in g.datasets
         if d.startswith(naming.ICEBERG_NS + "/")
-        and d.rsplit("/", 1)[1].split(".")[0] in PUBLISHED_NAMESPACES
+        and _is_published_namespace(d.rsplit("/", 1)[1].split(".")[0])
     }
     hours = {d for d in g.datasets if lgraph.is_hour_file(d)}
-    # The gate path: an hourly file to a published table (table level), and the published
-    # field whose column lineage reaches furthest back along that same path.
+    # The gate path: an hourly file to a published table (table level), and a published field
+    # whose column lineage follows that path, dataset by dataset, back to the table the hourly
+    # file is parsed into (the parse hop is table level: the file has no schema). `complete`
+    # says the column chain got there; the gate requires it.
     path: list[str] = []
     field_path: list[str] = []
-    best_key = (-1, 0)
+    best_key: tuple[int, int] = (-1, 0)
     for target in sorted(published):
         tpath = lgraph.shortest_path(g, hours, {target})
         if not tpath:
             continue
-        on_path = set(tpath)
         for col in sorted(g.fields.get(target, set())):
-            chain = [f"{target}#{col}", *lgraph.field_ancestry(g, f"{target}#{col}")]
-            reach = sum(1 for f in chain if f.split("#", 1)[0] in on_path)
-            key = (reach, -len(tpath))
+            chain = lgraph.field_chain_along(g, tpath, f"{target}#{col}")
+            key = (len(chain), -len(tpath))
             if key > best_key:
                 best_key, path, field_path = key, tpath, chain
+    parsed_into = path[2] if len(path) > 2 else None
+    complete = bool(field_path) and field_path[-1].split("#", 1)[0] == parsed_into
     # The full engine's branch (Kafka topic, Flink job, Iceberg rollup), recorded beside it.
     full = {
         d
@@ -224,7 +231,7 @@ def build_lineage(root: Path, meta: Metadata, catalog: dict[str, Any]) -> dict[s
         "tools": {t: dict(c) for t, c in sorted(g.tools.items())},
         "unresolved_column_inputs": g.unresolved,
         "hour_files_kept": len(hours),
-        "gate_path": {"tables": path, "field": field_path},
+        "gate_path": {"tables": path, "field": field_path, "complete": complete},
         "full_engine_path": full_path,
         "summary": {
             "nodes": nodes,

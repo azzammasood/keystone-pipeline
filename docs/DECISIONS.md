@@ -11,16 +11,22 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - `keystone metrics emit` builds `pipeline_metrics.json` (schema:
   `contracts/pipeline_metrics.schema.json`, JSON Schema 2020-12, validated on every emit) from
   the log, the data (silver and rollup counts, newest event, quarantine rows) and the metadata
-  export. Definitions: `events_processed` sums parse work (a re-parsed hour counts again);
+  export. A value nothing measured is null, never 0 (`bytes_downloaded` before any ingest,
+  `checks_passed` before any check; the Flink stage's record counts, which the SQL client does
+  not report). A run's status and `last_run.stages` use the last attempt of each stage.
+  Definitions: `events_processed` sums parse work (a re-parsed hour counts again);
   `events_stored` counts silver rows; an engine is `active` when it ran in the last run;
   `cost.usd` is 0 because no service used has a billing account; the one free quota measured
-  so far is the disk budget. Timestamps are UTC (DuckDB hands TIMESTAMPTZ back in the local
+  so far is the disk budget (GitHub Actions minutes are listed with null until the production
+  workflow can read them). Timestamps are UTC (DuckDB hands TIMESTAMPTZ back in the local
   zone; converted). Nothing is estimated.
 - OpenTelemetry (`obs` profile): each stage records gauges (`keystone_stage_*`, labels stage
   and service) via OTLP/HTTP to the collector 0.163.1, which exposes them to Prometheus 3.15.0;
   Grafana 13.2.4 provisions the `keystone-pipeline` dashboard. The resource has a fixed
   `service.instance.id` (the SDK would start a new series per process, and `max` over stale
-  series showed old values; found in the first gate check). `metrics emit` also exports the
+  series showed old values; found in the first gate check), and resource attributes are not
+  copied into labels, so a version bump keeps the same series (review); series key on stage
+  and service. `metrics emit` also exports the
   pipeline totals as gauges.
 - Gate check (`keystone metrics check-grafana`): reads the dashboard from Grafana's API, runs
   each panel's query through Grafana's `/api/ds/query`, and compares it with the JSON path in
@@ -28,8 +34,11 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   rounds rates and durations to 3 decimals). The stage gauges are written by each stage as it
   ends, independently of the JSON, which is built later from the run log. Order: emit, then
   check (a check is itself a stage, so a check before a new emit compares older JSON).
-- Measured 2026-10-21 (gate run on the local data, 18 stages): 50 of 50 values equal; 15
-  engines with versions read from the running service or its pinned tag. Stage numbers are in
+- Measured 2026-10-21 (final gate run on the local data, after the review): 50 of 50 values
+  equal. 42 are stage values (14 stages x records out, duration, rate), written by each stage
+  independently of the JSON; the other 8 are pipeline totals exported from the JSON itself, so
+  they check only the transport (OTLP, collector, Prometheus, Grafana). 15 engines with
+  versions read from the running service or its pinned tag. Stage numbers are in
   PROGRESS.md. RAM: collector 31 MB, Prometheus 42 MB, Grafana 296 to 323 MB (limit 512 MB).
 
 ## ADR-034 (2026-10-21) Catalog metadata, generated contracts, static export, completeness
@@ -83,12 +92,14 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - Keystone's own aspects (lineage/datahub.py): 5 domains, the owner group, the glossary (node
   plus 6 terms), and per dataset ownership, domain, tags (layer, classification, freshness
   SLA), description, a link to its contract and column glossary terms; every non-dbt job of
-  the lineage graph (CLI and Flink) as a DataJob with inputs, outputs and column lineage. The
-  rollup SQL's column lineage comes from DataHub's own SQL parser (sqlglot): 15 edges for
-  repo_hour, 23 for repo_actor_day.
+  the lineage graph (CLI and Flink) as a DataJob with inputs, outputs and column lineage
+  (including the rollup's, ADR-031). DataJobs of the flow that the current graph no longer has
+  are soft-deleted (the first emit left a combined `warehouse.publish` job; review).
 - Check: every dataset of the gate path is upstream of the published table in DataHub's
   lineage search (dbt nodes count by either sibling, dbt or duckdb; indexing is asynchronous,
-  so the check retries for up to 2 minutes). Databricks and Unity Catalog lineage: skipped, no
+  so the check retries for up to 2 minutes), and every hop of the gate's column chain has a
+  fine-grained lineage edge stored in DataHub (read from the UpstreamLineage and
+  DataJobInputOutput aspects; lineage search on a schemaField returns datasets only). Databricks and Unity Catalog lineage: skipped, no
   token (ADR-030).
 
 ## ADR-031 (2026-10-21) OpenLineage from the CLI and dbt; one naming scheme; Marquez
@@ -96,8 +107,11 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   start, COMPLETE or FAIL at its end, a parent facet pointing at the pipeline run) to
   `<root>/lineage/events/YYYY-MM-DD.jsonl`, and posts them to Marquez when `OPENLINEAGE_URL` is
   set (`keystone lineage push` replays the log; Marquez de-duplicates). Column lineage is
-  emitted where the CLI knows it exactly: the topic (projection of silver events) and the
-  Iceberg publish (identity copies). The publish is one job per table, so no table seems to
+  emitted where the CLI knows it: the topic (projection of silver events), the Iceberg publish
+  (identity copies) and the rollups, derived from their SQL by sqlglot 30.12
+  (`lineage/sqllineage.py`: 13 columns of repo_hour and 15 of repo_actor_day trace to silver
+  columns; `events` counts rows and has no source column). The parse hop (hourly file to
+  silver) is table level: the file has no schema to name fields against. The publish is one job per table, so no table seems to
   feed another (the first version listed all tables in one event; caught in the gate run).
 - Naming (lineage/naming.py): stable logical namespaces instead of machine paths
   (`file://keystone`, `duckdb://keystone`, `kafka://redpanda:9092`,
@@ -109,16 +123,22 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   Linux (CI) natively. Measured: 76 events, column lineage on 17 models; 61 column inputs name
   CTEs or `read_parquet` and are dropped and counted, not guessed.
 - Graph and gate path (`lineage.json`): datasets, jobs, fields; the gate path from an hourly
-  file to a published table (table level) and the published field whose column lineage reaches
-  furthest back along it; the full-engine branch (topic, Flink job, Iceberg rollup) beside it.
-- Marquez 0.51.1 (`lineage` profile, Postgres 17.6, search off, no web UI): the gate path's 11
+  file to a published table (table level) and a published field whose column chain follows
+  that path dataset by dataset; `--require-path` requires the chain to reach the table the
+  hourly file is parsed into (`complete`; the first version passed with a chain ending in
+  staging, review). Measured: `metrics.metric_maint_v1_repo_day.activity_date` back through
+  the metric, `fct_repo_day`, `stg_rollup__repo_hour`, `rollup.main.repo_hour` to silver
+  `created_at`. The full-engine branch (topic, Flink job, Iceberg rollup) is beside it.
+- Marquez 0.51.1 (`lineage` profile, Postgres 17.6, search off, no web UI): the gate path's 13
   nodes and the full-engine path are present in its lineage API (job names compared by
-  `simpleName`, since Marquez prefixes child jobs with the parent's name).
+  `simpleName`, since Marquez prefixes child jobs with the parent's name), and the 6 fields of
+  the column chain in its column-lineage API.
 - Who could do what (table / column): CLI yes / where exact; dbt-ol yes / yes (parsed SQL);
-  DataHub dbt source yes / yes; DataHub SQL parser on the rollup SQL - / yes; Flink yes / no;
+  DataHub dbt source yes / yes; sqlglot on the rollup SQL - / yes; Flink yes / no;
   Spark ran, no datasets for reads; Airflow not run (deferred to Phase 10, when DAGs exist:
   the provider adds nothing until a DAG calls the CLI); Databricks not run (no token).
-- Retention: past days are gzipped and capped (`keystone lineage compact`, default 50 MB); the
+- Retention: past days are gzipped (appended as another gzip member when the day's archive
+  exists, so a late event never replaces it) and capped (`keystone lineage compact`, default 50 MB); the
   oldest days beyond the cap are summarised into `lineage/summary.jsonl` and removed. The push
   of the compressed log to a data branch belongs to the production workflow and is deferred
   to the live refresh (Phase 10).

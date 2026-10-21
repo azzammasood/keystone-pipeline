@@ -2,9 +2,9 @@
 
 Column lineage is emitted where the CLI knows it exactly: the Kafka topic is a projection of
 silver events onto the Avro contract (same names, timestamps cut to milliseconds), and the
-Iceberg publish copies dbt models column for column. The parser (Python projection of JSON
-paths) and the rollup SQL are table level here; DataHub derives the rollup's column lineage
-from the SQL (lineage/datahub.py).
+Iceberg publish copies dbt models column for column, and the rollup's column lineage is
+derived from its SQL by sqlglot (sqllineage.py). The parser (a Python projection of JSON paths
+from the hourly file) is table level: the file has no schema to name fields against.
 """
 
 import pyarrow as pa
@@ -48,10 +48,19 @@ def events_input() -> Ds:
 
 
 def rollup_tables() -> list[Ds]:
+    from keystone.lineage.sqllineage import rollup_columns
     from keystone.rollup.spec import rollups
 
+    src = events_input()
     return [
-        Ds(*naming.duck(f"rollup.main.{r.name}"), columns=[(c, "") for c in r.columns])
+        Ds(
+            *naming.duck(f"rollup.main.{r.name}"),
+            columns=[(c, "") for c in r.columns],
+            lineage={
+                col: [(src.namespace, src.name, s) for s in sources]
+                for col, sources in rollup_columns(r).items()
+            },
+        )
         for r in rollups()
     ]
 

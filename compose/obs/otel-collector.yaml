@@ -1,6 +1,7 @@
 # The CLI pushes OTLP over HTTP; the collector batches and exposes the metrics for Prometheus.
 # Series expire 30 days after their last update, so a run's last values stay scrapeable
-# between daily runs (gauges are per stage; a new run overwrites them).
+# between daily runs (gauges are per stage; a new run overwrites them). Resource attributes
+# (versions) are not copied into labels, so a version bump does not start new series.
 receivers:
   otlp:
     protocols:
@@ -14,8 +15,6 @@ exporters:
   prometheus:
     endpoint: 0.0.0.0:8889
     metric_expiration: 720h
-    resource_to_telemetry_conversion:
-      enabled: true
 
 service:
   pipelines:

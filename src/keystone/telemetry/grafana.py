@@ -64,7 +64,8 @@ def _query(client: httpx.Client, expr: str) -> dict[str, float]:
         value_field = next(i for i, f in enumerate(fields) if f["type"] == "number")
         labels = fields[value_field].get("labels") or {}
         if values[value_field]:
-            out[labels.get("stage", "")] = float(values[value_field][-1])
+            key = f"{labels['stage']} ({labels['service']})" if "stage" in labels else ""
+            out[key] = float(values[value_field][-1])
     return out
 
 
@@ -85,12 +86,13 @@ def compare(doc: dict[str, Any], url: str = "http://127.0.0.1:3000") -> list[Com
                 field = path.removeprefix("last_run.stages[].")
                 for name, stage in last_stage.items():
                     value = stage[field]
+                    key = f"{name} ({stage['service']})"
                     out.append(
                         Comparison(
                             panel["title"],
-                            name,
+                            key,
                             None if value is None else float(value),
-                            got.get(name),
+                            got.get(key),
                         )
                     )
             else:

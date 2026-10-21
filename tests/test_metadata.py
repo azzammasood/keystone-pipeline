@@ -132,3 +132,12 @@ def test_engines_active_is_the_last_run() -> None:
     ]
     rows = {e["name"]: e for e in tm.engines(recs, "b")}
     assert (rows["duckdb"]["active"], rows["dbt"]["active"]) == (False, True)
+
+
+def test_last_attempt_per_stage_and_null_when_unmeasured(run: tuple[Path, Path]) -> None:
+    root, _ = run
+    doc = json.loads((root / "metrics" / "pipeline_metrics.json").read_text("utf-8"))
+    names = [s["name"] for s in doc["last_run"]["stages"]]
+    assert len(names) == len(set(names))
+    assert doc["totals"]["bytes_downloaded"] is None  # no ingest ran: not a measured zero
+    assert doc["totals"]["bytes_parsed"] == 52481

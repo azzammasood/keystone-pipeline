@@ -168,6 +168,9 @@ def test_graph_gate_path_and_unresolved_columns() -> None:
     path = lgraph.shortest_path(g, {HOUR}, {PUB})
     assert path[0] == HOUR and path[-1] == PUB and len(path) == 9
     assert lgraph.field_ancestry(g, f"{PUB}#events") == [f"{MART}#events", f"{ROLLUP}#events"]
+    # the chain along the path stops at the rollup: the parse hop has no column lineage here
+    chain = lgraph.field_chain_along(g, path, f"{PUB}#events")
+    assert chain == [f"{PUB}#events", f"{MART}#events", f"{ROLLUP}#events"]
     assert g.unresolved == 2  # the CTE inputs, dropped and counted
     assert not lgraph.shortest_path(g, {PUB}, {HOUR})
 
@@ -203,3 +206,27 @@ def test_compaction_caps_and_summarises(tmp_path: Path) -> None:
     ]
     assert [r["day"] for r in rows] == ["2026-10-18", "2026-10-19"]
     assert rows[0]["jobs"]["keystone/parse.gharchive"] == {"events": 1, "runs": 1, "datasets": 2}
+
+
+def test_hour_cap_keeps_the_newest_hours(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(lgraph, "MAX_HOUR_FILES", 1)
+    names = ["/2026-10-19-9.json.gz", "/2026-10-19-23.json.gz"]
+    events = [
+        {
+            **_event("p", [], [(SILVER, {})]),
+            "inputs": [{"namespace": naming.GHARCHIVE_NS, "name": n}],
+        }
+        for n in names
+    ]
+    g = lgraph.build(events)
+    assert [d for d in g.datasets if lgraph.is_hour_file(d)] == [naming.GHARCHIVE_NS + names[1]]
+
+
+def test_rollup_sql_column_lineage() -> None:
+    from keystone.lineage.sqllineage import rollup_columns
+    from keystone.rollup.spec import rollups
+
+    cols = rollup_columns(next(r for r in rollups() if r.name == "repo_hour"))
+    assert cols["window_start"] == ["created_at"]
+    assert cols["merged"] == ["action", "pr_merged"]
+    assert "events" not in cols  # a constant: no source column

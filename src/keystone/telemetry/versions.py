@@ -42,30 +42,3 @@ def flink() -> str:
     if isinstance(cfg, dict) and cfg.get("flink-version"):
         return str(cfg["flink-version"])
     return compose_tag("keystone-flink")
-
-
-def flink_last_job_records(name_prefix: str) -> tuple[int | None, int | None]:
-    """(records read by the sources, records written by the sinks) of the newest finished job
-    whose name starts with `name_prefix`, from the Flink REST API; (None, None) if unknown."""
-    jobs = http_json("http://127.0.0.1:8081/jobs/overview")
-    if not isinstance(jobs, dict):
-        return None, None
-    done = [j for j in jobs.get("jobs", []) if str(j.get("name", "")).startswith(name_prefix)]
-    if not done:
-        return None, None
-    job = max(done, key=lambda j: j.get("end-time", 0))
-    detail = http_json(f"http://127.0.0.1:8081/jobs/{job['jid']}")
-    if not isinstance(detail, dict):
-        return None, None
-    vertices = detail.get("vertices", [])
-    read = sum(
-        int(v["metrics"].get("write-records", 0))
-        for v in vertices
-        if "Source" in str(v.get("name", ""))
-    )
-    written = sum(
-        int(v["metrics"].get("read-records", 0))
-        for v in vertices
-        if "Sink" in str(v.get("name", "")) or "Writer" in str(v.get("name", ""))
-    )
-    return read or None, written or None

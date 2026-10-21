@@ -345,7 +345,7 @@
     {
       "id": 9,
       "type": "bargauge",
-      "title": "Last run: records out",
+      "title": "Latest run of each stage: records out",
       "description": "pipeline_metrics: last_run.stages[].records_out (by stage)",
       "datasource": {
         "type": "prometheus",
@@ -374,16 +374,16 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max by (stage) (last_over_time(keystone_stage_records_out[30d]))",
+          "expr": "max by (stage, service) (last_over_time(keystone_stage_records_out[30d]))",
           "instant": true,
-          "legendFormat": "{{stage}}"
+          "legendFormat": "{{stage}} ({{service}})"
         }
       ]
     },
     {
       "id": 10,
       "type": "bargauge",
-      "title": "Last run: duration (s)",
+      "title": "Latest run of each stage: duration (s)",
       "description": "pipeline_metrics: last_run.stages[].duration_seconds (by stage)",
       "datasource": {
         "type": "prometheus",
@@ -412,16 +412,16 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max by (stage) (last_over_time(keystone_stage_duration_seconds[30d]))",
+          "expr": "max by (stage, service) (last_over_time(keystone_stage_duration_seconds[30d]))",
           "instant": true,
-          "legendFormat": "{{stage}}"
+          "legendFormat": "{{stage}} ({{service}})"
         }
       ]
     },
     {
       "id": 11,
       "type": "bargauge",
-      "title": "Last run: records per second",
+      "title": "Latest run of each stage: records per second",
       "description": "pipeline_metrics: last_run.stages[].records_per_second (by stage)",
       "datasource": {
         "type": "prometheus",
@@ -450,9 +450,9 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "max by (stage) (last_over_time(keystone_stage_records_per_second[30d]))",
+          "expr": "max by (stage, service) (last_over_time(keystone_stage_records_per_second[30d]))",
           "instant": true,
-          "legendFormat": "{{stage}}"
+          "legendFormat": "{{stage}} ({{service}})"
         }
       ]
     }

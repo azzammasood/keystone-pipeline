@@ -163,7 +163,11 @@ def _count_parse(stage: Stage, sink: GhArchiveSink) -> None:
     stage.records_in = sink.totals["events"] + sink.totals["quarantined"]
     stage.records_out = sink.totals["events"]
     stage.bytes_out = sink.totals["bytes_out"]
-    stage.detail.update(files=sink.totals["files"], quarantined=sink.totals["quarantined"])
+    stage.detail.update(
+        files=sink.totals["files"],
+        quarantined=sink.totals["quarantined"],
+        bytes_parsed=sink.totals["bytes_in"],
+    )
     stage.inputs = lds.hour_files(sink.stems)
 
 
@@ -481,7 +485,7 @@ def quality_contracts(
     if generated:  # metadata/contracts also holds copies of the hand-written ones
         hand = {p.name for p in files}
         files += [p for p in contract_files(METADATA_DIR / "contracts") if p.name not in hand]
-    bad = passed = tested = 0
+    bad = passed = tested = checks = missing = 0
     with Stage(
         root, "quality-contracts", "datacontract-cli", versions.package("datacontract-cli")
     ) as st:
@@ -504,19 +508,22 @@ def quality_contracts(
                 target = {"rows_glob": rows}
             if not present:
                 typer.echo(f"{path.name}: no data at {next(iter(target.values()))} (skipped)")
-                bad += require_all
+                missing += 1
                 continue
             result = run_contract(path, **target)
             tested += 1
+            checks += len(result.checks)
             passed += sum(c.result == "passed" for c in result.checks)
             status = "ok" if result.ok else "FAILED"
             typer.echo(f"{path.name}: {status} ({len(result.checks)} checks)")
             for c in result.problems:
                 bad += 1
                 typer.echo(f"  {c.result}: {c.field or ''} {c.name} | {c.reason}"[:300])
-        st.records_in, st.records_out = tested, passed
-        st.detail.update(contracts=tested, checks_passed=passed, violations=bad)
-        if bad:
+        st.records_in, st.records_out = checks, passed  # records = contract checks
+        st.detail.update(
+            contracts=tested, checks_passed=passed, violations=bad, skipped_no_data=missing
+        )
+        if bad or (require_all and missing):
             raise typer.Exit(1)
 
 
@@ -683,9 +690,9 @@ def rollup_flink(
             fl.render_job(namespace, topic, cast(fl.Mode, mode), bounded=True),
             f"{namespace}-{mode}",
         )
-        read, written = versions.flink_last_job_records(f"keystone-rollup-{mode}-{namespace}")
         fold = fl.submit(fl.render_fold(namespace), f"{namespace}-fold")
-        stage.records_in, stage.records_out = read, written
+        # Records stay null: the SQL client reports no counts, and the REST vertex metrics of a
+        # chained job did not give verifiable source and sink totals (Phase 6 review).
         stage.detail.update(
             namespace=namespace, topic=topic, job_seconds=job.seconds, fold_seconds=fold.seconds
         )
@@ -753,20 +760,21 @@ def warehouse_build(
         )
         if not ok:
             raise typer.Exit(1)
-    # `docs generate` rewrites run_results.json; keep the build's (dbt-ol and the metrics read it).
-    build_results = (paths.target_dir / "run_results.json").read_bytes()
-    if not whdbt.run_dbt(["docs", "generate"], paths, target):
-        raise typer.Exit(1)
-    (paths.target_dir / "run_results.json").write_bytes(build_results)
-    cov = whcoverage.measure(paths.target_dir)
-    typer.echo(
-        f"docs coverage: {cov.ratio:.1%} (models {cov.models_documented}/{cov.models}, "
-        f"columns {cov.columns_documented}/{cov.columns}; gate {whcoverage.GATE:.0%})"
-    )
-    for name in cov.missing[:20]:
-        typer.echo(f"undocumented: {name}", err=True)
-    if not cov.ok:
-        raise typer.Exit(1)
+        # `docs generate` rewrites run_results.json; keep the build's (dbt-ol and metrics read it).
+        build_results = (paths.target_dir / "run_results.json").read_bytes()
+        if not whdbt.run_dbt(["docs", "generate"], paths, target):
+            raise typer.Exit(1)
+        (paths.target_dir / "run_results.json").write_bytes(build_results)
+        cov = whcoverage.measure(paths.target_dir)
+        stage.detail["docs_coverage"] = round(cov.ratio, 4)
+        typer.echo(
+            f"docs coverage: {cov.ratio:.1%} (models {cov.models_documented}/{cov.models}, "
+            f"columns {cov.columns_documented}/{cov.columns}; gate {whcoverage.GATE:.0%})"
+        )
+        for name in cov.missing[:20]:
+            typer.echo(f"undocumented: {name}", err=True)
+        if not cov.ok:
+            raise typer.Exit(1)
 
 
 @warehouse_app.command("publish")
@@ -827,13 +835,13 @@ def warehouse_verify(
         reads = whlake.verify(tables, engine)
         st.records_in, st.records_out = len(reads), sum(r.matches for r in reads)
         st.detail["services"] = {e: engine_versions[e] for e in engine}
-    for r in reads:
-        typer.echo(f"{r.engine:7} {r.table:45} rows={r.rows} match={r.matches}")
-    if json_out is not None:
-        json_out.parent.mkdir(parents=True, exist_ok=True)
-        json_out.write_text(jsonlib.dumps([r.__dict__ for r in reads], indent=1), "utf-8")
-    if not all(r.matches for r in reads):
-        raise typer.Exit(1)
+        for r in reads:
+            typer.echo(f"{r.engine:7} {r.table:45} rows={r.rows} match={r.matches}")
+        if json_out is not None:
+            json_out.parent.mkdir(parents=True, exist_ok=True)
+            json_out.write_text(jsonlib.dumps([r.__dict__ for r in reads], indent=1), "utf-8")
+        if not all(r.matches for r in reads):
+            raise typer.Exit(1)  # inside the stage: a mismatch is a failed stage
 
 
 lineage_app = typer.Typer(
@@ -855,14 +863,17 @@ def lineage_dbt(
     ) as st:
         events = ldbt.send_events(root, target)
         st.records_out = len(events)
-        with_cll = sum(
-            1
-            for e in events
-            for d in e.get("outputs", [])
-            if "columnLineage" in d.get("facets", {})
+        with_cll = len(
+            {
+                d["name"]
+                for e in events
+                if e.get("eventType") == "COMPLETE"
+                for d in e.get("outputs", [])
+                if "columnLineage" in d.get("facets", {})
+            }
         )
-        st.detail["outputs_with_column_lineage"] = with_cll
-    typer.echo(f"dbt-ol events={len(events)} outputs_with_column_lineage={with_cll}")
+        st.detail["models_with_column_lineage"] = with_cll
+    typer.echo(f"dbt-ol events={len(events)} models_with_column_lineage={with_cll}")
 
 
 metadata_app = typer.Typer(no_args_is_help=True, help="Static metadata export (Phase 6).")
@@ -936,7 +947,8 @@ def metadata_export(
         typer.echo("path: " + " -> ".join(gate["tables"]) if gate["tables"] else "path: none")
         if gate["field"]:
             typer.echo("field: " + " <- ".join(gate["field"]))
-        if not comp.ok or (require_path and not (gate["tables"] and gate["field"])):
+        typer.echo(f"field chain reaches the parsed table: {gate['complete']}")
+        if not comp.ok or (require_path and not (gate["tables"] and gate["complete"])):
             raise typer.Exit(1)
 
 
@@ -1026,10 +1038,13 @@ def lineage_push(
 
             lineage = jsonlib.loads((METADATA_DIR / "lineage.json").read_text("utf-8"))
             path = lineage["gate_path"]["tables"]
+            fields = lineage["gate_path"]["field"]
             missing = _marquez_missing(url, path)
-            st.detail["gate_missing"] = missing
+            missing_fields = _marquez_fields_missing(url, fields)
+            st.detail.update(gate_missing=missing, gate_fields_missing=missing_fields)
             typer.echo(f"gate path in Marquez: {len(path)} nodes, missing={missing}")
-            if not path or missing:
+            typer.echo(f"gate fields in Marquez: {len(fields)} fields, missing={missing_fields}")
+            if not path or not fields or missing or missing_fields:
                 raise typer.Exit(1)
 
 
@@ -1055,6 +1070,34 @@ def _marquez_missing(url: str, path: list[str]) -> list[str]:
         elif node["type"] == "JOB":  # Marquez prefixes a child job's name with its parent's
             have.add(f"job:{data['namespace']}/{data.get('simpleName') or data['name']}")
     return [p for p in path if p not in have]
+
+
+def _marquez_fields_missing(url: str, chain: list[str]) -> list[str]:
+    """Fields of the gate's column chain absent from Marquez's column lineage of its first."""
+    import httpx
+
+    from keystone.lineage.graph import ds_id
+
+    if not chain:
+        return []
+    did, col = chain[0].split("#", 1)
+    ns, name = _split_id(did)
+    r = httpx.get(
+        f"{url}/api/v1/column-lineage",
+        params={
+            "nodeId": f"datasetField:{ns}:{name}:{col}",
+            "depth": 40,
+            "withDownstream": "false",
+        },
+        timeout=60,
+    )
+    r.raise_for_status()
+    have = {
+        f"{ds_id(n['data']['namespace'], n['data']['dataset'])}#{n['data']['field']}"
+        for n in r.json()["graph"]
+        if n["type"] == "DATASET_FIELD" and n.get("data")
+    }
+    return [f for f in chain if f not in have]
 
 
 def _split_id(did: str) -> tuple[str, str]:
@@ -1083,14 +1126,20 @@ def lineage_collect(
 
     total = 0
     for path in sorted(incoming.glob("*.jsonl")):
-        done = path.with_name(f"{path.stem}.{datetime.now(UTC):%Y%m%dT%H%M%S}.collected")
-        path.rename(done)  # the writer starts a new file on its next event
-        events = [
-            canonicalise(jsonlib.loads(line))
-            for line in done.read_text("utf-8").splitlines()
-            if line.strip()
-        ]
-        write_events(root, events)
+        work = path.with_name(f"{path.stem}.{datetime.now(UTC):%Y%m%dT%H%M%S}.collecting")
+        path.rename(work)  # freezes it; the writer starts a new file on its next event
+        try:
+            events = [
+                canonicalise(jsonlib.loads(line))
+                for line in work.read_text("utf-8").splitlines()
+                if line.strip()
+            ]
+            write_events(root, events)
+        except Exception:
+            if not path.exists():  # retried on the next collect
+                work.rename(path)
+            raise
+        work.unlink()
         total += len(events)
         typer.echo(f"{path.name}: {len(events)} events")
     typer.echo(f"collected {total} events")
@@ -1129,7 +1178,11 @@ def lineage_datahub(
         written = dh.emit(catalog, lineage, meta, gms)
         gate = lineage["gate_path"]["tables"]
         datasets = [d for d in gate if not d.startswith("job:")]
-        missing = dh.gate_missing(gms, datasets) if datasets else []
+        missing = dh.gate_missing(gms, datasets) if datasets else ["<no gate path>"]
+        jobs = sorted(dh.job_urns(lineage))
+        stale = dh.remove_stale_jobs(gms, set(jobs))
+        fields = lineage["gate_path"]["field"]
+        missing_fields = dh.field_gate_missing(gms, fields, jobs) if fields else ["<no field>"]
         assertions = dh.count(gms, "ASSERTION")
         st.records_out = sum(written.values())
         st.detail.update(
@@ -1138,16 +1191,17 @@ def lineage_datahub(
             written=written,
             assertions=assertions,
             gate_missing=missing,
+            gate_fields_missing=missing_fields,
+            stale_jobs_removed=len(stale),
         )
-    typer.echo(f"sources: events={report.events} failures={report.failures}")
-    typer.echo("written: " + " ".join(f"{k}={v}" for k, v in sorted(written.items())))
-    typer.echo(f"assertions in DataHub: {assertions}")
-    if not datasets:
-        typer.echo("gate path: none in lineage.json", err=True)
-        raise typer.Exit(1)
-    typer.echo(f"gate path upstream of {dh.dataset_urn(datasets[-1])}: missing={missing}")
-    if missing or any(report.failures.values()):
-        raise typer.Exit(1)
+        typer.echo(f"sources: events={report.events} failures={report.failures}")
+        typer.echo("written: " + " ".join(f"{k}={v}" for k, v in sorted(written.items())))
+        typer.echo(f"assertions in DataHub: {assertions}")
+        typer.echo(f"gate path, tables upstream of the published table: missing={missing}")
+        typer.echo(f"stale jobs removed: {len(stale)}")
+        typer.echo(f"gate path, column hops with fine-grained lineage: missing={missing_fields}")
+        if missing or missing_fields or any(report.failures.values()):
+            raise typer.Exit(1)  # inside the stage: a failed check is a failed stage
 
 
 @lineage_app.command("compact")
