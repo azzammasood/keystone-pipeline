@@ -6,6 +6,7 @@ Resume point for any new session. Updated at every gate and before long runs.
 Phase 5 (lakehouse and warehouse) gate checks pass locally: `dbt build` on the `duckdb` target
 (73 nodes, docs coverage 100%), and the same Iceberg tables give identical fingerprints in DuckDB,
 Spark, Flink and Trino (ADR-028 to 030). Databricks rung skipped (no token). Review and CI: see Done.
+Next phase: **Phase 6**.
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -41,6 +42,15 @@ Spark, Flink and Trino (ADR-028 to 030). Databricks rung skipped (no token). Rev
   (re-parse detection), fixed. CI green on 7f5a72c: ci, parity (2.6 min on the runner, stack
   built from scratch) and scorecard (runs 39465097661, 39465097650, 39465097750; checked with gh
   as azzammasood).
+- 2026-10-21 Phase 5 lakehouse and warehouse: OSV silver (`parse osv`), dbt on DuckDB (`warehouse
+  build`: 19 models and seeds, 3 unit tests, docs coverage 100%), `dim_repo` + name history,
+  `dim_package`, `bridge_package_repo`, `fct_repo_day`, `fct_vuln`, metric inputs per era
+  (maint_v1, maint_v2, release_v1); marts published to Iceberg by DuckDB and read with identical
+  fingerprints in DuckDB, Spark 4.1.3, Flink 2.2.1 and Trino 483 (ADR-028 to 030). Review:
+  `docs/reviews/phase-5.md` (2 major, 6 minor, 4 nit; all fixed or documented). Databricks rung
+  skipped (no token). CI green on e4fadda: ci, parity (lakehouse step: 10 tables x 4 engines,
+  40/40 match; whole run 4.8 min) and scorecard (runs 39538664988, 39538664991, 39538664965;
+  checked with gh as azzammasood).
 
 ## Next
 1. **Phase 6** (next in the brief). Phase 5 leftovers: Databricks target when a token exists
