@@ -155,3 +155,25 @@ Next phase: **Phase 7**.
 | 2026-10-21 | DataHub ingestion | dbt 451 events, iceberg 261, kafka 6, 0 failures; 57 assertions; 53 datasets tagged and owned |
 | 2026-10-21 | Phase 6 RAM (docker stats) | DataHub GMS 1.58 GB, OpenSearch 0.94 GB, Postgres 37 MB; Marquez 300 MB + db 58 MB; collector 31 MB, Prometheus 42 MB, Grafana 296 MB |
 | 2026-10-21 | Disk free after Phase 6 (C:) | 8.4 GB (df); 17.8 GB after cleanup and Docker disk compaction |
+
+## Phase 10 prep (branch `claude/quirky-satoshi-cb4d8c`, written in parallel with Phase 7)
+Score-independent half of Phase 10, not merged. ADR-201 to 204 carry temporary numbers:
+renumber after Phase 7's ADRs at merge.
+- Done: `keystone profile check [--run]` (probes Redpanda, its registry, Flink, Lakekeeper,
+  RustFS; runs the rollup in `full` or falls back to `free`; `produced_by` in the run log and
+  `pipeline_metrics.json`, ADR-201); `ingest.yml` (6-hourly) and `publish.yml` (daily skeleton),
+  CLI only, failure issue, off until repo variable `KEYSTONE_SCHEDULES=true` (ADR-202);
+  `release.yml` (Syft SBOM, SHA256SUMS, draft release; attestations when `KEYSTONE_PUBLIC=true`,
+  ADR-203); zizmor in CI; `contracts/export_envelope.schema.json` and the schema check in CI
+  (ADR-204). Measured: fixture hours with no stack, 5/5 probes down, free rollup 303 events,
+  `produced_by=free, fallback=true`.
+- Remaining for Phase 10 after Phase 8: site exports (radar, project pages) in the envelope with
+  their row schemas, and their push from `publish.yml`; narration; the warehouse reading the
+  `full` rollup when `produced_by=full`; atomic Iceberg publish (ADR-029); Airflow DAGs calling
+  the CLI and their lineage; push of the compressed OpenLineage log with the live refresh;
+  Actions-minutes reading for `cost.free_quota`; replace the cache-as-store with the Phase 9
+  storage decision; measure workflow minutes on the first dispatch (ADR-202 has estimates).
+- Owner, when ready: secret `KEYSTONE_ACTOR_SALT` (Phase 9; the workflows also use it to
+  encrypt the data cache, since the repo is public), variable `KEYSTONE_SCHEDULES=true` to start
+  the schedules, variable `KEYSTONE_PUBLIC=true` to switch on release attestations, a `v*` tag
+  to cut a draft release.
