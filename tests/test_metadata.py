@@ -90,9 +90,11 @@ def test_pipeline_metrics_valid_and_measured(run: tuple[Path, Path]) -> None:
     stages = {s["name"]: s for s in doc["last_run"]["stages"]}
     assert {"parse", "rollup", "parse-osv", "warehouse", "metadata-export"} <= set(stages)
     parse = stages["parse"]
-    assert parse["records_per_second"] == pytest.approx(
-        parse["records_out"] / parse["duration_seconds"], rel=1e-2
-    )
+    # The rate is computed from the unrounded duration; `duration_seconds` is rounded to 1 ms,
+    # which on a ~35 ms fixture stage moves the recomputed rate by more than 1%. Bound it by
+    # that rounding instead.
+    out, secs = parse["records_out"], parse["duration_seconds"]
+    assert out / (secs + 0.0005) <= parse["records_per_second"] <= out / max(secs - 0.0005, 1e-9)
     assert {e["name"] for e in doc["engines"]} >= {"duckdb", "dbt", "keystone-parser"}
     doc["cost"]["usd"] = -1
     with pytest.raises(jsonschema.ValidationError):
