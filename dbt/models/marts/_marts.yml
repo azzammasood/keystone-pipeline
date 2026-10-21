@@ -17,7 +17,7 @@ models:
       - name: distinct_names
         description: Distinct names (case-insensitive) the id has carried.
       - name: name_spells
-        description: Name spells in the history (a name taken again counts again).
+        description: Name spells in the history (a name taken again counts again; case changes do not).
       - name: first_seen_at
         description: First event of the repository, UTC.
       - name: last_seen_at
@@ -30,8 +30,10 @@ models:
         description: Events with a repository id (all eras in the loaded data).
   - name: dim_repo_name_history
     description: >
-      Name history per repository id: one row per uninterrupted spell of a name, ordered by
-      first sighting. valid_to is the first sighting of the next spell (half-open).
+      Name history per repository id: one row per uninterrupted spell of a name (compared
+      case-insensitively), ordered by first sighting. valid_to is the first sighting of the
+      next spell; old and new names can interleave within an hour, so last_seen_at may pass
+      valid_to by less than an hour.
     data_tests:
       - unique_combination:
           arguments:
@@ -48,7 +50,7 @@ models:
       - name: name_seq
         description: Spell number within the repository, from 1.
       - name: repo_name
-        description: Name during the spell.
+        description: Name during the spell, spelled as at its latest sighting.
       - name: repo_name_lower
         description: Name in lower case.
       - name: valid_from

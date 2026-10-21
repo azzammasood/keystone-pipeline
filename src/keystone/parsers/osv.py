@@ -27,7 +27,8 @@ from keystone.parsers.models import (
 )
 
 _TS = re.compile(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:\d{2})$")
-# host/owner/name, then nothing, `.git`, or a path (commit, pull, tree, ...)
+# host/owner/name, then nothing, `.git`, or a path (commit, pull, tree, ...). GitLab subgroups
+# (group/sub/proj) are cut to group/sub; harmless while only github.com rows get a repo id.
 _REPO = re.compile(
     r"^(?:https?|git)://(?:www\.)?(github\.com|gitlab\.com|bitbucket\.org)/"
     r"([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?(?:[/#?].*)?$"

@@ -13,18 +13,6 @@ models:
         description: First UTC instant of the period.
       - name: end_at
         description: First UTC instant after the period; null for the open, latest period.
-  - name: stg_ref__schema_eras
-    description: Schema eras as half-open UTC ranges of file hours.
-    columns:
-      - name: era
-        description: Era name.
-        data_tests: [unique, not_null]
-      - name: label
-        description: Source API or capture of the era.
-      - name: start_at
-        description: First file hour of the era (UTC).
-      - name: end_at
-        description: First file hour of the next era; null for the latest era.
   - name: stg_gharchive__repo_names
     description: Repository id, name, era and time of each silver event that carries a name.
     columns:

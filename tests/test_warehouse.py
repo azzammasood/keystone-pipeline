@@ -115,6 +115,15 @@ def built(tmp_path_factory: pytest.TempPathFactory) -> whdbt.WarehousePaths:
         root / "silver" / "osv",
         root / "quarantine" / "osv",
     )
+    # OSV repeats a record in every ecosystem zip it affects: a second zip with the same
+    # records must not duplicate anything downstream.
+    copy = osvparse.ZipContext("osv/npm/all.zip", _ctx().source_sha256, _ctx().fetched_at)
+    write_osv(
+        "npm",
+        osvparse.parse_zip(OSV_ZIP, copy),
+        root / "silver" / "osv",
+        root / "quarantine" / "osv",
+    )
     paths = whdbt.WarehousePaths(root)
     assert whdbt.run_dbt(["build"], paths)
     assert whdbt.run_dbt(["docs", "generate"], paths)
@@ -130,6 +139,8 @@ def _q(paths: whdbt.WarehousePaths, sql: str) -> list[tuple[object, ...]]:
 
 
 def test_dbt_build_on_fixtures(built: whdbt.WarehousePaths) -> None:
+    assert _q(built, "SELECT COUNT(*), COUNT(DISTINCT vuln_id) FROM marts.fct_vuln") == [(5, 4)]
+    assert _q(built, "SELECT COUNT(*) FROM staging.stg_osv__repo_refs") == [(4,)]
     bridge = _q(
         built,
         "SELECT package_key, repo_full_name, repo_id IS NOT NULL, repo_match, confidence "
@@ -159,7 +170,7 @@ def test_dbt_build_on_fixtures(built: whdbt.WarehousePaths) -> None:
 
 def test_docs_coverage_gate(built: whdbt.WarehousePaths) -> None:
     cov = coverage.measure(built.target_dir)
-    assert cov.ok and cov.models >= 20 and not cov.missing
+    assert cov.ok and cov.models >= 19 and not cov.missing
 
 
 def test_privacy_test_catches_a_person_column(built: whdbt.WarehousePaths) -> None:
@@ -190,14 +201,15 @@ def test_fingerprint_sql_and_output_parsing(tmp_path: Path) -> None:
     sql = lake.fingerprint_sql(con, lake.Table("ns", "t"), "q000")
     assert sql == (
         "SELECT 'q000' AS t, COUNT(*) AS n, COUNT(a), SUM(CAST(a AS BIGINT)), COUNT(b), "
-        "SUM(CASE WHEN b THEN 1 ELSE 0 END), COUNT(s), COUNT(z), SUM(CAST(z AS BIGINT)) "
+        "SUM(CASE WHEN b THEN 1 ELSE 0 END), COUNT(s), COUNT(DISTINCT s), "
+        "SUM(CAST(CHAR_LENGTH(s) AS BIGINT)), COUNT(z), SUM(CAST(z AS BIGINT)) "
         "FROM ice.ns.t"
     )
     row = con.execute(sql).fetchone()
-    assert row == ("q000", 1, 1, 1, 1, 1, 1, 0, None)
-    spark = ["q000\t1\t1\t1\t1\t1\t1\t0\tNULL", "noise"]
-    flink = ["| t | n |", "| q000 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | <NULL> |"]
-    want = {"q000": (1, 1, 1, 1, 1, 1, 0, None)}
+    assert row == ("q000", 1, 1, 1, 1, 1, 1, 1, 1, 0, None)
+    spark = ["q000\t1\t1\t1\t1\t1\t1\t1\t1\t0\tNULL", "noise"]
+    flink = ["| t | n |", "| q000 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | <NULL> |"]
+    want = {"q000": (1, 1, 1, 1, 1, 1, 1, 1, 0, None)}
     assert lake._rows(spark, {"q000"}, "\t") == want
     assert lake._rows(flink, {"q000"}, "|") == want
     with pytest.raises(ValueError):

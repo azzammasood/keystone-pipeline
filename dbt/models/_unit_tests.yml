@@ -1,0 +1,50 @@
+version: 2
+
+# dbt unit tests: fixed inputs, exact expected rows (run by `dbt build` before each model).
+unit_tests:
+  - name: name_history_case_change_and_return
+    description: A case change stays in its spell; a name taken again opens a new spell.
+    model: dim_repo_name_history
+    given:
+      - input: ref('int_repo_name_hours')
+        rows:
+          - {repo_id: 1, repo_name: a/x, seen_hour: "2020-01-01 00:00:00+00", first_seen_at: "2020-01-01 00:10:00+00", last_seen_at: "2020-01-01 00:20:00+00", era_min: E2, era_max: E2, events: 2}
+          - {repo_id: 1, repo_name: A/X, seen_hour: "2020-01-01 01:00:00+00", first_seen_at: "2020-01-01 01:10:00+00", last_seen_at: "2020-01-01 01:20:00+00", era_min: E2, era_max: E2, events: 1}
+          - {repo_id: 1, repo_name: b/y, seen_hour: "2020-01-01 02:00:00+00", first_seen_at: "2020-01-01 02:10:00+00", last_seen_at: "2020-01-01 02:20:00+00", era_min: E2, era_max: E2, events: 1}
+          - {repo_id: 1, repo_name: a/x, seen_hour: "2020-01-01 03:00:00+00", first_seen_at: "2020-01-01 03:10:00+00", last_seen_at: "2020-01-01 03:20:00+00", era_min: E2, era_max: E2, events: 1}
+    expect:
+      rows:
+        - {repo_id: 1, name_seq: 1, repo_name: A/X, repo_name_lower: a/x, valid_from: "2020-01-01 00:10:00+00", valid_to: "2020-01-01 02:10:00+00", events: 3, is_current: false}
+        - {repo_id: 1, name_seq: 2, repo_name: b/y, repo_name_lower: b/y, valid_from: "2020-01-01 02:10:00+00", valid_to: "2020-01-01 03:10:00+00", events: 1, is_current: false}
+        - {repo_id: 1, name_seq: 3, repo_name: a/x, repo_name_lower: a/x, valid_from: "2020-01-01 03:10:00+00", valid_to: null, events: 1, is_current: true}
+
+  - name: name_hours_drop_e1_overlap
+    description: E1 copies from 2015-01-01 00:00Z on are dropped (ADR-020); E2 rows are kept.
+    model: int_repo_name_hours
+    given:
+      - input: ref('stg_gharchive__repo_names')
+        rows:
+          - {repo_id: 1, repo_name: a/x, era: E1, created_at: "2014-12-31 23:59:59+00"}
+          - {repo_id: 1, repo_name: a/x, era: E1, created_at: "2015-01-01 00:00:00+00"}
+          - {repo_id: 1, repo_name: a/x, era: E2, created_at: "2015-01-01 00:00:00+00"}
+          - {repo_id: null, repo_name: b/y, era: E1, created_at: "2013-01-01 00:00:00+00"}
+    expect:
+      rows:
+        - {repo_id: 1, seen_hour: "2014-12-31 23:00:00+00", era_min: E1, era_max: E1, events: 1}
+        - {repo_id: 1, seen_hour: "2015-01-01 00:00:00+00", era_min: E2, era_max: E2, events: 1}
+
+  - name: repo_day_utc_cut_and_pivot
+    description: Days are UTC; each measure comes from its own event type; era is a key.
+    model: fct_repo_day
+    given:
+      - input: ref('stg_rollup__repo_hour')
+        rows:
+          - {window_start: "2020-01-01 23:00:00+00", repo_id: 1, era: E2, completeness_period: C1, event_type: PullRequestEvent, events: 3, human_events: 2, opened: 1, closed: 2, reopened: 0, merged: 1, merge_known: 2, published: 0, added: 0}
+          - {window_start: "2020-01-01 22:00:00+00", repo_id: 1, era: E2, completeness_period: C1, event_type: IssuesEvent, events: 2, human_events: 2, opened: 1, closed: 1, reopened: 0, merged: 0, merge_known: 0, published: 0, added: 0}
+          - {window_start: "2020-01-02 00:00:00+00", repo_id: 1, era: E2, completeness_period: C1, event_type: PushEvent, events: 4, human_events: 4, opened: 0, closed: 0, reopened: 0, merged: 0, merge_known: 0, published: 0, added: 0}
+          - {window_start: "2020-01-01 10:00:00+00", repo_id: 1, era: E3, completeness_period: C1, event_type: ReleaseEvent, events: 1, human_events: 1, opened: 0, closed: 0, reopened: 0, merged: 0, merge_known: 0, published: 1, added: 0}
+    expect:
+      rows:
+        - {activity_date: "2020-01-01", repo_id: 1, era: E2, completeness_period: C1, events: 5, human_events: 4, pushes: 0, prs_opened: 1, prs_closed: 2, prs_merged: 1, pr_merge_known: 2, issues_opened: 1, issues_closed: 1, releases_published: 0}
+        - {activity_date: "2020-01-02", repo_id: 1, era: E2, completeness_period: C1, events: 4, human_events: 4, pushes: 4, prs_opened: 0, prs_closed: 0, prs_merged: 0, pr_merge_known: 0, issues_opened: 0, issues_closed: 0, releases_published: 0}
+        - {activity_date: "2020-01-01", repo_id: 1, era: E3, completeness_period: C1, events: 1, human_events: 1, pushes: 0, prs_opened: 0, prs_closed: 0, prs_merged: 0, pr_merge_known: 0, issues_opened: 0, issues_closed: 0, releases_published: 1}

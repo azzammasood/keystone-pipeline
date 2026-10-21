@@ -19,7 +19,7 @@ seeds:
   keystone:
     +schema: ref
     +column_types:
-      start_at: varchar
+      start_at: "{{ 'string' if target.type == 'databricks' else 'varchar' }}"
 
 models:
   keystone:
