@@ -10,3 +10,15 @@ hosts:
   data.gharchive.org:
     max_concurrent: 2
     requests_per_second: 2.0
+  # ecosyste.ms: 5,000 requests/hour anonymous (x-ratelimit-*), robots `Allow: /` (spike, ADR-010).
+  # Keystone uses bulk lookups (100 packages per POST) and stops with a floor left for others.
+  packages.ecosyste.ms:
+    max_concurrent: 1
+    requests_per_second: 0.5
+    quota_header: x-ratelimit-remaining
+    quota_limit_header: x-ratelimit-limit
+    quota_floor: 500
+  # npm registry: no robots.txt (the path serves a package document); one small GET per package.
+  registry.npmjs.org:
+    max_concurrent: 1
+    requests_per_second: 1.0

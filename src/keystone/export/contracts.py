@@ -147,6 +147,43 @@ def osv_contracts(meta: Metadata) -> dict[str, dict[str, Any]]:
     return out
 
 
+def registry_contracts(meta: Metadata) -> dict[str, dict[str, Any]]:
+    """Silver tables of Phase 7: registry claims, repository names, quarantine, LLM choices."""
+    from keystone.resolve.chooser import CHOICE_SCHEMA
+    from keystone.sources.registry import NAME_SCHEMA, PACKAGE_SCHEMA, QUARANTINE_SCHEMA
+
+    tables = {
+        "registry_packages": ("silver/registry/packages", PACKAGE_SCHEMA),
+        "registry_repo_names": ("silver/registry/repo_names", NAME_SCHEMA),
+        "registry_quarantine": ("quarantine/registry", QUARANTINE_SCHEMA),
+        "resolve_llm_choices": ("silver/resolve/llm_choices", CHOICE_SCHEMA),
+    }
+    out = {}
+    for docs_key, (silver, schema) in tables.items():
+        dataset_id = f"file://keystone/{silver}"
+        cols = []
+        for f in schema:
+            logical, physical = _arrow_type(f.type)
+            doc = meta.column_doc(docs_key, f.name)
+            cols.append(_column(f.name, logical, physical, doc, not f.nullable))
+        out[f"{docs_key}.odcs.yaml"] = _contract(
+            meta,
+            f"keystone-{docs_key.replace('_', '-')}",
+            meta.dataset(dataset_id).title,
+            dataset_id,
+            silver.rsplit("/", 1)[1],
+            meta.dataset(dataset_id).description,
+            {
+                "server": "local",
+                "type": "local",
+                "format": "parquet",
+                "path": f"data/{silver}/*.parquet",
+            },
+            cols,
+        )
+    return out
+
+
 def rollup_contracts(meta: Metadata, rollup_db: Path) -> dict[str, dict[str, Any]]:
     out = {}
     con = duckdb.connect(str(rollup_db), read_only=True)
@@ -249,6 +286,7 @@ def generate(meta: Metadata, root: Path) -> dict[str, str]:
     meta.register_dbt(paths.target_dir)
     contracts = {
         **osv_contracts(meta),
+        **registry_contracts(meta),
         **rollup_contracts(meta, paths.rollup_db),
         **dbt_contracts(meta, paths.target_dir),
     }

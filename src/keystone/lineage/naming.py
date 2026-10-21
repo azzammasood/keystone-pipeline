@@ -20,6 +20,8 @@ import re
 
 GHARCHIVE_NS = "https://data.gharchive.org"
 OSV_NS = "https://osv-vulnerabilities.storage.googleapis.com"
+ECOSYSTEMS_NS = "https://packages.ecosyste.ms"
+NPM_NS = "https://registry.npmjs.org"
 FILE_NS = "file://keystone"
 DUCKDB_NS = "duckdb://keystone"
 KAFKA_NS = "kafka://redpanda:9092"
@@ -32,6 +34,9 @@ SILVER_SOURCES = {
     "osv_vulns": "silver/osv/vulns",
     "osv_affected": "silver/osv/affected",
     "osv_repo_refs": "silver/osv/repo_refs",
+    "registry_packages": "silver/registry/packages",
+    "registry_repo_names": "silver/registry/repo_names",
+    "resolve_llm_choices": "silver/resolve/llm_choices",
 }
 
 _DUCKDB_FILE = re.compile(r"^duckdb://.*keystone\.duckdb$")

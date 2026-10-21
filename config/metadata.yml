@@ -144,6 +144,55 @@ datasets:
     classification: internal
     description: OSV records that could not be parsed, with a reason; no record content.
     contract: metadata/contracts/osv_quarantine.odcs.yaml
+  - id: https://packages.ecosyste.ms/api/v1/packages/bulk_lookup
+    title: ecosyste.ms packages API (bulk lookup)
+    layer: sources
+    domain: sources
+    classification: public
+    description: >-
+      Package records from ecosyste.ms (CC BY-SA 4.0, non-commercial use): repository URL,
+      GitHub id and previous names of the repository, criticality inputs. 100 purls per POST,
+      within the anonymous quota (ADR-010, ADR-037).
+    contract: config/policy.yml
+  - id: https://registry.npmjs.org/{package}/latest
+    title: npm registry, latest version document
+    layer: sources
+    domain: sources
+    classification: public
+    description: The repository field npm package maintainers published; one GET per package.
+    contract: config/policy.yml
+  - id: file://keystone/silver/registry/packages
+    title: Silver registry claims
+    layer: silver
+    domain: packages
+    classification: public
+    description: >-
+      One row per package lookup and source: the repository the source names, allow-listed
+      fields only (no maintainers, authors or emails).
+    contract: metadata/contracts/registry_packages.odcs.yaml
+  - id: file://keystone/silver/registry/repo_names
+    title: Silver repository names (ecosyste.ms)
+    layer: silver
+    domain: packages
+    classification: public
+    description: Current and previous names of GitHub repositories by id, per ecosyste.ms.
+    contract: metadata/contracts/registry_repo_names.odcs.yaml
+  - id: file://keystone/quarantine/registry
+    title: Registry quarantine
+    layer: silver
+    domain: operations
+    classification: internal
+    description: Registry records that could not be used, with a reason; no record content.
+    contract: metadata/contracts/registry_quarantine.odcs.yaml
+  - id: file://keystone/silver/resolve/llm_choices
+    title: Language-model choices
+    layer: silver
+    domain: packages
+    classification: public
+    description: >-
+      Validated answers of the language-model rung: a candidate from the listed set, a
+      decline, or a refusal (an unlisted answer); empty while the rung is skipped.
+    contract: metadata/contracts/resolve_llm_choices.odcs.yaml
   - id: duckdb://keystone/rollup.main.repo_hour
     title: Rollup repo_hour (free engine)
     layer: rollup
@@ -274,3 +323,41 @@ column_docs:
     members_added: Members added.
     comments: Issue comments, pull-request reviews and review comments, commit comments.
     fetched_at_max: Newest fetch time of the contributing source files (UTC).
+  registry_packages:
+    source: ecosystems (ecosyste.ms packages API) or npm_registry (registry.npmjs.org).
+    ecosystem: Ecosystem in OSV spelling (PyPI, npm, crates.io, ...).
+    package_name: Package name as requested.
+    package_key: ecosystem/name normalised as the registry compares names (PEP 503 for PyPI).
+    found: False when the source was asked and has no record of the package.
+    critical: ecosyste.ms critical flag (ecosystems rows only).
+    repository_url: The repository URL as the source spells it.
+    repo_host: github.com, gitlab.com or bitbucket.org; null when the URL names no repository.
+    repo_full_name: owner/name in lower case.
+    repo_subpath: Directory inside the repository (a monorepo package), if given.
+    url_rejected: Why repository_url names no repository (other_host, no_repository_path, ...).
+    repo_github_id: GitHub repository id per ecosyste.ms (repo_metadata.uuid).
+    repo_current_name: Current owner/name of that repository per ecosyste.ms, lower case.
+    repo_fork: The repository is a fork (ecosyste.ms).
+    repo_archived: The repository is archived (ecosyste.ms).
+    dependent_packages: Packages depending on this one (ecosyste.ms).
+    dependent_repos: Repositories depending on this package (ecosyste.ms).
+    downloads: Downloads in downloads_period (ecosyste.ms).
+    downloads_period: Period of downloads, e.g. last-month.
+    latest_release_at: Latest release time per ecosyste.ms (UTC).
+    etag: ETag of the npm response, for conditional refreshes.
+  registry_repo_names:
+    repo_github_id: GitHub repository id.
+    repo_name_lower: owner/name in lower case.
+    kind: current or previous.
+  registry_quarantine:
+    source: ecosystems or npm_registry.
+    package_key: Package the record was for, when known.
+    reason: Why the record could not be used.
+  resolve_llm_choices:
+    package_key: Package asked about.
+    candidate: The chosen candidate (a listed repo_key); null unless outcome is chosen.
+    confidence: The model's stated confidence in [0, 1], for chosen answers.
+    outcome: chosen, declined or refused (an answer outside the listed candidates).
+    model: Model identifier.
+    candidates: The listed candidates, pipe-separated, exactly as asked.
+    decided_at: When the answer was recorded (UTC).

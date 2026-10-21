@@ -43,6 +43,24 @@ def silver_osv() -> list[Ds]:
     return out
 
 
+def registry_sources() -> list[Ds]:
+    """The two registry APIs `resolve fetch` reads (one dataset per endpoint)."""
+    return [
+        Ds(naming.ECOSYSTEMS_NS, "/api/v1/packages/bulk_lookup"),
+        Ds(naming.NPM_NS, "/{package}/latest"),
+    ]
+
+
+def silver_registry() -> list[Ds]:
+    from keystone.sources.registry import NAME_SCHEMA, PACKAGE_SCHEMA, QUARANTINE_SCHEMA
+
+    return [
+        Ds(*naming.silver("silver/registry/packages"), columns=_cols(PACKAGE_SCHEMA)),
+        Ds(*naming.silver("silver/registry/repo_names"), columns=_cols(NAME_SCHEMA)),
+        Ds(*naming.silver("quarantine/registry"), columns=_cols(QUARANTINE_SCHEMA)),
+    ]
+
+
 def events_input() -> Ds:
     return silver_gharchive()[0]
 

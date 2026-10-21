@@ -232,6 +232,7 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
     lag = _hours(now - newest) if newest else None
     contracts = _latest(records, "quality-contracts")
     warehouse = _latest(records, "warehouse")
+    registry = _latest(records, "resolve-fetch")
     sources = load_window()
     services = {r.service for r in last}
     disk = shutil.disk_usage(REPO_ROOT)
@@ -299,10 +300,24 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
                 # Not measurable from a local run; null until the production workflow reads
                 # the repository's Actions usage (Phase 10).
                 {"name": "GitHub Actions minutes (private repository)", "used_pct": None},
+                {
+                    "name": "ecosyste.ms anonymous API, hour of the last fetch (policy.yml)",
+                    "used_pct": _quota_pct(registry),
+                },
             ],
         },
         "lineage_summary": _lineage_summary(metadata_dir),
     }
+
+
+def _quota_pct(rec: StageRecord | None) -> float | None:
+    """Share of the hourly quota used when the last registry fetch ended; null if unknown."""
+    if rec is None:
+        return None
+    left, size = rec.detail.get("quota_left"), rec.detail.get("quota_limit")
+    if not isinstance(left, int) or not isinstance(size, int) or size <= 0:
+        return None
+    return round(100 * (size - left) / size, 2)
 
 
 def load_window() -> dict[str, Any]:

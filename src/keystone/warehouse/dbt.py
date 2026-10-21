@@ -66,6 +66,11 @@ def run_dbt(args: list[str], paths: WarehousePaths, target: str = "duckdb") -> b
     if missing:
         raise FileNotFoundError(f"run `keystone rollup run` first: {missing[0]} is missing")
     paths.warehouse_db.parent.mkdir(parents=True, exist_ok=True)
+    from keystone.resolve.chooser import ensure_choices
+    from keystone.sources.registry import RegistryPaths, ensure_tables
+
+    ensure_tables(RegistryPaths(paths.root))  # Phase 7 sources read as empty until fetched
+    ensure_choices(paths.root)
     common = ["--project-dir", str(DBT_DIR), "--profiles-dir", str(DBT_DIR), "--target", target]
     with _environ(paths.env()):
         result = dbtRunner().invoke([*args, *common])

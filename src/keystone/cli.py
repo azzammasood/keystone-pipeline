@@ -1214,3 +1214,136 @@ def lineage_compact(
 
     c = compact(root, int(max_mb * 1e6), datetime.now(UTC).date())
     typer.echo(f"compressed={c.compressed} summarised={c.summarised} bytes_kept={c.bytes_kept}")
+
+
+resolve_app = typer.Typer(no_args_is_help=True, help="Entity resolution (Phase 7).")
+app.add_typer(resolve_app, name="resolve")
+
+
+@resolve_app.command("fetch")
+def resolve_fetch(
+    root: Path = typer.Option(DATA_DIR, help="Data directory (warehouse/ and silver/)."),
+    refresh_days: int = typer.Option(7, help="Refetch a package claim older than this."),
+    npm: bool = typer.Option(True, help="Cross-check npm packages in the npm registry."),
+    limit: int | None = typer.Option(None, help="Only the first N packages (smoke runs)."),
+    replay: Path | None = typer.Option(
+        None, help="Serve recorded responses from this folder (CI fixtures; never data/)."
+    ),
+) -> None:
+    """Registry claims: ecosyste.ms bulk lookups and the npm registry, cached in silver."""
+    import httpx
+
+    from keystone.sources import registry
+
+    if replay is not None and root.resolve() == DATA_DIR.resolve():
+        typer.echo("--replay writes fixture claims: use a separate --root", err=True)
+        raise typer.Exit(2)
+    transport = None if replay is None else httpx.MockTransport(registry.replay_handler(replay))
+    paths = registry.RegistryPaths(root)
+    warehouse_db = whdbt.WarehousePaths(root).warehouse_db
+    with Stage(
+        root,
+        "resolve-fetch",
+        "keystone-registry",
+        __version__,
+        inputs=lds.registry_sources(),
+        outputs=lds.silver_registry(),
+    ) as stage:
+        stats = registry.run_fetch(
+            lambda: PoliteClient(load_policy(), transport),
+            paths,
+            warehouse_db,
+            refresh_days=refresh_days,
+            npm=npm,
+            limit=limit,
+        )
+        stage.records_out = sum(stats.requested.values())
+        stage.bytes_in = stats.bytes
+        stage.detail.update(
+            requested=stats.requested,
+            found=stats.found,
+            skipped_fresh=stats.skipped_fresh,
+            not_modified=stats.not_modified,
+            requests=stats.requests,
+            stopped=stats.stopped,
+            quota_left=stats.quota_left,
+            quota_limit=stats.quota_limit,
+        )
+        typer.echo(
+            f"requested={stats.requested} found={stats.found} fresh={stats.skipped_fresh} "
+            f"not_modified={stats.not_modified} requests={stats.requests} "
+            f"bytes={stats.bytes:,}"
+        )
+        if stats.stopped:
+            typer.echo(f"stopped early (resume later): {stats.stopped}", err=True)
+
+
+@resolve_app.command("choose")
+def resolve_choose(
+    root: Path = typer.Option(DATA_DIR, help="Data directory (warehouse/ and silver/)."),
+) -> None:
+    """Language-model rung: ties between candidates, choices limited to the listed set."""
+    import duckdb
+
+    from keystone.resolve import chooser
+
+    try:
+        backend = chooser.openrouter_chooser()
+    except chooser.NotConfigured as exc:
+        typer.echo(f"skipped: {exc}")
+        return
+    db = whdbt.WarehousePaths(root).warehouse_db
+    con = duckdb.connect(str(db), read_only=True)
+    try:
+        rows = con.execute(
+            "SELECT package_key, repo_key, by_ecosystems, by_npm_registry, by_osv_git_range "
+            "FROM marts.map_package_repo WHERE rule = 'tie' ORDER BY package_key, repo_key"
+        ).fetchall()
+    finally:
+        con.close()
+    questions = chooser.questions(rows)
+    with Stage(root, "resolve-choose", "keystone-llm", backend.model) as stage:
+        answers = chooser.decide(backend, questions)
+        stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+        chooser.write_choices(answers, chooser.choices_dir(root) / f"{stamp}.parquet")
+        stage.records_out = len(answers)
+        outcomes = {
+            o: sum(a.outcome == o for a in answers) for o in ("chosen", "declined", "refused")
+        }
+        stage.detail.update(questions=len(questions), **outcomes)
+        typer.echo(
+            f"questions={len(questions)} " + " ".join(f"{k}={v}" for k, v in outcomes.items())
+        )
+
+
+@resolve_app.command("report")
+def resolve_report(
+    root: Path = typer.Option(DATA_DIR, help="Data directory (warehouse/)."),
+    out: Path | None = typer.Option(None, help="Also copy the Markdown report here."),
+    require_registry: bool = typer.Option(
+        False, help="Fail when no registry claims were fetched (the gate on real data)."
+    ),
+) -> None:
+    """Match-rate report (JSON + Markdown) and the review CSVs of suggested rows."""
+    from keystone.resolve import report as rp
+
+    paths = rp.ReportPaths(root)
+    with Stage(root, "resolve-report", "keystone-resolve", __version__) as stage:
+        rep = rp.run(whdbt.WarehousePaths(root).warehouse_db, paths)
+        pk = rep["packages"]
+        stage.records_out = pk["in_scope"]
+        stage.detail.update(
+            match_rate=pk["match_rate"], decided=pk["decided"], auto_exact=pk["auto_exact"]
+        )
+        rate = "n/a" if pk["match_rate"] is None else f"{pk['match_rate']:.1%}"
+        typer.echo(
+            f"packages in scope={pk['in_scope']} decided={pk['decided']} "
+            f"auto_exact={pk['auto_exact']} match_rate={rate}; review rows {rep['review_rows']}"
+        )
+        typer.echo(f"report: {paths.markdown}")
+        if out is not None:
+            out.write_text(paths.markdown.read_text("utf-8"), "utf-8")
+        found = sum(r["packages"] for r in rep["sources"] if r["found"])
+        if require_registry and not found:
+            typer.echo("no registry claims fetched: run `keystone resolve fetch`", err=True)
+            raise typer.Exit(1)

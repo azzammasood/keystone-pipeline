@@ -1,0 +1,16 @@
+[
+  {"name": "pkg-one", "ecosystem": "pypi", "purl": "pkg:pypi/pkg-one", "critical": true,
+   "repository_url": "https://github.com/owner-1/repo-1", "downloads": 100,
+   "downloads_period": "last-month", "dependent_packages_count": 2, "dependent_repos_count": 5,
+   "latest_release_published_at": "2026-01-02T03:04:05.000Z",
+   "repo_metadata": {"uuid": "1000002", "full_name": "owner-1/repo-1", "fork": false,
+                     "archived": false, "previous_names": [], "host": {"name": "GitHub"}}},
+  {"name": "pkg-two", "ecosystem": "pypi", "purl": "pkg:pypi/pkg-two", "critical": false,
+   "repository_url": "https://gitlab.com/group/proj", "repo_metadata": null},
+  {"name": "fixture-npm", "ecosystem": "npm", "purl": "pkg:npm/fixture-npm", "critical": true,
+   "repository_url": "https://github.com/owner-3/repo-3",
+   "repo_metadata": {"uuid": "1000008", "full_name": "owner-3/repo-3", "fork": false,
+                     "archived": false, "previous_names": ["owner-4/repo-4"],
+                     "host": {"name": "GitHub"}}},
+  {"name": "fixture-without-purl", "ecosystem": "pypi"}
+]
