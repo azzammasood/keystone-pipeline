@@ -72,10 +72,8 @@ schema:
   - name: rule
     logicalType: string
     physicalType: VARCHAR
-    description: 'review, spell_covers, unique_name_near, unique_name_id_existed, unique_name_far or several_ids
-      (see the model''s header and ADR-037).
-
-      '
+    description: review, spell_covers, unique_name_near, unique_name_id_existed, unique_name_far or several_ids
+      (see the model's header and ADR-037).
   - name: confidence
     logicalType: string
     physicalType: VARCHAR

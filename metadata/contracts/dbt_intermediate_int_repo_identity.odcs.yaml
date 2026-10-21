@@ -42,10 +42,8 @@ schema:
   - name: id_rule
     logicalType: string
     physicalType: VARCHAR
-    description: 'ecosystems_current, ecosystems_previous_name, gharchive_unique_name, gharchive_latest_holder,
+    description: ecosystems_current, ecosystems_previous_name, gharchive_unique_name, gharchive_latest_holder,
       ambiguous or not_seen.
-
-      '
   - name: current_name
     logicalType: string
     physicalType: VARCHAR

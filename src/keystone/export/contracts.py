@@ -246,7 +246,9 @@ def dbt_contracts(meta: Metadata, target_dir: Path) -> dict[str, dict[str, Any]]
                 c["name"],
                 _logical(c["type"]),
                 c["type"],
-                (docs.get(c["name"]) or {}).get("description", ""),
+                # stripped like the model's: a folded YAML description ends in a newline, and
+                # libraries that register YAML string styles would then change the output
+                (docs.get(c["name"]) or {}).get("description", "").strip(),
                 c["name"] in required,
             )
             for c in sorted(cat["columns"].values(), key=lambda c: c["index"])

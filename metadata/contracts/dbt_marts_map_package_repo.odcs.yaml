@@ -114,9 +114,7 @@ schema:
     logicalType: integer
     physicalType: BIGINT
     description: 'Independent source families naming it (0 to 2): the registry (npm registry field or
-      ecosyste.ms, which derives from it) and an OSV GIT range.
-
-      '
+      ecosyste.ms, which derives from it) and an OSV GIT range.'
   - name: candidates
     logicalType: integer
     physicalType: BIGINT
