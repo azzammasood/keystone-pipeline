@@ -3,15 +3,11 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
-Phase 6 (metadata, lineage, observability) gate checks pass locally on the local data
-(2026-10-21, after the review fixes): from a GH Archive hourly file to a published Iceberg
-field, table level for the parse hop (the file has no schema) and column level from silver
-`created_at` to the published field, in the static `metadata/lineage.json`, in Marquez (13
-nodes, 6 fields) and in DataHub (5 upstream datasets, 5 column hops with stored fine-grained
-lineage); completeness 100% (19/19 models, 483/483 columns, 44/44 datasets complete, no owner
-missing); `pipeline_metrics.json` validates and equals Grafana on 50 of 50 values (42
-independent stage values, 8 transport-only totals) (ADR-031 to 035). Review and CI: see Done.
-Next phase: **Phase 7**.
+Phase 7 (entity resolution) gate checks pass locally (2026-10-21): match-rate report
+`docs/match-rate.md` measured on the local data: 4,736 packages in scope, 4,383 decided
+(92.5%), 276 auto_exact (registry and OSV GIT range agree); renames from GH Archive (3,088)
+and ecosyste.ms (1,207); names without ids: 6,694 of 194,416 events decided, 35,997
+suggested (sample hours only). Review and CI: see Done. Next phase: **Phase 8**.
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -67,13 +63,25 @@ Next phase: **Phase 7**.
   lineage collected, fixture gate path complete) and scorecard (runs 39557999916,
   39557999733, 39557999772; checked with gh as azzammasood).
 
+- 2026-10-21 Phase 7 entity resolution (ADR-037, ADR-038): `keystone resolve fetch` (ecosyste.ms
+  bulk lookups, npm registry cross-check, cached in silver, quota floor, `--replay` for CI),
+  `resolve choose` (language-model rung: skipped, no OpenRouter key; interface refuses any
+  unlisted candidate) and `resolve report` (match-rate report, review CSVs); dbt
+  `map_package_repo`, `dim_repo_rename`, `map_repo_name_id` with status, rule and confidence,
+  reviewed decisions as the seed `resolve_decisions`. The polite client now matches robots.txt
+  per RFC 9309 (pypi.org disallows its JSON API: no PyPI registry cross-check).
+
 ## Next
-1. **Phase 7** (next in the brief). Phase 6 leftovers: Airflow lineage when the DAGs exist
+1. **Phase 8** (next in the brief). Phase 7 leftovers: the language-model rung when the
+   owner provides `OPENROUTER_API_KEY` (32 tied packages wait); review the CSVs in
+   `data/resolve/` (155 package candidates, 4,054 names) into `dbt/seeds/resolve_decisions.csv`;
+   fold resolved E1/E0 events into activity metrics as a new metric version (Phase 8).
+   Earlier leftovers: Phase 6 leftovers: Airflow lineage when the DAGs exist
    (Phase 10); push of the compressed OpenLineage log to a data branch with the live refresh
    (Phase 10); the site export adds one hop to the lineage graph (Phase 8); Databricks and
    Unity Catalog lineage when a token exists. Phase 5 leftovers: Databricks target when a token exists
    (ADR-030); atomic Iceberg publish (ADR-029); E1 2012 repositories without ids are resolved by
-   name in Phase 7 (ADR-028). Known Phase 4 limit: a re-parsed hour already streamed needs a
+   name in Phase 7 (done, ADR-037). Known Phase 4 limit: a re-parsed hour already streamed needs a
    Flink batch rebuild (ADR-026).
 2. Owner: set the production `KEYSTONE_ACTOR_SALT` as a secret before any non-sample parse (the
    local one in `.env` is for samples only; changing it changes every actor key). Owner
@@ -99,7 +107,8 @@ Next phase: **Phase 7**.
   Compose profile at a time.
 - Owner 2026-10-21: will provide a Databricks Free Edition token, a BigQuery sandbox project
   and an OpenRouter key (values go in `.env` only, never in chat or git). Until they appear:
-- Optional rungs skipped until tokens exist: Databricks (Phase 5 rung: dbt-databricks, Unity
+- Optional rungs skipped until tokens exist: OpenRouter (Phase 7 language-model rung,
+  logged 2026-10-21, ADR-037), Databricks (Phase 5 rung: dbt-databricks, Unity
   Catalog, Lakeflow pipeline; logged 2026-10-20, ADR-030), BigQuery sandbox, OpenRouter.
 - **Disk: 17.8 GB free on C: (2026-10-21, after cleanup and compaction).** Removed (owner
   asked): the DataHub images, containers and volumes (re-created from the pinned digests by
@@ -155,3 +164,8 @@ Next phase: **Phase 7**.
 | 2026-10-21 | DataHub ingestion | dbt 451 events, iceberg 261, kafka 6, 0 failures; 57 assertions; 53 datasets tagged and owned |
 | 2026-10-21 | Phase 6 RAM (docker stats) | DataHub GMS 1.58 GB, OpenSearch 0.94 GB, Postgres 37 MB; Marquez 300 MB + db 58 MB; collector 31 MB, Prometheus 42 MB, Grafana 296 MB |
 | 2026-10-21 | Disk free after Phase 6 (C:) | 8.4 GB (df); 17.8 GB after cleanup and Docker disk compaction |
+| 2026-10-21 | Registry fetch (first run) | 4,736 ecosyste.ms lookups in 48 bulk requests + 2,334 npm GETs; 2,388 requests, 664 MB, 2,697 s at policy rates; 4,585 found (135 more after the NuGet key fix) |
+| 2026-10-21 | Critical sets (ecosyste.ms) | PyPI 522, npm 2,295 |
+| 2026-10-21 | Phase 7 match rate | 4,383 of 4,736 in scope (92.5%); auto_exact 276; accepted 4,107; suggested candidates 155 |
+| 2026-10-21 | npm field vs ecosyste.ms | same 2,311; same id after rename 2; differ 1; no repository 20 |
+| 2026-10-21 | Names without ids (E0/E1) | 194,416 events: 6,684 auto_exact, 10 accepted, 35,997 suggested, 151,725 no candidate in the sample |

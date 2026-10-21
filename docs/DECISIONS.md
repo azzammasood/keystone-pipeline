@@ -2,6 +2,90 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-038 (2026-10-21) robots.txt patterns per RFC 9309 in the polite client
+- Found in Phase 7: pypi.org's robots.txt has `Disallow: /pypi/*/json`, and
+  `urllib.robotparser` (used since Phase 2) matches rule paths as plain prefixes, so it would
+  have allowed the PyPI JSON API. `fetch/robots.py` now implements RFC 9309 matching: the group
+  of our product token, else `*`; `*` and `$` in paths; the longest match wins and `Allow` wins
+  a tie; anything that is not a rule line (the npm registry answers `/robots.txt` with a
+  package document) is ignored. Tested with pypi.org's rules. No earlier host was affected
+  (GH Archive and the OSV bucket have no robots.txt; ecosyste.ms allows all).
+- The policy also gains a free-quota guard: a host may name its remaining-quota header and a
+  floor (`quota_header`, `quota_floor`, `quota_limit_header`); the client raises
+  `QuotaExhausted` before a request that would go below the floor. The share used is reported
+  in `pipeline_metrics.json` (`cost.free_quota`).
+
+## ADR-037 (2026-10-21) Entity resolution: packages to repositories, renames, names without ids
+- Sources (ADR-010 refined by measurement): ecosyste.ms `POST /packages/bulk_lookup` (100
+  purls per request, 0.5 req/s, stop at 500 requests left of the anonymous 5,000/hour) gives
+  the repository URL it derived, the repository's GitHub id (`repo_metadata.uuid`) and its
+  previous names; the critical sets come from `package_names?critical=true` (PyPI 522, npm
+  2,295 on 2026-10-21). The npm registry `/<name>/latest` (1 req/s, conditional on the ETag)
+  gives the `repository` field the maintainers published. PyPI's JSON API is disallowed by
+  robots.txt (ADR-038), so PyPI has no registry cross-check; deps.dev stays excluded (ADR-010).
+  Claims are refreshed after 7 days; ecosyste.ms absences are asked again each run.
+- Silver (`silver/registry/`): allow-listed fields with lineage; maintainers, authors, emails,
+  READMEs and funding links are never read. Package keys normalise names as the registries
+  compare them: PEP 503 for PyPI, lower case for NuGet (ecosyste.ms answers NuGet in lower
+  case); the warehouse recomputes the key, so a changed rule never splits a package.
+- Universe: OSV packages with at least one non-malware advisory, plus the critical sets.
+  Packages known only from malware reports stay in `int_package_universe` with scope
+  `osv_malware_only` and are out of the match rate (their registry entries are removed).
+- Package to repository (`map_package_repo`, one row per package and candidate). A candidate
+  is a GitHub id when known (claims under an old and a new name merge: a rename), else
+  host/owner/name. Independent source families: the registry (the npm `repository` field and
+  ecosyste.ms count once together, since ecosyste.ms derives its URL from the same registry
+  metadata; their agreement is a consistency check, not a second witness) and an OSV GIT
+  range; OSV FIX references only support. Candidates a reviewer rejected stop counting as
+  rivals. Rules, first match wins: `review` (seed `resolve_decisions`, overrides
+  everything); `sources_agree` (both families, no rival with one) is the only `auto_exact`;
+  `contested` (one family against a rival named only by a FIX reference in an advisory
+  about this package alone) leaves both `suggested`, since a packager's repository and the
+  upstream one are often confused there; `single_source` (one family, no rival, GitHub id
+  known) is `accepted`; `single_source_unverified` is `suggested`; `most_sources` (strictly
+  more families than every rival) is `accepted`; a tie goes to the language model (`llm`,
+  accepted at confidence >= 0.8, and only when the stored answer was asked about exactly the
+  current tied candidates, so a stale answer never decides) or stays `suggested` (`tie`);
+  fewer families than a rival is `rejected` (`outvoted`); FIX references alone are
+  `suggested`. Whether a FIX reference is about one package is counted after name
+  normalisation. Confidence is fixed per rule (high, medium, low). dbt tests: at most one
+  decided repository per package, `auto_exact` only with both families and no rival, a
+  model's choice only from the listed candidates, every reviewed decision still matching a
+  listed candidate (a key that changes would orphan it); a dbt unit test pins every rule.
+- Repository ids of claimed names (`int_repo_identity`): ecosyste.ms current name of one id;
+  else its previous name (or the redirect it followed) of one id; else the one id GH Archive
+  saw with the name; else the latest of several (a name taken again); else none.
+- Renames (`dim_repo_rename`): consecutive spells of one id in GH Archive are `auto_exact`
+  (the id is the identity), bounded by the old name's last and the new name's first
+  sighting; ecosyste.ms previous names that GH Archive did not see are `accepted` (only from
+  the newest fetch of the id, and only for ids with exactly one current name).
+- Names without ids (`map_repo_name_id`, ADR-028), per name and UTC hour, E1 copies from
+  2015 dropped (ADR-020): one id's spell spans the hour, `auto_exact`; one id ever carried the
+  name and is within 90 days, `accepted`; one id that already existed at the hour (GitHub
+  allocates ids in creation order, so an id no larger than one seen in an event before the
+  hour existed then) stays `suggested` (`unique_name_id_existed`): existing then says nothing
+  about the name it had then (the review measured a median gap of 2.5 years and ids seen under
+  other names in between); a newer id or several ids, `suggested`. Folding these
+  events into the activity metrics is a metric change for Phase 8 (versioned, not silent).
+- Review without blocking: `keystone resolve report` writes the match-rate report and two
+  CSVs of suggested rows (`data/resolve/`); a reviewer copies a row with `decision` filled to
+  `dbt/seeds/resolve_decisions.csv`. This is also the corrections path for maintainers.
+- Language-model rung: `keystone resolve choose` asks only about ties, lists the candidates,
+  and `chooser.validate` refuses any answer outside the list or with a confidence outside
+  [0, 1] (stored as `refused`, never used). OpenRouter needs `OPENROUTER_API_KEY`; there is
+  none, so the rung is skipped (PROGRESS.md) and ties stay `suggested`.
+- CI has no network for registries: `resolve fetch --replay tests/fixtures/registry` serves
+  recorded, synthetic responses through the same projection (refused on the default data
+  root). Order in a pipeline run: warehouse build, resolve fetch, warehouse build, report.
+- Measured on the local data (2026-10-21, after the review fixes): 4,736 packages in scope
+  (PyPI 522 + npm 2,295 critical, 1,919 more with an advisory); first fetch 2,388 requests,
+  664 MB (ecosyste.ms bulk responses are large), 2,697 s; 4,383 decided (92.5%): 276
+  auto_exact, 4,107 accepted; 155 suggested candidates in the review CSV; the npm field and
+  ecosyste.ms name the same repository for 2,311 packages, the same id after a rename for 2,
+  differ for 1. Renames: 3,088 from GH Archive, 1,207 more from ecosyste.ms. Names without ids:
+  of 194,416 events (101,786 name-hours) 6,694 are decided, 35,997 suggested, 151,725 have no
+  candidate in the loaded sample hours (docs/match-rate.md). Review: docs/reviews/phase-7.md.
+
 ## ADR-036 (2026-10-21) Lakekeeper terms of use accepted (owner)
 - The owner accepted Lakekeeper's terms of use for this non-commercial project on 2026-10-21.
   `catalog-init` and the parity CI keep sending `accept-terms-of-use: true`. Closes the open
@@ -208,7 +292,7 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - Models: `dim_repo` and `dim_repo_name_history` (spells of a name per repository id, ordered
   by first sighting, compared case-insensitively since GitHub names are; a name taken again is
   a new spell; the E1/E2 overlap rule of ADR-020 applies here as in the rollups; ids missing in
-  E1 2012 and some E0 are left to Phase 7), `dim_package`
+  E1 2012 and some E0 are resolved by name in Phase 7, ADR-037), `dim_package`
   (ecosystem + name as OSV spells it), `bridge_package_repo` (confidence is a rule: high = GIT
   range, medium = FIX reference in a one-package record, low = FIX reference in a multi-package
   record; `repo_id` only when exactly one id ever carried the name, else `ambiguous_name`),
@@ -451,6 +535,8 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - Choice: the ecosyste.ms API for the critical set and criticality inputs, cached and refreshed
   weekly within its limit, cross-checked with npm/PyPI `repository` fields for exact matches.
   The site attributes ecosyste.ms (CC BY-SA 4.0). Non-commercial use only.
+- Refined in Phase 7 (ADR-037): bulk lookups, npm cross-check only (PyPI's JSON API is
+  disallowed by its robots.txt, ADR-038).
 
 ## ADR-009 (2026-10-20) Backfill window: the whole archive, 2011-02-12 00h to the present
 - Rule (brief section 10): the largest $0 window with an estimated 7 days or less unattended,
