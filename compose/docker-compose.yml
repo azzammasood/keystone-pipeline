@@ -1,6 +1,8 @@
 # Keystone local stacks (brief section 9, rule 6): start only the profiles a phase needs.
 #   docker compose -f compose/docker-compose.yml --profile streaming --profile catalog up -d
 # Phase 4 needs `streaming` (Redpanda, Flink) and `catalog` (Iceberg REST catalog + object store).
+# Phase 6: `lineage` (Marquez), `obs` (OpenTelemetry collector, Prometheus, Grafana) and
+# `datahub` (GMS, OpenSearch, Postgres as store and queue; run it with as little else as possible).
 # Images are pinned by digest. Every port binds to 127.0.0.1. The credentials below are local-only defaults for a stack that
 # never leaves this machine or CI; override them in `.env` (KEYSTONE_S3_*, KEYSTONE_PG_*).
 name: keystone
@@ -16,6 +18,10 @@ x-flink-env: &flink-env
     table.local-time-zone: UTC
     execution.checkpointing.dir: file:///flink-state/checkpoints
     execution.checkpointing.savepoint-dir: file:///flink-state/savepoints
+    execution.job-status-changed-listeners: io.openlineage.flink.listener.OpenLineageJobStatusChangedListenerFactory
+    openlineage.transport.type: file
+    openlineage.transport.location: /lineage/flink.jsonl
+    openlineage.job.namespace: keystone
   AWS_REGION: local-01
   AWS_ACCESS_KEY_ID: ${KEYSTONE_S3_ACCESS_KEY:-keystone-local}
   AWS_SECRET_ACCESS_KEY: ${KEYSTONE_S3_SECRET_KEY:-keystone-local-only}
@@ -55,6 +61,7 @@ services:
     volumes:
       - flink-state:/flink-state
       - ../data/flink/jobs:/jobs:ro
+      - ../data/lineage/incoming:/lineage
     mem_limit: 1200m
 
   taskmanager:
@@ -76,6 +83,7 @@ services:
       AWS_ACCESS_KEY_ID: ${KEYSTONE_S3_ACCESS_KEY:-keystone-local}
       AWS_SECRET_ACCESS_KEY: ${KEYSTONE_S3_SECRET_KEY:-keystone-local-only}
       SPARK_NO_DAEMONIZE: "1"
+    volumes: [../data/lineage/incoming:/lineage]
     mem_limit: 1200m
 
   # --- trino (Phase 5 Tier 2: a reader; heap is 80% of the container limit) --------------
@@ -152,7 +160,172 @@ services:
     depends_on: [lakekeeper, rustfs]
     restart: "no"
 
+  # --- lineage (Phase 6: Marquez receives the OpenLineage events) ------------------------
+  marquez-db:
+    profiles: [lineage]
+    image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    environment:
+      # Marquez's bundled config hard-codes user, password and database `marquez`.
+      POSTGRES_USER: marquez
+      POSTGRES_PASSWORD: marquez
+      POSTGRES_DB: marquez
+    volumes: [marquez-db:/var/lib/postgresql/data]
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "marquez"]
+      interval: 3s
+      retries: 30
+
+  marquez:
+    profiles: [lineage]
+    image: marquezproject/marquez:0.51.1@sha256:0721c976cff17d8b14f7949d85d6dac9c7ea37cb9fe857caa19833730fcb1a50
+    environment:
+      MARQUEZ_CONFIG: marquez.dev.yml
+      POSTGRES_HOST: marquez-db
+      SEARCH_ENABLED: "false"
+      JAVA_OPTS: -Xms256m -Xmx512m
+    ports: [127.0.0.1:5000:5000, 127.0.0.1:5001:5001]
+    mem_limit: 768m
+    depends_on: {marquez-db: {condition: service_healthy}}
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/5001'"]
+      interval: 5s
+      retries: 40
+
+  # --- obs (Phase 6: CLI -> OTLP -> collector -> Prometheus <- Grafana) -------------------
+  otel-collector:
+    profiles: [obs]
+    image: otel/opentelemetry-collector:0.163.1@sha256:f0e23036dce3db3f9cb80d907c75a0d034cd32e93511a1943482d46129b9ae9c
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes: [./obs/otel-collector.yaml:/etc/otelcol/config.yaml:ro]
+    ports: [127.0.0.1:4318:4318]
+    mem_limit: 256m
+
+  prometheus:
+    profiles: [obs]
+    image: prom/prometheus:v3.15.0@sha256:efd719c99d83b060d9daefdcf00360461adf279f45ef5391f8d111892118753e
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=90d
+    volumes:
+      - ./obs/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus:/prometheus
+    ports: [127.0.0.1:9090:9090]
+    mem_limit: 512m
+
+  grafana:
+    profiles: [obs]
+    image: grafana/grafana:13.2.4@sha256:dbbc38ea21103cefb50396340cd88afec779c7e070b0a7bf5a75b4ce46651d3f
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${KEYSTONE_GRAFANA_PASSWORD:-keystone-local-only}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    volumes:
+      - ./obs/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./obs/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports: [127.0.0.1:3000:3000]
+    mem_limit: 512m  # 287 MB at first start
+    depends_on: [prometheus]
+
+  # --- datahub (Phase 6: lightest viable setup; v1.7 can use Postgres as the message queue,
+  # so no Kafka; no frontend: the CLI and checks use GMS's REST and GraphQL APIs) ----------
+  datahub-db:
+    profiles: [datahub]
+    image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
+    environment:
+      POSTGRES_USER: datahub
+      POSTGRES_PASSWORD: ${KEYSTONE_DATAHUB_DB_PASSWORD:-keystone-local-only}
+      POSTGRES_DB: datahub
+    volumes: [datahub-db:/var/lib/postgresql/data]
+    mem_limit: 384m
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "datahub"]
+      interval: 3s
+      retries: 30
+
+  datahub-search:
+    profiles: [datahub]
+    image: opensearchproject/opensearch:2.19.3@sha256:e96cc6ae1500a073d973c0906f30f7cf4d9c461f32f855f9242a2da933660cdd
+    environment:
+      discovery.type: single-node
+      DISABLE_SECURITY_PLUGIN: "true"
+      DISABLE_INSTALL_DEMO_CONFIG: "true"
+      OPENSEARCH_JAVA_OPTS: -Xms512m -Xmx512m -Dlog4j2.formatMsgNoLookups=true
+    volumes: [datahub-search:/usr/share/opensearch/data]
+    mem_limit: 1152m
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=1s'"]
+      interval: 5s
+      retries: 60
+
+  datahub-upgrade:
+    profiles: [datahub]
+    image: acryldata/datahub-upgrade:v1.7.0.1@sha256:c3db54d8fb94bc761be611c014c5ede3fd02daac1f15c8c177d69eceee79a24c
+    command: [-u, SystemUpdate]
+    environment: &datahub-env
+      EBEAN_DATASOURCE_USERNAME: datahub
+      EBEAN_DATASOURCE_PASSWORD: ${KEYSTONE_DATAHUB_DB_PASSWORD:-keystone-local-only}
+      EBEAN_DATASOURCE_HOST: datahub-db:5432
+      EBEAN_DATASOURCE_URL: jdbc:postgresql://datahub-db:5432/datahub
+      EBEAN_DATASOURCE_DRIVER: org.postgresql.Driver
+      DATAHUB_MESSAGING_TRANSPORT: pgqueue
+      DATAHUB_PGQUEUE_ENABLED: "true"
+      DATAHUB_SQL_SETUP_ENABLED: "true"
+      SKIP_KAFKA_CHECK: "true"
+      GRAPH_SERVICE_IMPL: elasticsearch
+      ELASTICSEARCH_HOST: datahub-search
+      ELASTICSEARCH_PORT: "9200"
+      ELASTICSEARCH_PROTOCOL: http
+      ELASTICSEARCH_USE_SSL: "false"
+      ELASTICSEARCH_IMPLEMENTATION: opensearch
+      ELASTICSEARCH_BUILD_INDICES_CLONE_INDICES: "false"
+      ENTITY_REGISTRY_CONFIG_PATH: /datahub/datahub-gms/resources/entity-registry.yml
+      DATAHUB_GMS_HOST: datahub-gms
+      DATAHUB_GMS_PORT: "8080"
+      DATAHUB_TELEMETRY_ENABLED: "false"
+      DATAHUB_SYSTEM_CLIENT_SECRET: ${KEYSTONE_DATAHUB_CLIENT_SECRET:-keystone-local-only}
+      METADATA_SERVICE_AUTH_ENABLED: "false"
+      USAGE_AGGREGATION_ENABLED: "false"
+      UI_INGESTION_ENABLED: "false"
+      JAVA_OPTS: -Xms256m -Xmx768m
+    mem_limit: 1152m
+    depends_on:
+      datahub-db: {condition: service_healthy}
+      datahub-search: {condition: service_healthy}
+    restart: "no"
+
+  datahub-gms:
+    profiles: [datahub]
+    image: acryldata/datahub-gms:v1.7.0.1@sha256:74e15e982b94d0e147de41d05133ef3df48f74a1004a9c997805e0aa7e010173
+    hostname: datahub-gms
+    environment:
+      <<: *datahub-env
+      JAVA_OPTS: -Xms768m -Xmx1g
+      MAE_CONSUMER_ENABLED: "true"
+      MCE_CONSUMER_ENABLED: "true"
+      PE_CONSUMER_ENABLED: "true"
+      ENTITY_SERVICE_ENABLE_RETENTION: "true"
+      ES_BULK_REFRESH_POLICY: NONE
+      CONFIG_ENTITY_REGISTRY_USE_OPTIMIZED_LOADING: "true"
+      DATAHUB_OBJECT_STORAGE_URI: file:///tmp/datahub-object-storage
+    ports: [127.0.0.1:8080:8080]
+    mem_limit: 1792m
+    depends_on: {datahub-upgrade: {condition: service_completed_successfully}}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health"]
+      interval: 5s
+      retries: 60
+      start_period: 60s
+
 volumes:
+  marquez-db:
+  prometheus:
+  datahub-db:
+  datahub-search:
   redpanda:
   flink-state:
   rustfs:

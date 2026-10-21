@@ -192,14 +192,22 @@ def build_lineage(root: Path, meta: Metadata, catalog: dict[str, Any]) -> dict[s
         and d.rsplit("/", 1)[1].split(".")[0] in PUBLISHED_NAMESPACES
     }
     hours = {d for d in g.datasets if lgraph.is_hour_file(d)}
-    path = lgraph.shortest_path(g, hours, published)
+    # The gate path: an hourly file to a published table (table level), and the published
+    # field whose column lineage reaches furthest back along that same path.
+    path: list[str] = []
     field_path: list[str] = []
-    if path:
-        target = path[-1]
-        cols = sorted(g.fields.get(target, set()))
-        best = max(cols, key=lambda c: len(lgraph.field_ancestry(g, f"{target}#{c}")), default="")
-        if best:
-            field_path = [f"{target}#{best}", *lgraph.field_ancestry(g, f"{target}#{best}")]
+    best_key = (-1, 0)
+    for target in sorted(published):
+        tpath = lgraph.shortest_path(g, hours, {target})
+        if not tpath:
+            continue
+        on_path = set(tpath)
+        for col in sorted(g.fields.get(target, set())):
+            chain = [f"{target}#{col}", *lgraph.field_ancestry(g, f"{target}#{col}")]
+            reach = sum(1 for f in chain if f.split("#", 1)[0] in on_path)
+            key = (reach, -len(tpath))
+            if key > best_key:
+                best_key, path, field_path = key, tpath, chain
     nodes = len(g.datasets) + len(g.jobs)
     return {
         "datasets": [describe(d) for d in sorted(g.datasets)],

@@ -11,7 +11,9 @@ RUN set -eu; cd /opt/flink/lib; \
     get org/apache/iceberg/iceberg-flink-runtime-2.2/1.12.0/iceberg-flink-runtime-2.2-1.12.0.jar c79bbee8792b1115c321e4be99fab3fb36db0bf8fa2bba24b481e6da14416de3; \
     get org/apache/iceberg/iceberg-aws-bundle/1.12.0/iceberg-aws-bundle-1.12.0.jar dd7e49ffa4ac9b215bed846581991259e3aec9bb2fa08d6cec029c46cd66d957; \
     get org/apache/hadoop/hadoop-client-api/3.4.2/hadoop-client-api-3.4.2.jar 607c0299f4df33013bd0a0f37c8cf255c635bbaddd247b8fec68c210cc17d19f; \
-    get org/apache/hadoop/hadoop-client-runtime/3.4.2/hadoop-client-runtime-3.4.2.jar 18d071c7f72f8a946677b398a57af9c7afa2dd41a81023c310f99373fec200b3
+    get org/apache/hadoop/hadoop-client-runtime/3.4.2/hadoop-client-runtime-3.4.2.jar 18d071c7f72f8a946677b398a57af9c7afa2dd41a81023c310f99373fec200b3;     get io/openlineage/openlineage-flink/1.54.0/openlineage-flink-1.54.0.jar 4cfb25dc2072050167bb5109b9128b061f2f97c2ae16e0a6493db01dd0b83613
+# openlineage-flink (Phase 6): native Flink 2 lineage through a job-status listener (FLIP-314);
+# its .sha1 cross-checked against Maven Central on 2026-10-21.
 
 # Checkpoints and savepoints (a named volume shared by the jobmanager and taskmanager); the
 # volume takes this ownership when it is first created.

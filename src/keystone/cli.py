@@ -778,14 +778,21 @@ def warehouse_publish(
     import duckdb
 
     paths = whdbt.WarehousePaths(root)
-    stage = Stage(root, "publish", "duckdb-iceberg", duckdb.__version__, job="warehouse.publish")
+    from keystone.lineage.emit import LineageRun
+
+    stage = Stage(root, "publish", "duckdb-iceberg", duckdb.__version__)
     with stage:
         done = whlake.publish(paths.warehouse_db, paths.target_dir, prefix)
         stage.records_out = sum(p.rows for p in done)
-        stage.inputs = [lds.warehouse_model(p.schema, p.table.name, list(p.columns)) for p in done]
-        stage.outputs = [
-            lds.published(p.schema, p.table.name, list(p.columns), p.table.namespace) for p in done
-        ]
+        for p in done:  # one lineage job per table, so no table seems to feed another
+            cols = list(p.columns)
+            LineageRun(
+                f"warehouse.publish.{p.table.label}",
+                [lds.warehouse_model(p.schema, p.table.name, cols)],
+                [lds.published(p.schema, p.table.name, cols, p.table.namespace)],
+                root,
+                engine=("duckdb-iceberg", duckdb.__version__),
+            ).finish(True)
     for p in done:
         typer.echo(f"published {p.table.label}: rows={p.rows}")
 
@@ -920,3 +927,109 @@ def metadata_export(
             typer.echo("field: " + " <- ".join(gate["field"]))
         if not comp.ok or (require_path and not (gate["tables"] and gate["field"])):
             raise typer.Exit(1)
+
+
+metrics_app = typer.Typer(no_args_is_help=True, help="pipeline_metrics.json and Grafana (Phase 6).")
+app.add_typer(metrics_app, name="metrics")
+
+
+@metrics_app.command("emit")
+def metrics_emit(
+    root: Path = typer.Option(DATA_DIR, help="Data directory (telemetry/, silver/, rollup/)."),
+    metadata_dir: Path = typer.Option(
+        None, help="Metadata export to summarise (default metadata/)."
+    ),
+    out: Path = typer.Option(
+        None, help="Output file (default <root>/metrics/pipeline_metrics.json)."
+    ),
+) -> None:
+    """Build pipeline_metrics.json from measured runs, validate it, export its gauges."""
+    from keystone.paths import METADATA_DIR
+    from keystone.telemetry import metrics as tm
+
+    doc = tm.build(root, metadata_dir or METADATA_DIR)
+    tm.validate(doc)
+    target = out or root / "metrics" / "pipeline_metrics.json"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(jsonlib.dumps(doc, indent=1) + "\n", "utf-8")
+    tm.export_gauges(doc)
+    stages = len(doc["last_run"]["stages"])
+    typer.echo(
+        f"valid pipeline_metrics.json: profile={doc['profile']} engines={len(doc['engines'])} "
+        f"last_run_stages={stages} events_processed={doc['totals']['events_processed']} -> {target}"
+    )
+
+
+@metrics_app.command("check-grafana")
+def metrics_check_grafana(
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding metrics/."),
+    file: Path = typer.Option(None, help="pipeline_metrics.json (default <root>/metrics/...)."),
+    url: str = typer.Option("http://127.0.0.1:3000", help="Grafana base URL."),
+) -> None:
+    """Compare every Grafana panel value with pipeline_metrics.json; exit 1 on a mismatch."""
+    from keystone.telemetry import grafana as gf
+    from keystone.telemetry import metrics as tm
+
+    doc = jsonlib.loads((file or root / "metrics" / "pipeline_metrics.json").read_text("utf-8"))
+    tm.validate(doc)
+    found = gf.versions(url)
+    with Stage(root, "grafana-check", "grafana", found.get("grafana", "unknown")) as st:
+        rows = gf.compare(doc, url)
+        bad = [r for r in rows if not r.ok]
+        for r in rows:
+            mark = "ok  " if r.ok else "DIFF"
+            typer.echo(
+                f"{mark} {r.panel:32} {r.key:28} json={r.json_value} grafana={r.grafana_value}"
+            )
+        st.records_in, st.records_out = len(rows), len(rows) - len(bad)
+        st.detail.update(services=found, mismatches=len(bad))
+        typer.echo(f"compared={len(rows)} mismatches={len(bad)}")
+        if bad or not rows:
+            raise typer.Exit(1)
+
+
+@lineage_app.command("push")
+def lineage_push(
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding lineage/events."),
+    url: str = typer.Option("http://127.0.0.1:5000", help="Marquez base URL."),
+) -> None:
+    """Send the whole event log to Marquez (it de-duplicates by run id and event time)."""
+    import httpx
+
+    from keystone.lineage.graph import read_events
+
+    events = list(read_events(root))
+    with Stage(root, "lineage-push", "marquez", versions.compose_tag("marquez")) as st:
+        sent = 0
+        with httpx.Client(base_url=url, timeout=30) as client:
+            for ev in events:
+                client.post("/api/v1/lineage", json=ev).raise_for_status()
+                sent += 1
+        st.records_in, st.records_out = len(events), sent
+    typer.echo(f"sent {sent} events to {url}")
+
+
+@lineage_app.command("collect")
+def lineage_collect(
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding lineage/events."),
+    incoming: Path = typer.Option(
+        DATA_DIR / "lineage" / "incoming", help="Where Spark and Flink write their events."
+    ),
+) -> None:
+    """Canonicalise the events Spark and Flink wrote (file transport) into the event log."""
+    from keystone.lineage.dbt import canonicalise
+    from keystone.lineage.emit import write_events
+
+    total = 0
+    for path in sorted(incoming.glob("*.jsonl")):
+        done = path.with_name(f"{path.stem}.{datetime.now(UTC):%Y%m%dT%H%M%S}.collected")
+        path.rename(done)  # the writer starts a new file on its next event
+        events = [
+            canonicalise(jsonlib.loads(line))
+            for line in done.read_text("utf-8").splitlines()
+            if line.strip()
+        ]
+        write_events(root, events)
+        total += len(events)
+        typer.echo(f"{path.name}: {len(events)} events")
+    typer.echo(f"collected {total} events")

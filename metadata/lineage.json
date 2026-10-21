@@ -1,0 +1,3195 @@
+{
+ "generated_at": "2026-10-21T05:31:39.064946+00:00",
+ "generator": "keystone metadata export",
+ "datasets": [
+  {
+   "id": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.intermediate.int_package_repo_evidence",
+   "title": "intermediate.int_package_repo_evidence",
+   "layer": "warehouse",
+   "domain": "packages",
+   "kind": "dataset",
+   "fields": [
+    "kind",
+    "package_key",
+    "packages_in_vuln",
+    "repo_full_name",
+    "repo_host",
+    "vuln_id"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.intermediate.int_repo_name_hours",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.intermediate.int_repo_name_hours",
+   "title": "intermediate.int_repo_name_hours",
+   "layer": "warehouse",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "era_max",
+    "era_min",
+    "events",
+    "first_seen_at",
+    "last_seen_at",
+    "repo_id",
+    "repo_name",
+    "seen_hour"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.marts.bridge_package_repo",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.marts.bridge_package_repo",
+   "title": "marts.bridge_package_repo",
+   "layer": "published",
+   "domain": "packages",
+   "kind": "dataset",
+   "fields": [
+    "confidence",
+    "evidence_vulns",
+    "mapping_source",
+    "package_key",
+    "repo_full_name",
+    "repo_host",
+    "repo_id",
+    "repo_match"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.marts.dim_package",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.marts.dim_package",
+   "title": "marts.dim_package",
+   "layer": "published",
+   "domain": "packages",
+   "kind": "dataset",
+   "fields": [
+    "ecosystem",
+    "first_vuln_published_at",
+    "last_vuln_modified_at",
+    "malicious_vuln_count",
+    "package_key",
+    "package_name",
+    "purl",
+    "vuln_count",
+    "withdrawn_vuln_count"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.marts.dim_repo",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.marts.dim_repo",
+   "title": "marts.dim_repo",
+   "layer": "published",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "distinct_names",
+    "events",
+    "first_era",
+    "first_seen_at",
+    "last_era",
+    "last_seen_at",
+    "name_spells",
+    "repo_id",
+    "repo_name",
+    "repo_name_lower"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.marts.dim_repo_name_history",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.marts.dim_repo_name_history",
+   "title": "marts.dim_repo_name_history",
+   "layer": "published",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "events",
+    "first_era",
+    "is_current",
+    "last_era",
+    "last_seen_at",
+    "name_seq",
+    "repo_id",
+    "repo_name",
+    "repo_name_lower",
+    "valid_from",
+    "valid_to"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.marts.fct_repo_day",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.marts.fct_repo_day",
+   "title": "marts.fct_repo_day",
+   "layer": "published",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "activity_date",
+    "completeness_period",
+    "era",
+    "events",
+    "fetched_at_max",
+    "forks",
+    "human_events",
+    "issue_comments",
+    "issues_closed",
+    "issues_opened",
+    "members_added",
+    "pr_merge_known",
+    "prs_closed",
+    "prs_merged",
+    "prs_opened",
+    "pushes",
+    "releases_published",
+    "repo_id",
+    "stars"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.marts.fct_vuln",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.marts.fct_vuln",
+   "title": "marts.fct_vuln",
+   "layer": "published",
+   "domain": "vulnerabilities",
+   "kind": "dataset",
+   "fields": [
+    "alias_count",
+    "cvss_v3_vector",
+    "cvss_v4_vector",
+    "ecosystem",
+    "fetched_at",
+    "has_fixed",
+    "is_malicious",
+    "modified_at",
+    "package_key",
+    "package_name",
+    "published_at",
+    "severity_label",
+    "source_file",
+    "source_sha256",
+    "vuln_id",
+    "withdrawn_at"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.metrics.metric_maint_v1_repo_day",
+   "title": "metrics.metric_maint_v1_repo_day",
+   "layer": "published",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "activity_date",
+    "completeness_period",
+    "era",
+    "issues_closed",
+    "issues_opened",
+    "metric_version",
+    "pr_merge_known",
+    "prs_closed",
+    "prs_merged",
+    "prs_opened",
+    "releases_published",
+    "repo_id"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.metrics.metric_maint_v2_repo_day",
+   "title": "metrics.metric_maint_v2_repo_day",
+   "layer": "published",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "activity_date",
+    "completeness_period",
+    "era",
+    "issues_closed",
+    "issues_opened",
+    "metric_version",
+    "prs_closed",
+    "prs_opened",
+    "releases_published",
+    "repo_id"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.metrics.metric_release_v1_repo_day",
+   "title": "metrics.metric_release_v1_repo_day",
+   "layer": "published",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "activity_date",
+    "completeness_period",
+    "era",
+    "members_added",
+    "metric_version",
+    "releases_published",
+    "repo_id"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.staging.stg_gharchive__repo_names",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.staging.stg_gharchive__repo_names",
+   "title": "staging.stg_gharchive__repo_names",
+   "layer": "warehouse",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "created_at",
+    "era",
+    "repo_id",
+    "repo_name"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.staging.stg_osv__affected",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.staging.stg_osv__affected",
+   "title": "staging.stg_osv__affected",
+   "layer": "warehouse",
+   "domain": "vulnerabilities",
+   "kind": "dataset",
+   "fields": [
+    "affected_index",
+    "ecosystem",
+    "has_fixed",
+    "package_key",
+    "package_name",
+    "purl",
+    "range_count",
+    "version_count",
+    "vuln_id"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.staging.stg_osv__repo_refs",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.staging.stg_osv__repo_refs",
+   "title": "staging.stg_osv__repo_refs",
+   "layer": "warehouse",
+   "domain": "packages",
+   "kind": "dataset",
+   "fields": [
+    "affected_index",
+    "kind",
+    "repo_full_name",
+    "repo_host",
+    "url",
+    "vuln_id"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.staging.stg_osv__vulns",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.staging.stg_osv__vulns",
+   "title": "staging.stg_osv__vulns",
+   "layer": "warehouse",
+   "domain": "vulnerabilities",
+   "kind": "dataset",
+   "fields": [
+    "affected_count",
+    "alias_count",
+    "cvss_v3_vector",
+    "cvss_v4_vector",
+    "fetched_at",
+    "github_reviewed",
+    "is_malicious",
+    "modified_at",
+    "published_at",
+    "severity_label",
+    "source_file",
+    "source_sha256",
+    "vuln_id",
+    "withdrawn_at"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.staging.stg_ref__completeness_periods",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.staging.stg_ref__completeness_periods",
+   "title": "staging.stg_ref__completeness_periods",
+   "layer": "warehouse",
+   "domain": "operations",
+   "kind": "dataset",
+   "fields": [
+    "completeness_period",
+    "end_at",
+    "label",
+    "start_at"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.staging.stg_rollup__repo_hour",
+   "title": "staging.stg_rollup__repo_hour",
+   "layer": "warehouse",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "added",
+    "closed",
+    "completeness_period",
+    "era",
+    "event_type",
+    "events",
+    "fetched_at_max",
+    "human_events",
+    "merge_known",
+    "merged",
+    "opened",
+    "published",
+    "reopened",
+    "repo_id",
+    "window_start"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/rollup.main.repo_actor_day",
+   "namespace": "duckdb://keystone",
+   "name": "rollup.main.repo_actor_day",
+   "title": "Rollup repo_actor_day (free engine)",
+   "layer": "rollup",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "actor_key",
+    "actor_key_kind",
+    "comments",
+    "era",
+    "events",
+    "fetched_at_max",
+    "issues_closed",
+    "issues_opened",
+    "members_added",
+    "prs_closed",
+    "prs_merged",
+    "prs_opened",
+    "pushes",
+    "releases",
+    "repo_id",
+    "window_start"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "duckdb://keystone/rollup.main.repo_hour",
+   "namespace": "duckdb://keystone",
+   "name": "rollup.main.repo_hour",
+   "title": "Rollup repo_hour (free engine)",
+   "layer": "rollup",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "added",
+    "closed",
+    "era",
+    "event_type",
+    "events",
+    "fetched_at_max",
+    "human_events",
+    "merge_known",
+    "merged",
+    "opened",
+    "published",
+    "reopened",
+    "repo_id",
+    "window_start"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "file://keystone/quarantine/gharchive",
+   "namespace": "file://keystone",
+   "name": "quarantine/gharchive",
+   "title": "GH Archive quarantine",
+   "layer": "silver",
+   "domain": "operations",
+   "kind": "dataset",
+   "fields": [
+    "era",
+    "fetched_at",
+    "line_bytes",
+    "line_sha256",
+    "reason",
+    "source_file",
+    "source_line",
+    "source_sha256"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "file://keystone/silver/gharchive/events",
+   "namespace": "file://keystone",
+   "name": "silver/gharchive/events",
+   "title": "Silver GH Archive events",
+   "layer": "silver",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "action",
+    "actor_is_bot",
+    "actor_key",
+    "actor_key_kind",
+    "comment_created_at",
+    "comment_id",
+    "created_at",
+    "created_at_offset_min",
+    "era",
+    "event_id",
+    "event_type",
+    "fetched_at",
+    "issue_author_key",
+    "issue_closed_at",
+    "issue_created_at",
+    "issue_id",
+    "issue_is_pr",
+    "number",
+    "payload_repository_id",
+    "period",
+    "pr_author_key",
+    "pr_closed_at",
+    "pr_created_at",
+    "pr_merged",
+    "pr_merged_at",
+    "public",
+    "push_before",
+    "push_distinct_size",
+    "push_head",
+    "push_size",
+    "ref",
+    "ref_type",
+    "release_prerelease",
+    "release_published_at",
+    "release_tag",
+    "repo_id",
+    "repo_name",
+    "source_file",
+    "source_line",
+    "source_sha256"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "file://keystone/silver/gharchive/hour_types",
+   "namespace": "file://keystone",
+   "name": "silver/gharchive/hour_types",
+   "title": "Silver hour x event-type counts",
+   "layer": "silver",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "created_at_max",
+    "created_at_min",
+    "era",
+    "event_type",
+    "events",
+    "fetched_at",
+    "hour",
+    "period",
+    "source_file",
+    "source_sha256"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "file://keystone/silver/osv/affected",
+   "namespace": "file://keystone",
+   "name": "silver/osv/affected",
+   "title": "Silver OSV affected packages",
+   "layer": "silver",
+   "domain": "vulnerabilities",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": true
+  },
+  {
+   "id": "file://keystone/silver/osv/repo_refs",
+   "namespace": "file://keystone",
+   "name": "silver/osv/repo_refs",
+   "title": "Silver OSV repository pointers",
+   "layer": "silver",
+   "domain": "packages",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": true
+  },
+  {
+   "id": "file://keystone/silver/osv/vulns",
+   "namespace": "file://keystone",
+   "name": "silver/osv/vulns",
+   "title": "Silver OSV records",
+   "layer": "silver",
+   "domain": "vulnerabilities",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": true
+  },
+  {
+   "id": "https://data.gharchive.org//2011-02-12-0.json.gz",
+   "namespace": "https://data.gharchive.org",
+   "name": "/2011-02-12-0.json.gz",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": false
+  },
+  {
+   "id": "https://data.gharchive.org//2012-06-15-12.json.gz",
+   "namespace": "https://data.gharchive.org",
+   "name": "/2012-06-15-12.json.gz",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": false
+  },
+  {
+   "id": "https://data.gharchive.org//2013-06-15-12.json.gz",
+   "namespace": "https://data.gharchive.org",
+   "name": "/2013-06-15-12.json.gz",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": false
+  },
+  {
+   "id": "https://data.gharchive.org//2014-12-31-12.json.gz",
+   "namespace": "https://data.gharchive.org",
+   "name": "/2014-12-31-12.json.gz",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": false
+  },
+  {
+   "id": "https://data.gharchive.org//2015-01-01-12.json.gz",
+   "namespace": "https://data.gharchive.org",
+   "name": "/2015-01-01-12.json.gz",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": false
+  },
+  {
+   "id": "https://data.gharchive.org//2019-06-15-12.json.gz",
+   "namespace": "https://data.gharchive.org",
+   "name": "/2019-06-15-12.json.gz",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": false
+  },
+  {
+   "id": "https://data.gharchive.org//2025-10-06-12.json.gz",
+   "namespace": "https://data.gharchive.org",
+   "name": "/2025-10-06-12.json.gz",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": false
+  },
+  {
+   "id": "https://data.gharchive.org//2026-10-19-12.json.gz",
+   "namespace": "https://data.gharchive.org",
+   "name": "/2026-10-19-12.json.gz",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": false
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/marts.bridge_package_repo",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "marts.bridge_package_repo",
+   "title": "Published marts.bridge_package_repo (Iceberg)",
+   "layer": "published",
+   "kind": "dataset",
+   "fields": [
+    "confidence",
+    "evidence_vulns",
+    "mapping_source",
+    "package_key",
+    "repo_full_name",
+    "repo_host",
+    "repo_id",
+    "repo_match"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/marts.dim_package",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "marts.dim_package",
+   "title": "Published marts.dim_package (Iceberg)",
+   "layer": "published",
+   "kind": "dataset",
+   "fields": [
+    "ecosystem",
+    "first_vuln_published_at",
+    "last_vuln_modified_at",
+    "malicious_vuln_count",
+    "package_key",
+    "package_name",
+    "purl",
+    "vuln_count",
+    "withdrawn_vuln_count"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/marts.dim_repo",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "marts.dim_repo",
+   "title": "Published marts.dim_repo (Iceberg)",
+   "layer": "published",
+   "kind": "dataset",
+   "fields": [
+    "distinct_names",
+    "events",
+    "first_era",
+    "first_seen_at",
+    "last_era",
+    "last_seen_at",
+    "name_spells",
+    "repo_id",
+    "repo_name",
+    "repo_name_lower"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "marts.dim_repo_name_history",
+   "title": "Published marts.dim_repo_name_history (Iceberg)",
+   "layer": "published",
+   "kind": "dataset",
+   "fields": [
+    "events",
+    "first_era",
+    "is_current",
+    "last_era",
+    "last_seen_at",
+    "name_seq",
+    "repo_id",
+    "repo_name",
+    "repo_name_lower",
+    "valid_from",
+    "valid_to"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/marts.fct_repo_day",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "marts.fct_repo_day",
+   "title": "Published marts.fct_repo_day (Iceberg)",
+   "layer": "published",
+   "kind": "dataset",
+   "fields": [
+    "activity_date",
+    "completeness_period",
+    "era",
+    "events",
+    "fetched_at_max",
+    "forks",
+    "human_events",
+    "issue_comments",
+    "issues_closed",
+    "issues_opened",
+    "members_added",
+    "pr_merge_known",
+    "prs_closed",
+    "prs_merged",
+    "prs_opened",
+    "pushes",
+    "releases_published",
+    "repo_id",
+    "stars"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/marts.fct_vuln",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "marts.fct_vuln",
+   "title": "Published marts.fct_vuln (Iceberg)",
+   "layer": "published",
+   "kind": "dataset",
+   "fields": [
+    "alias_count",
+    "cvss_v3_vector",
+    "cvss_v4_vector",
+    "ecosystem",
+    "fetched_at",
+    "has_fixed",
+    "is_malicious",
+    "modified_at",
+    "package_key",
+    "package_name",
+    "published_at",
+    "severity_label",
+    "source_file",
+    "source_sha256",
+    "vuln_id",
+    "withdrawn_at"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "metrics.metric_maint_v1_repo_day",
+   "title": "Published metrics.metric_maint_v1_repo_day (Iceberg)",
+   "layer": "published",
+   "kind": "dataset",
+   "fields": [
+    "activity_date",
+    "completeness_period",
+    "era",
+    "issues_closed",
+    "issues_opened",
+    "metric_version",
+    "pr_merge_known",
+    "prs_closed",
+    "prs_merged",
+    "prs_opened",
+    "releases_published",
+    "repo_id"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "metrics.metric_maint_v2_repo_day",
+   "title": "Published metrics.metric_maint_v2_repo_day (Iceberg)",
+   "layer": "published",
+   "kind": "dataset",
+   "fields": [
+    "activity_date",
+    "completeness_period",
+    "era",
+    "issues_closed",
+    "issues_opened",
+    "metric_version",
+    "prs_closed",
+    "prs_opened",
+    "releases_published",
+    "repo_id"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "metrics.metric_release_v1_repo_day",
+   "title": "Published metrics.metric_release_v1_repo_day (Iceberg)",
+   "layer": "published",
+   "kind": "dataset",
+   "fields": [
+    "activity_date",
+    "completeness_period",
+    "era",
+    "members_added",
+    "metric_version",
+    "releases_published",
+    "repo_id"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "rollup_full.repo_actor_day",
+   "title": "Rollup repo_actor_day (full engine)",
+   "layer": "rollup",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "actor_key",
+    "actor_key_kind",
+    "comments",
+    "era",
+    "events",
+    "fetched_at_max",
+    "issues_closed",
+    "issues_opened",
+    "members_added",
+    "prs_closed",
+    "prs_merged",
+    "prs_opened",
+    "pushes",
+    "releases",
+    "repo_id",
+    "window_start"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day_late",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "rollup_full.repo_actor_day_late",
+   "kind": "dataset",
+   "fields": [
+    "actor_key",
+    "actor_key_kind",
+    "comments",
+    "era",
+    "events",
+    "fetched_at_max",
+    "issues_closed",
+    "issues_opened",
+    "members_added",
+    "prs_closed",
+    "prs_merged",
+    "prs_opened",
+    "pushes",
+    "releases",
+    "repo_id",
+    "window_start"
+   ],
+   "cataloged": false
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day_ontime",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "rollup_full.repo_actor_day_ontime",
+   "kind": "dataset",
+   "fields": [
+    "actor_key",
+    "actor_key_kind",
+    "comments",
+    "era",
+    "events",
+    "fetched_at_max",
+    "issues_closed",
+    "issues_opened",
+    "members_added",
+    "prs_closed",
+    "prs_merged",
+    "prs_opened",
+    "pushes",
+    "releases",
+    "repo_id",
+    "window_start"
+   ],
+   "cataloged": false
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/rollup_full.repo_hour",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "rollup_full.repo_hour",
+   "title": "Rollup repo_hour (full engine)",
+   "layer": "rollup",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "added",
+    "closed",
+    "era",
+    "event_type",
+    "events",
+    "fetched_at_max",
+    "human_events",
+    "merge_known",
+    "merged",
+    "opened",
+    "published",
+    "reopened",
+    "repo_id",
+    "window_start"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/rollup_full.repo_hour_late",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "rollup_full.repo_hour_late",
+   "kind": "dataset",
+   "fields": [
+    "added",
+    "closed",
+    "era",
+    "event_type",
+    "events",
+    "fetched_at_max",
+    "human_events",
+    "merge_known",
+    "merged",
+    "opened",
+    "published",
+    "reopened",
+    "repo_id",
+    "window_start"
+   ],
+   "cataloged": false
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/rollup_full.repo_hour_ontime",
+   "namespace": "iceberg://lakekeeper/keystone",
+   "name": "rollup_full.repo_hour_ontime",
+   "kind": "dataset",
+   "fields": [
+    "added",
+    "closed",
+    "era",
+    "event_type",
+    "events",
+    "fetched_at_max",
+    "human_events",
+    "merge_known",
+    "merged",
+    "opened",
+    "published",
+    "reopened",
+    "repo_id",
+    "window_start"
+   ],
+   "cataloged": false
+  },
+  {
+   "id": "kafka://redpanda:9092/keystone.gharchive.events.v1",
+   "namespace": "kafka://redpanda:9092",
+   "name": "keystone.gharchive.events.v1",
+   "title": "Event topic",
+   "layer": "stream",
+   "domain": "activity",
+   "kind": "dataset",
+   "fields": [
+    "action",
+    "actor_is_bot",
+    "actor_key",
+    "actor_key_kind",
+    "created_at",
+    "era",
+    "event_type",
+    "fetched_at",
+    "period",
+    "pr_merged",
+    "repo_id",
+    "source_file",
+    "source_line",
+    "source_sha256"
+   ],
+   "cataloged": true
+  }
+ ],
+ "jobs": [
+  {
+   "id": "job:keystone/keystone-rollup-batch-rollup_full",
+   "name": "keystone-rollup-batch-rollup_full",
+   "tool": "Flink (openlineage-flink)",
+   "runs": 0
+  },
+  {
+   "id": "job:keystone/keystone-rollup-fold-rollup_full",
+   "name": "keystone-rollup-fold-rollup_full",
+   "tool": "Flink (openlineage-flink)",
+   "runs": 0
+  },
+  {
+   "id": "job:keystone/keystone.intermediate.keystone.int_package_repo_evidence.build.run",
+   "name": "keystone.intermediate.keystone.int_package_repo_evidence.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:26.522460Z"
+  },
+  {
+   "id": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run",
+   "name": "keystone.intermediate.keystone.int_repo_name_hours.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:26.354509Z"
+  },
+  {
+   "id": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.test",
+   "name": "keystone.intermediate.keystone.int_repo_name_hours.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run",
+   "name": "keystone.marts.keystone.bridge_package_repo.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:33.420180Z"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.test",
+   "name": "keystone.marts.keystone.bridge_package_repo.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.dim_package.build.run",
+   "name": "keystone.marts.keystone.dim_package.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:25.628991Z"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.dim_package.build.test",
+   "name": "keystone.marts.keystone.dim_package.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.dim_repo.build.run",
+   "name": "keystone.marts.keystone.dim_repo.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:35.888811Z"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.dim_repo.build.test",
+   "name": "keystone.marts.keystone.dim_repo.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run",
+   "name": "keystone.marts.keystone.dim_repo_name_history.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:32.515502Z"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.test",
+   "name": "keystone.marts.keystone.dim_repo_name_history.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run",
+   "name": "keystone.marts.keystone.fct_repo_day.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:30.085676Z"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.fct_repo_day.build.test",
+   "name": "keystone.marts.keystone.fct_repo_day.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.fct_vuln.build.run",
+   "name": "keystone.marts.keystone.fct_vuln.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:26.358288Z"
+  },
+  {
+   "id": "job:keystone/keystone.marts.keystone.fct_vuln.build.test",
+   "name": "keystone.marts.keystone.fct_vuln.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run",
+   "name": "keystone.metrics.keystone.metric_maint_v1_repo_day.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:32.525699Z"
+  },
+  {
+   "id": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.test",
+   "name": "keystone.metrics.keystone.metric_maint_v1_repo_day.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run",
+   "name": "keystone.metrics.keystone.metric_maint_v2_repo_day.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:33.206568Z"
+  },
+  {
+   "id": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.test",
+   "name": "keystone.metrics.keystone.metric_maint_v2_repo_day.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.run",
+   "name": "keystone.metrics.keystone.metric_release_v1_repo_day.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:32.639158Z"
+  },
+  {
+   "id": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.test",
+   "name": "keystone.metrics.keystone.metric_release_v1_repo_day.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_gharchive__repo_names.build.run",
+   "name": "keystone.staging.keystone.stg_gharchive__repo_names.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:24.027243Z"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_gharchive__repo_names.build.test",
+   "name": "keystone.staging.keystone.stg_gharchive__repo_names.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_osv__affected.build.run",
+   "name": "keystone.staging.keystone.stg_osv__affected.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:24.727182Z"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_osv__affected.build.test",
+   "name": "keystone.staging.keystone.stg_osv__affected.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_osv__repo_refs.build.run",
+   "name": "keystone.staging.keystone.stg_osv__repo_refs.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:24.830332Z"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_osv__repo_refs.build.test",
+   "name": "keystone.staging.keystone.stg_osv__repo_refs.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_osv__vulns.build.run",
+   "name": "keystone.staging.keystone.stg_osv__vulns.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:24.042894Z"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_osv__vulns.build.test",
+   "name": "keystone.staging.keystone.stg_osv__vulns.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_ref__completeness_periods.build.run",
+   "name": "keystone.staging.keystone.stg_ref__completeness_periods.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:24.897112Z"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_ref__completeness_periods.build.test",
+   "name": "keystone.staging.keystone.stg_ref__completeness_periods.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run",
+   "name": "keystone.staging.keystone.stg_rollup__repo_hour.build.run",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:26.422950Z"
+  },
+  {
+   "id": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.test",
+   "name": "keystone.staging.keystone.stg_rollup__repo_hour.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/parse.gharchive",
+   "name": "parse.gharchive",
+   "tool": "keystone CLI",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:01.650830+00:00"
+  },
+  {
+   "id": "job:keystone/rollup.duckdb",
+   "name": "rollup.duckdb",
+   "tool": "keystone CLI",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:11.864552+00:00"
+  },
+  {
+   "id": "job:keystone/rollup.flink.batch",
+   "name": "rollup.flink.batch",
+   "tool": "keystone CLI",
+   "runs": 1,
+   "last_run": "2026-10-21T05:28:48.420506+00:00"
+  },
+  {
+   "id": "job:keystone/rollup.main.source.keystone.rollup.repo_hour.build.test",
+   "name": "rollup.main.source.keystone.rollup.repo_hour.build.test",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/stream.produce",
+   "name": "stream.produce",
+   "tool": "keystone CLI",
+   "runs": 1,
+   "last_run": "2026-10-21T05:26:57.993796+00:00"
+  },
+  {
+   "id": "job:keystone/test.keystone.assert_fct_repo_day_conserves_events",
+   "name": "test.keystone.assert_fct_repo_day_conserves_events",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/test.keystone.assert_one_current_name",
+   "name": "test.keystone.assert_one_current_name",
+   "tool": "dbt (dbt-ol)",
+   "runs": 1,
+   "last_run": "2026-10-21T05:25:45.927790+00:00"
+  },
+  {
+   "id": "job:keystone/warehouse.publish",
+   "name": "warehouse.publish",
+   "tool": "keystone CLI",
+   "runs": 1,
+   "last_run": "2026-10-21T05:29:00.734542+00:00"
+  }
+ ],
+ "edges": [
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence",
+   "to": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_repo_name_hours",
+   "to": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_repo_name_hours",
+   "to": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.bridge_package_repo",
+   "to": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.bridge_package_repo",
+   "to": "job:keystone/warehouse.publish",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_package",
+   "to": "job:keystone/keystone.marts.keystone.dim_package.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_package",
+   "to": "job:keystone/warehouse.publish",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo",
+   "to": "job:keystone/keystone.marts.keystone.dim_repo.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo",
+   "to": "job:keystone/warehouse.publish",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history",
+   "to": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history",
+   "to": "job:keystone/keystone.marts.keystone.dim_repo.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history",
+   "to": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history",
+   "to": "job:keystone/test.keystone.assert_one_current_name",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history",
+   "to": "job:keystone/warehouse.publish",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day",
+   "to": "job:keystone/keystone.marts.keystone.fct_repo_day.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day",
+   "to": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day",
+   "to": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day",
+   "to": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day",
+   "to": "job:keystone/test.keystone.assert_fct_repo_day_conserves_events",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day",
+   "to": "job:keystone/warehouse.publish",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln",
+   "to": "job:keystone/keystone.marts.keystone.fct_vuln.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln",
+   "to": "job:keystone/warehouse.publish",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day",
+   "to": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day",
+   "to": "job:keystone/warehouse.publish",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day",
+   "to": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day",
+   "to": "job:keystone/warehouse.publish",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day",
+   "to": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day",
+   "to": "job:keystone/warehouse.publish",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_gharchive__repo_names",
+   "to": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_gharchive__repo_names",
+   "to": "job:keystone/keystone.staging.keystone.stg_gharchive__repo_names.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected",
+   "to": "job:keystone/keystone.intermediate.keystone.int_package_repo_evidence.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected",
+   "to": "job:keystone/keystone.marts.keystone.dim_package.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected",
+   "to": "job:keystone/keystone.marts.keystone.fct_vuln.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected",
+   "to": "job:keystone/keystone.staging.keystone.stg_osv__affected.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__repo_refs",
+   "to": "job:keystone/keystone.intermediate.keystone.int_package_repo_evidence.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__repo_refs",
+   "to": "job:keystone/keystone.staging.keystone.stg_osv__repo_refs.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns",
+   "to": "job:keystone/keystone.marts.keystone.dim_package.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns",
+   "to": "job:keystone/keystone.marts.keystone.fct_vuln.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns",
+   "to": "job:keystone/keystone.staging.keystone.stg_osv__affected.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns",
+   "to": "job:keystone/keystone.staging.keystone.stg_osv__repo_refs.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns",
+   "to": "job:keystone/keystone.staging.keystone.stg_osv__vulns.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_ref__completeness_periods",
+   "to": "job:keystone/keystone.staging.keystone.stg_ref__completeness_periods.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_ref__completeness_periods",
+   "to": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour",
+   "to": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour",
+   "to": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour",
+   "to": "job:keystone/test.keystone.assert_fct_repo_day_conserves_events",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour",
+   "to": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour",
+   "to": "job:keystone/rollup.main.source.keystone.rollup.repo_hour.build.test",
+   "kind": "reads"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour",
+   "to": "job:keystone/test.keystone.assert_fct_repo_day_conserves_events",
+   "kind": "reads"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events",
+   "to": "job:keystone/keystone.staging.keystone.stg_gharchive__repo_names.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events",
+   "to": "job:keystone/rollup.duckdb",
+   "kind": "reads"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events",
+   "to": "job:keystone/stream.produce",
+   "kind": "reads"
+  },
+  {
+   "from": "file://keystone/silver/osv/affected",
+   "to": "job:keystone/keystone.staging.keystone.stg_osv__affected.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "file://keystone/silver/osv/repo_refs",
+   "to": "job:keystone/keystone.staging.keystone.stg_osv__repo_refs.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "file://keystone/silver/osv/vulns",
+   "to": "job:keystone/keystone.staging.keystone.stg_osv__vulns.build.run",
+   "kind": "reads"
+  },
+  {
+   "from": "https://data.gharchive.org//2011-02-12-0.json.gz",
+   "to": "job:keystone/parse.gharchive",
+   "kind": "reads"
+  },
+  {
+   "from": "https://data.gharchive.org//2012-06-15-12.json.gz",
+   "to": "job:keystone/parse.gharchive",
+   "kind": "reads"
+  },
+  {
+   "from": "https://data.gharchive.org//2013-06-15-12.json.gz",
+   "to": "job:keystone/parse.gharchive",
+   "kind": "reads"
+  },
+  {
+   "from": "https://data.gharchive.org//2014-12-31-12.json.gz",
+   "to": "job:keystone/parse.gharchive",
+   "kind": "reads"
+  },
+  {
+   "from": "https://data.gharchive.org//2015-01-01-12.json.gz",
+   "to": "job:keystone/parse.gharchive",
+   "kind": "reads"
+  },
+  {
+   "from": "https://data.gharchive.org//2019-06-15-12.json.gz",
+   "to": "job:keystone/parse.gharchive",
+   "kind": "reads"
+  },
+  {
+   "from": "https://data.gharchive.org//2025-10-06-12.json.gz",
+   "to": "job:keystone/parse.gharchive",
+   "kind": "reads"
+  },
+  {
+   "from": "https://data.gharchive.org//2026-10-19-12.json.gz",
+   "to": "job:keystone/parse.gharchive",
+   "kind": "reads"
+  },
+  {
+   "from": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day_late",
+   "to": "job:keystone/keystone-rollup-fold-rollup_full",
+   "kind": "reads"
+  },
+  {
+   "from": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day_ontime",
+   "to": "job:keystone/keystone-rollup-fold-rollup_full",
+   "kind": "reads"
+  },
+  {
+   "from": "iceberg://lakekeeper/keystone/rollup_full.repo_hour_late",
+   "to": "job:keystone/keystone-rollup-fold-rollup_full",
+   "kind": "reads"
+  },
+  {
+   "from": "iceberg://lakekeeper/keystone/rollup_full.repo_hour_ontime",
+   "to": "job:keystone/keystone-rollup-fold-rollup_full",
+   "kind": "reads"
+  },
+  {
+   "from": "job:keystone/keystone-rollup-batch-rollup_full",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day_late",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone-rollup-batch-rollup_full",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day_ontime",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone-rollup-batch-rollup_full",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_hour_late",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone-rollup-batch-rollup_full",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_hour_ontime",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone-rollup-fold-rollup_full",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone-rollup-fold-rollup_full",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_hour",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.intermediate.keystone.int_package_repo_evidence.build.run",
+   "to": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run",
+   "to": "duckdb://keystone/keystone.intermediate.int_repo_name_hours",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.marts.keystone.dim_package.build.run",
+   "to": "duckdb://keystone/keystone.marts.dim_package",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.marts.keystone.dim_repo.build.run",
+   "to": "duckdb://keystone/keystone.marts.dim_repo",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run",
+   "to": "duckdb://keystone/keystone.marts.dim_repo_name_history",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.marts.keystone.fct_vuln.build.run",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.run",
+   "to": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.staging.keystone.stg_gharchive__repo_names.build.run",
+   "to": "duckdb://keystone/keystone.staging.stg_gharchive__repo_names",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.staging.keystone.stg_osv__affected.build.run",
+   "to": "duckdb://keystone/keystone.staging.stg_osv__affected",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.staging.keystone.stg_osv__repo_refs.build.run",
+   "to": "duckdb://keystone/keystone.staging.stg_osv__repo_refs",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.staging.keystone.stg_osv__vulns.build.run",
+   "to": "duckdb://keystone/keystone.staging.stg_osv__vulns",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.staging.keystone.stg_ref__completeness_periods.build.run",
+   "to": "duckdb://keystone/keystone.staging.stg_ref__completeness_periods",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/parse.gharchive",
+   "to": "file://keystone/quarantine/gharchive",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/parse.gharchive",
+   "to": "file://keystone/silver/gharchive/events",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/parse.gharchive",
+   "to": "file://keystone/silver/gharchive/hour_types",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/rollup.duckdb",
+   "to": "duckdb://keystone/rollup.main.repo_actor_day",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/rollup.duckdb",
+   "to": "duckdb://keystone/rollup.main.repo_hour",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/rollup.flink.batch",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/rollup.flink.batch",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day_late",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/rollup.flink.batch",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day_ontime",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/rollup.flink.batch",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_hour",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/rollup.flink.batch",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_hour_late",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/rollup.flink.batch",
+   "to": "iceberg://lakekeeper/keystone/rollup_full.repo_hour_ontime",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/stream.produce",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/warehouse.publish",
+   "to": "iceberg://lakekeeper/keystone/marts.bridge_package_repo",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/warehouse.publish",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_package",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/warehouse.publish",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/warehouse.publish",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/warehouse.publish",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/warehouse.publish",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/warehouse.publish",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/warehouse.publish",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/warehouse.publish",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day",
+   "kind": "writes"
+  },
+  {
+   "from": "kafka://redpanda:9092/keystone.gharchive.events.v1",
+   "to": "job:keystone/keystone-rollup-batch-rollup_full",
+   "kind": "reads"
+  },
+  {
+   "from": "kafka://redpanda:9092/keystone.gharchive.events.v1",
+   "to": "job:keystone/rollup.flink.batch",
+   "kind": "reads"
+  }
+ ],
+ "field_edges": [
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#kind",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo#confidence",
+   "job": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#package_key",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo#package_key",
+   "job": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#packages_in_vuln",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo#confidence",
+   "job": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#repo_full_name",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo#repo_full_name",
+   "job": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#repo_host",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo#repo_host",
+   "job": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#repo_host",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo#repo_id",
+   "job": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#repo_host",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo#repo_match",
+   "job": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#vuln_id",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo#evidence_vulns",
+   "job": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#first_seen_at",
+   "to": "duckdb://keystone/keystone.marts.dim_repo_name_history#is_current",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#first_seen_at",
+   "to": "duckdb://keystone/keystone.marts.dim_repo_name_history#name_seq",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#first_seen_at",
+   "to": "duckdb://keystone/keystone.marts.dim_repo_name_history#valid_to",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#repo_id",
+   "to": "duckdb://keystone/keystone.marts.dim_repo_name_history#is_current",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#repo_id",
+   "to": "duckdb://keystone/keystone.marts.dim_repo_name_history#name_seq",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#repo_id",
+   "to": "duckdb://keystone/keystone.marts.dim_repo_name_history#valid_to",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#repo_name",
+   "to": "duckdb://keystone/keystone.marts.dim_repo_name_history#is_current",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#repo_name",
+   "to": "duckdb://keystone/keystone.marts.dim_repo_name_history#name_seq",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#repo_name",
+   "to": "duckdb://keystone/keystone.marts.dim_repo_name_history#valid_to",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.bridge_package_repo#confidence",
+   "to": "iceberg://lakekeeper/keystone/marts.bridge_package_repo#confidence",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.bridge_package_repo#evidence_vulns",
+   "to": "iceberg://lakekeeper/keystone/marts.bridge_package_repo#evidence_vulns",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.bridge_package_repo#mapping_source",
+   "to": "iceberg://lakekeeper/keystone/marts.bridge_package_repo#mapping_source",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.bridge_package_repo#package_key",
+   "to": "iceberg://lakekeeper/keystone/marts.bridge_package_repo#package_key",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.bridge_package_repo#repo_full_name",
+   "to": "iceberg://lakekeeper/keystone/marts.bridge_package_repo#repo_full_name",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.bridge_package_repo#repo_host",
+   "to": "iceberg://lakekeeper/keystone/marts.bridge_package_repo#repo_host",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.bridge_package_repo#repo_id",
+   "to": "iceberg://lakekeeper/keystone/marts.bridge_package_repo#repo_id",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.bridge_package_repo#repo_match",
+   "to": "iceberg://lakekeeper/keystone/marts.bridge_package_repo#repo_match",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_package#ecosystem",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_package#ecosystem",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_package#first_vuln_published_at",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_package#first_vuln_published_at",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_package#last_vuln_modified_at",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_package#last_vuln_modified_at",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_package#malicious_vuln_count",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_package#malicious_vuln_count",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_package#package_key",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_package#package_key",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_package#package_name",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_package#package_name",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_package#purl",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_package#purl",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_package#vuln_count",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_package#vuln_count",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_package#withdrawn_vuln_count",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_package#withdrawn_vuln_count",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo#distinct_names",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo#distinct_names",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo#events",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo#events",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo#first_era",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo#first_era",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo#first_seen_at",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo#first_seen_at",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo#last_era",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo#last_era",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo#last_seen_at",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo#last_seen_at",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo#name_spells",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo#name_spells",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo#repo_id",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo#repo_id",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo#repo_name",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo#repo_name",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo#repo_name_lower",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo#repo_name_lower",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#events",
+   "to": "duckdb://keystone/keystone.marts.dim_repo#events",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#events",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#events",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#first_era",
+   "to": "duckdb://keystone/keystone.marts.dim_repo#first_era",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#first_era",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#first_era",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#is_current",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#is_current",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#last_era",
+   "to": "duckdb://keystone/keystone.marts.dim_repo#last_era",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#last_era",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#last_era",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#last_seen_at",
+   "to": "duckdb://keystone/keystone.marts.dim_repo#last_seen_at",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#last_seen_at",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#last_seen_at",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#name_seq",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#name_seq",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#repo_id",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo#repo_id",
+   "job": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#repo_id",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo#repo_match",
+   "job": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#repo_id",
+   "to": "duckdb://keystone/keystone.marts.dim_repo#repo_id",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#repo_id",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#repo_id",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#repo_name",
+   "to": "duckdb://keystone/keystone.marts.dim_repo#repo_name",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#repo_name",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#repo_name",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#repo_name_lower",
+   "to": "duckdb://keystone/keystone.marts.dim_repo#distinct_names",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#repo_name_lower",
+   "to": "duckdb://keystone/keystone.marts.dim_repo#repo_name_lower",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#repo_name_lower",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#repo_name_lower",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#valid_from",
+   "to": "duckdb://keystone/keystone.marts.dim_repo#first_seen_at",
+   "job": "job:keystone/keystone.marts.keystone.dim_repo.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#valid_from",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#valid_from",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.dim_repo_name_history#valid_to",
+   "to": "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#valid_to",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#activity_date",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#activity_date",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#activity_date",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#activity_date",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#activity_date",
+   "to": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#activity_date",
+   "job": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#activity_date",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#activity_date",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#completeness_period",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#completeness_period",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#completeness_period",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#completeness_period",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#completeness_period",
+   "to": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#completeness_period",
+   "job": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#completeness_period",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#completeness_period",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#era",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#era",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#era",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#era",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#era",
+   "to": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#era",
+   "job": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#era",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#era",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#events",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#events",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#fetched_at_max",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#fetched_at_max",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#forks",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#forks",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#human_events",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#human_events",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#issue_comments",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#issue_comments",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#issues_closed",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#issues_closed",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#issues_closed",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#issues_closed",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#issues_closed",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#issues_closed",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#issues_opened",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#issues_opened",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#issues_opened",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#issues_opened",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#issues_opened",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#issues_opened",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#members_added",
+   "to": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#members_added",
+   "job": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#members_added",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#members_added",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#pr_merge_known",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#pr_merge_known",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#pr_merge_known",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#pr_merge_known",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#prs_closed",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#prs_closed",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#prs_closed",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#prs_closed",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#prs_closed",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#prs_closed",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#prs_merged",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#prs_merged",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#prs_merged",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#prs_merged",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#prs_opened",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#prs_opened",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#prs_opened",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#prs_opened",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#prs_opened",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#prs_opened",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#pushes",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#pushes",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#releases_published",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#releases_published",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#releases_published",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#releases_published",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#releases_published",
+   "to": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#releases_published",
+   "job": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#releases_published",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#releases_published",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#repo_id",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#repo_id",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#repo_id",
+   "to": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#repo_id",
+   "job": "job:keystone/keystone.metrics.keystone.metric_maint_v2_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#repo_id",
+   "to": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#repo_id",
+   "job": "job:keystone/keystone.metrics.keystone.metric_release_v1_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#repo_id",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#repo_id",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_repo_day#stars",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_repo_day#stars",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#alias_count",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#alias_count",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#cvss_v3_vector",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#cvss_v3_vector",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#cvss_v4_vector",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#cvss_v4_vector",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#ecosystem",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#ecosystem",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#fetched_at",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#fetched_at",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#has_fixed",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#has_fixed",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#is_malicious",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#is_malicious",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#modified_at",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#modified_at",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#package_key",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#package_key",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#package_name",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#package_name",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#published_at",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#published_at",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#severity_label",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#severity_label",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#source_file",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#source_file",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#source_sha256",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#source_sha256",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#vuln_id",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#vuln_id",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.marts.fct_vuln#withdrawn_at",
+   "to": "iceberg://lakekeeper/keystone/marts.fct_vuln#withdrawn_at",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#activity_date",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#activity_date",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#completeness_period",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#completeness_period",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#era",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#era",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#issues_closed",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#issues_closed",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#issues_opened",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#issues_opened",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#metric_version",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#metric_version",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#pr_merge_known",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#pr_merge_known",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#prs_closed",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#prs_closed",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#prs_merged",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#prs_merged",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#prs_opened",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#prs_opened",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#releases_published",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#releases_published",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#repo_id",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#repo_id",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#activity_date",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#activity_date",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#completeness_period",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#completeness_period",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#era",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#era",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#issues_closed",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#issues_closed",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#issues_opened",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#issues_opened",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#metric_version",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#metric_version",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#prs_closed",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#prs_closed",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#prs_opened",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#prs_opened",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#releases_published",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#releases_published",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#repo_id",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#repo_id",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#activity_date",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day#activity_date",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#completeness_period",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day#completeness_period",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#era",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day#era",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#members_added",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day#members_added",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#metric_version",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day#metric_version",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#releases_published",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day#releases_published",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#repo_id",
+   "to": "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day#repo_id",
+   "job": "job:keystone/warehouse.publish"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_gharchive__repo_names#created_at",
+   "to": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#first_seen_at",
+   "job": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_gharchive__repo_names#created_at",
+   "to": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#last_seen_at",
+   "job": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_gharchive__repo_names#created_at",
+   "to": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#seen_hour",
+   "job": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_gharchive__repo_names#era",
+   "to": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#era_max",
+   "job": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_gharchive__repo_names#era",
+   "to": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#era_min",
+   "job": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_gharchive__repo_names#repo_id",
+   "to": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#repo_id",
+   "job": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_gharchive__repo_names#repo_name",
+   "to": "duckdb://keystone/keystone.intermediate.int_repo_name_hours#repo_name",
+   "job": "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#ecosystem",
+   "to": "duckdb://keystone/keystone.marts.dim_package#ecosystem",
+   "job": "job:keystone/keystone.marts.keystone.dim_package.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#ecosystem",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#ecosystem",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#has_fixed",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#has_fixed",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#package_key",
+   "to": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#package_key",
+   "job": "job:keystone/keystone.intermediate.keystone.int_package_repo_evidence.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#package_key",
+   "to": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#packages_in_vuln",
+   "job": "job:keystone/keystone.intermediate.keystone.int_package_repo_evidence.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#package_key",
+   "to": "duckdb://keystone/keystone.marts.dim_package#package_key",
+   "job": "job:keystone/keystone.marts.keystone.dim_package.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#package_key",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#package_key",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#package_name",
+   "to": "duckdb://keystone/keystone.marts.dim_package#package_name",
+   "job": "job:keystone/keystone.marts.keystone.dim_package.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#package_name",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#package_name",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#purl",
+   "to": "duckdb://keystone/keystone.marts.dim_package#purl",
+   "job": "job:keystone/keystone.marts.keystone.dim_package.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#vuln_id",
+   "to": "duckdb://keystone/keystone.marts.dim_package#malicious_vuln_count",
+   "job": "job:keystone/keystone.marts.keystone.dim_package.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#vuln_id",
+   "to": "duckdb://keystone/keystone.marts.dim_package#vuln_count",
+   "job": "job:keystone/keystone.marts.keystone.dim_package.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__affected#vuln_id",
+   "to": "duckdb://keystone/keystone.marts.dim_package#withdrawn_vuln_count",
+   "job": "job:keystone/keystone.marts.keystone.dim_package.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__repo_refs#kind",
+   "to": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#kind",
+   "job": "job:keystone/keystone.intermediate.keystone.int_package_repo_evidence.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__repo_refs#repo_full_name",
+   "to": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#repo_full_name",
+   "job": "job:keystone/keystone.intermediate.keystone.int_package_repo_evidence.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__repo_refs#repo_host",
+   "to": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#repo_host",
+   "job": "job:keystone/keystone.intermediate.keystone.int_package_repo_evidence.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__repo_refs#vuln_id",
+   "to": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#vuln_id",
+   "job": "job:keystone/keystone.intermediate.keystone.int_package_repo_evidence.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#alias_count",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#alias_count",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#cvss_v3_vector",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#cvss_v3_vector",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#cvss_v4_vector",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#cvss_v4_vector",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#fetched_at",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#fetched_at",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#is_malicious",
+   "to": "duckdb://keystone/keystone.marts.dim_package#malicious_vuln_count",
+   "job": "job:keystone/keystone.marts.keystone.dim_package.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#is_malicious",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#is_malicious",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#modified_at",
+   "to": "duckdb://keystone/keystone.marts.dim_package#last_vuln_modified_at",
+   "job": "job:keystone/keystone.marts.keystone.dim_package.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#modified_at",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#modified_at",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#published_at",
+   "to": "duckdb://keystone/keystone.marts.dim_package#first_vuln_published_at",
+   "job": "job:keystone/keystone.marts.keystone.dim_package.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#published_at",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#published_at",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#severity_label",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#severity_label",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#source_file",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#source_file",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#source_sha256",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#source_sha256",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#vuln_id",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#vuln_id",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#withdrawn_at",
+   "to": "duckdb://keystone/keystone.marts.dim_package#withdrawn_vuln_count",
+   "job": "job:keystone/keystone.marts.keystone.dim_package.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_osv__vulns#withdrawn_at",
+   "to": "duckdb://keystone/keystone.marts.fct_vuln#withdrawn_at",
+   "job": "job:keystone/keystone.marts.keystone.fct_vuln.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_ref__completeness_periods#completeness_period",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#completeness_period",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#added",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#members_added",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#closed",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#issues_closed",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#closed",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#prs_closed",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#completeness_period",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#completeness_period",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#era",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#era",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#forks",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#issue_comments",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#issues_closed",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#issues_opened",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#members_added",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#pr_merge_known",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#prs_closed",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#prs_merged",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#prs_opened",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#pushes",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#releases_published",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#stars",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#events",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#events",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#events",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#forks",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#events",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#issue_comments",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#events",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#pushes",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#events",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#stars",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#fetched_at_max",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#fetched_at_max",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#human_events",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#human_events",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#merge_known",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#pr_merge_known",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#merged",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#prs_merged",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#opened",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#issues_opened",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#opened",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#prs_opened",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#published",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#releases_published",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#repo_id",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#repo_id",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#window_start",
+   "to": "duckdb://keystone/keystone.marts.fct_repo_day#activity_date",
+   "job": "job:keystone/keystone.marts.keystone.fct_repo_day.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#added",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#added",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#closed",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#closed",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#era",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#era",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#event_type",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#event_type",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#events",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#events",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#fetched_at_max",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#fetched_at_max",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#human_events",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#human_events",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#merge_known",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#merge_known",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#merged",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#merged",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#opened",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#opened",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#published",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#published",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#reopened",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#reopened",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#repo_id",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#repo_id",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "duckdb://keystone/rollup.main.repo_hour#window_start",
+   "to": "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#window_start",
+   "job": "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#action",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#action",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#actor_is_bot",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#actor_is_bot",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#actor_key",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#actor_key",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#actor_key_kind",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#actor_key_kind",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#created_at",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#created_at",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#era",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#era",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#event_type",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#event_type",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#fetched_at",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#fetched_at",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#period",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#period",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#pr_merged",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#pr_merged",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#repo_id",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#repo_id",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#source_file",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#source_file",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#source_line",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#source_line",
+   "job": "job:keystone/stream.produce"
+  },
+  {
+   "from": "file://keystone/silver/gharchive/events#source_sha256",
+   "to": "kafka://redpanda:9092/keystone.gharchive.events.v1#source_sha256",
+   "job": "job:keystone/stream.produce"
+  }
+ ],
+ "tools": {
+  "Flink (openlineage-flink)": {
+   "table_edges": 11
+  },
+  "dbt (dbt-ol)": {
+   "table_edges": 122,
+   "column_edges": 402
+  },
+  "keystone CLI": {
+   "table_edges": 56,
+   "column_edges": 130
+  }
+ },
+ "unresolved_column_inputs": 61,
+ "hour_files_kept": 8,
+ "gate_path": {
+  "tables": [
+   "https://data.gharchive.org//2011-02-12-0.json.gz",
+   "job:keystone/parse.gharchive",
+   "file://keystone/silver/gharchive/events",
+   "job:keystone/keystone.staging.keystone.stg_gharchive__repo_names.build.run",
+   "duckdb://keystone/keystone.staging.stg_gharchive__repo_names",
+   "job:keystone/keystone.intermediate.keystone.int_repo_name_hours.build.run",
+   "duckdb://keystone/keystone.intermediate.int_repo_name_hours",
+   "job:keystone/keystone.marts.keystone.dim_repo_name_history.build.run",
+   "duckdb://keystone/keystone.marts.dim_repo_name_history",
+   "job:keystone/warehouse.publish",
+   "iceberg://lakekeeper/keystone/marts.bridge_package_repo"
+  ],
+  "field": [
+   "iceberg://lakekeeper/keystone/marts.bridge_package_repo#confidence",
+   "duckdb://keystone/keystone.marts.bridge_package_repo#confidence",
+   "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#kind",
+   "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#packages_in_vuln",
+   "duckdb://keystone/keystone.staging.stg_osv__repo_refs#kind",
+   "duckdb://keystone/keystone.staging.stg_osv__affected#package_key"
+  ]
+ },
+ "summary": {
+  "nodes": 92,
+  "edges": 113,
+  "field_edges": 256,
+  "datasets": 49,
+  "jobs": 43
+ }
+}

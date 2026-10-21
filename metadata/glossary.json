@@ -1,0 +1,80 @@
+{
+ "generated_at": "2026-10-21T05:31:39.064946+00:00",
+ "generator": "keystone metadata export",
+ "terms": [
+  {
+   "term": "criticality",
+   "definition": "How much of the open-source ecosystem depends on a package or repository, from dependents and downloads (ecosyste.ms, ADR-010). A signal of exposure, not of quality.",
+   "status": "planned (Phase 7)",
+   "attached_to": []
+  },
+  {
+   "term": "fragility",
+   "definition": "Signals that a repository's maintenance could be thin, such as few active maintainers or slowing reviews. Signals, never a prediction that a project will be abandoned.",
+   "status": "planned (Phase 8)",
+   "attached_to": []
+  },
+  {
+   "term": "maintenance actor",
+   "definition": "An account that performs maintenance actions on a repository (merges, closes, releases, membership). Counted only as aggregate shares per repository, by salted key; never named, ranked or labelled.",
+   "status": "input exists (rollup repo_actor_day, internal)",
+   "attached_to": [
+    "duckdb://keystone/rollup.main.repo_actor_day#actor_key",
+    "file://keystone/silver/gharchive/events#actor_key",
+    "iceberg://lakekeeper/keystone/{namespace}.repo_actor_day#actor_key",
+    "kafka://redpanda:9092/keystone.gharchive.events.v1#actor_key"
+   ]
+  },
+  {
+   "term": "bus factor",
+   "definition": "The smallest number of maintenance actors that together account for most maintenance actions of a repository. A share computed per repository, never a statement about people.",
+   "status": "planned (Phase 8)",
+   "attached_to": []
+  },
+  {
+   "term": "era",
+   "definition": "A schema era of GH Archive payloads (E0 to E3, docs/era-map.md). Fields exist only in some eras; a metric uses only fields present in the whole period it covers and is versioned at a break.",
+   "status": "in use",
+   "attached_to": [
+    "duckdb://keystone/keystone.marts.dim_repo#first_era",
+    "duckdb://keystone/keystone.marts.dim_repo#last_era",
+    "duckdb://keystone/keystone.marts.dim_repo_name_history#first_era",
+    "duckdb://keystone/keystone.marts.dim_repo_name_history#last_era",
+    "duckdb://keystone/keystone.marts.fct_repo_day#era",
+    "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#era",
+    "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#era",
+    "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#era",
+    "duckdb://keystone/keystone.ref.schema_eras#era",
+    "duckdb://keystone/keystone.staging.stg_gharchive__repo_names#era",
+    "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#era",
+    "duckdb://keystone/rollup.main.repo_actor_day#era",
+    "duckdb://keystone/rollup.main.repo_hour#era",
+    "file://keystone/quarantine/gharchive#era",
+    "file://keystone/silver/gharchive/events#era",
+    "file://keystone/silver/gharchive/hour_types#era",
+    "iceberg://lakekeeper/keystone/marts.dim_repo#first_era",
+    "iceberg://lakekeeper/keystone/marts.dim_repo#last_era",
+    "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#first_era",
+    "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#last_era",
+    "iceberg://lakekeeper/keystone/marts.fct_repo_day#era",
+    "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#era",
+    "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#era",
+    "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day#era",
+    "iceberg://lakekeeper/keystone/{namespace}.repo_actor_day#era",
+    "iceberg://lakekeeper/keystone/{namespace}.repo_hour#era",
+    "kafka://redpanda:9092/keystone.gharchive.events.v1#era"
+   ]
+  },
+  {
+   "term": "rollup",
+   "definition": "An aggregate of silver events per repository and UTC window (hour or day), written once in portable SQL and computed by DuckDB (free) or Flink (full) with identical results (ADR-024).",
+   "status": "in use",
+   "attached_to": [
+    "duckdb://keystone/rollup.main.repo_actor_day",
+    "duckdb://keystone/rollup.main.repo_hour",
+    "iceberg://lakekeeper/keystone/{namespace}.repo_actor_day",
+    "iceberg://lakekeeper/keystone/{namespace}.repo_hour"
+   ]
+  }
+ ]
+}

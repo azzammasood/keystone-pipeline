@@ -1,0 +1,100 @@
+apiVersion: v3.2.0
+kind: DataContract
+id: keystone-gharchive-hour-types
+name: GH Archive parsed counts per hour and event type
+version: 1.0.0
+status: active
+domain: keystone
+dataProduct: gharchive-silver
+description:
+  purpose: >-
+    Parsed event counts and created_at range per source hour and event type. Feeds the
+    completeness series (ADR-012) and the golden tests against the Phase 1 oracles.
+  usage: Completeness checks and boundary refinement; never compared raw across periods.
+  limitations: Counts what GH Archive captured, not what happened on GitHub.
+servers:
+  - server: local
+    type: local
+    format: parquet
+    path: data/silver/gharchive/hour_types/*/*.parquet
+schema:
+  - name: hour_types
+    physicalName: hour_types
+    physicalType: table
+    logicalType: object
+    description: One row per source hour and event type.
+    properties:
+      - name: source_file
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: Source file, `gharchive/<YYYY-MM-DD-H>.json.gz`.
+        logicalTypeOptions:
+          pattern: '^gharchive/\d{4}-\d{2}-\d{2}-\d{1,2}\.json\.gz$'
+      - name: source_sha256
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: SHA-256 of the verified source file.
+        logicalTypeOptions:
+          pattern: '^[0-9a-f]{64}$'
+      - name: fetched_at
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        required: true
+        description: When the source file was fetched (UTC).
+      - name: hour
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        required: true
+        description: >-
+          Hour in the file name, as UTC. In E1 file names are Pacific-local hours, so the
+          events' UTC times are 7 or 8 hours later (see created_at_min).
+      - name: era
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: Schema era of the source file.
+        quality:
+          - metric: invalidValues
+            arguments:
+              validValues: [E0, E1, E2, E3]
+            mustBe: 0
+      - name: period
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: Completeness period of the source hour.
+      - name: event_type
+        logicalType: string
+        physicalType: STRING
+        required: true
+        description: GitHub event type.
+      - name: events
+        logicalType: integer
+        physicalType: INT64
+        required: true
+        description: Parsed events of this type in the file.
+        logicalTypeOptions:
+          minimum: 1
+      - name: created_at_min
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        required: true
+        description: Earliest created_at of this type in the file, UTC.
+      - name: created_at_max
+        logicalType: timestamp
+        physicalType: TIMESTAMP
+        required: true
+        description: Latest created_at of this type in the file, UTC.
+    quality:
+      - type: sql
+        description: One row per file and event type.
+        query: >-
+          SELECT COUNT(*) FROM (SELECT source_file, event_type FROM hour_types
+          GROUP BY ALL HAVING COUNT(*) > 1)
+        mustBe: 0
+      - type: sql
+        description: created_at_min is not after created_at_max.
+        query: SELECT COUNT(*) FROM hour_types WHERE created_at_min > created_at_max
+        mustBe: 0

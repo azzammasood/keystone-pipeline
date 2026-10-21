@@ -1,0 +1,485 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/pipeline_metrics.schema.json",
+  "title": "Keystone pipeline_metrics.json",
+  "description": "Measured numbers of the pipeline (brief section 9c). Null means not measured; nothing is estimated. Rates are records out divided by the stage's wall-clock seconds in that run.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "generated_at",
+    "profile",
+    "engines",
+    "totals",
+    "last_run",
+    "history",
+    "freshness",
+    "quality",
+    "cost",
+    "lineage_summary"
+  ],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "profile": {
+      "enum": [
+        "free",
+        "full"
+      ]
+    },
+    "engines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "version",
+          "role",
+          "active",
+          "last_used"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "active": {
+            "type": "boolean"
+          },
+          "last_used": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "events_processed",
+        "events_stored",
+        "bytes_downloaded",
+        "bytes_parsed",
+        "files_parsed",
+        "rollup_rows",
+        "date_range",
+        "backfill_window"
+      ],
+      "properties": {
+        "events_processed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "events_stored": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bytes_downloaded": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "bytes_parsed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "files_parsed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "rollup_rows": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "date_range": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "first_event",
+            "newest_event",
+            "source_hours"
+          ],
+          "properties": {
+            "first_event": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "newest_event": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            },
+            "source_hours": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "backfill_window": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "start",
+            "end",
+            "decision"
+          ],
+          "properties": {
+            "start": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "end": {
+              "type": "string"
+            },
+            "decision": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "last_run": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "stages"
+      ],
+      "properties": {
+        "run_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "stages": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "service",
+              "version",
+              "records_in",
+              "records_out",
+              "bytes_in",
+              "bytes_out",
+              "duration_seconds",
+              "records_per_second",
+              "mb_per_second",
+              "status",
+              "started_at"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "service": {
+                "type": "string"
+              },
+              "version": {
+                "type": "string"
+              },
+              "records_in": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "records_out": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "bytes_in": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "bytes_out": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "duration_seconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "records_per_second": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "mb_per_second": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              },
+              "status": {
+                "enum": [
+                  "ok",
+                  "failed"
+                ]
+              },
+              "started_at": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        }
+      }
+    },
+    "history": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "runs",
+        "daily_volume"
+      ],
+      "properties": {
+        "runs": {
+          "type": "array",
+          "maxItems": 48,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "run_id",
+              "started_at",
+              "ended_at",
+              "wall_seconds",
+              "stages",
+              "events_processed",
+              "status"
+            ],
+            "properties": {
+              "run_id": {
+                "type": "string"
+              },
+              "started_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "ended_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "wall_seconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "stages": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "events_processed": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "status": {
+                "enum": [
+                  "ok",
+                  "failed"
+                ]
+              }
+            }
+          }
+        },
+        "daily_volume": {
+          "type": "array",
+          "maxItems": 30,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "date",
+              "events_processed"
+            ],
+            "properties": {
+              "date": {
+                "type": "string",
+                "format": "date"
+              },
+              "events_processed": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "newest_data_hour",
+        "lag_hours",
+        "slo_hours",
+        "status"
+      ],
+      "properties": {
+        "newest_data_hour": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "lag_hours": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "slo_hours": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "status": {
+          "enum": [
+            "ok",
+            "breach",
+            null
+          ]
+        }
+      }
+    },
+    "quality": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "checks_passed",
+        "dbt_tests_failed",
+        "quarantined_rows",
+        "contract_violations"
+      ],
+      "properties": {
+        "checks_passed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "dbt_tests_failed": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "quarantined_rows": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "contract_violations": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        }
+      }
+    },
+    "cost": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "usd",
+        "basis",
+        "free_quota"
+      ],
+      "properties": {
+        "usd": {
+          "type": "number",
+          "minimum": 0
+        },
+        "basis": {
+          "type": "string"
+        },
+        "free_quota": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "used_pct"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "used_pct": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0
+              }
+            }
+          }
+        }
+      }
+    },
+    "lineage_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "nodes",
+        "edges",
+        "documented_pct"
+      ],
+      "properties": {
+        "nodes": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "edges": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "documented_pct": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100
+        }
+      }
+    }
+  }
+}

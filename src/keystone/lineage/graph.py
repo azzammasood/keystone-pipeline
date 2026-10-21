@@ -1,11 +1,12 @@
 """The lineage graph, built from the OpenLineage event log (CLI, dbt-ol, Spark, Flink).
 
 Nodes are datasets, jobs and fields (`<dataset id>#<column>`); edges are `reads` (dataset to
-job), `writes` (job to dataset) and `derives` (field to field, through a job). Only COMPLETE
-events count. A dataset reported with a symlink into the Keystone scheme (Spark and Flink name
-Iceberg tables by storage location) is merged into the symlinked id. Column inputs that name
-no known dataset (a CTE or a table function the SQL parser could not resolve) are dropped and
-counted, never guessed.
+job), `writes` (job to dataset) and `derives` (field to field, through a job). Edges come from
+every event except FAIL and ABORT (openlineage-flink reports its datasets on START and sent no
+COMPLETE in our batch runs); a job's run count counts COMPLETE events only. A dataset reported
+with a symlink into the Keystone scheme is merged into the symlinked id. Column inputs that
+name no known dataset (a CTE or a table function the SQL parser could not resolve) are dropped
+and counted, never guessed.
 
 Hourly source files: a backfill touches tens of thousands, so the graph keeps the newest
 `MAX_HOUR_FILES` as nodes and reports the total.
@@ -54,7 +55,8 @@ def read_events(root: Path) -> Iterator[dict[str, Any]]:
 
 
 def ds_id(namespace: str, name: str) -> str:
-    return f"{namespace}/{name}"
+    """`<namespace>/<name>`; a name that is a path (`/2026-10-19-12.json.gz`) keeps one slash."""
+    return f"{namespace}{name}" if name.startswith("/") else f"{namespace}/{name}"
 
 
 @dataclass
@@ -82,14 +84,18 @@ class Graph:
         return did
 
     def add(self, event: dict[str, Any]) -> None:
-        if event.get("eventType") != "COMPLETE":
+        state = event.get("eventType")
+        if state in ("FAIL", "ABORT"):
             return
         job = event["job"]
         jid = f"job:{job['namespace']}/{job['name']}"
         tool = tool_of(str(event.get("producer", "")))
+        if not (event.get("inputs") or event.get("outputs")) and jid not in self.jobs:
+            return  # an application-level event without datasets (Spark's for a read)
         node = self.jobs.setdefault(jid, {"id": jid, "name": job["name"], "tool": tool, "runs": 0})
-        node["runs"] += 1
-        node["last_run"] = event["eventTime"]
+        if state == "COMPLETE":
+            node["runs"] += 1
+            node["last_run"] = event["eventTime"]
         for d in event.get("inputs") or []:
             self.edges.add((self._dataset(d), jid, "reads"))
             self.tools[tool]["table_edges"] += 1

@@ -67,6 +67,10 @@ def canonical(namespace: str, name: str) -> tuple[str, str]:
         return DUCKDB_NS, name
     if namespace.startswith("kafka://"):
         return KAFKA_NS, name
+    if namespace == "" and name.startswith("ice."):
+        # openlineage-flink names an Iceberg table `<catalog>.<namespace>.<table>` with an empty
+        # namespace; `ice` is the Lakekeeper catalog in the Flink and Spark configs.
+        return ICEBERG_NS, name.removeprefix("ice.")
     if _ICEBERG_LOCATION.match(namespace):
         # Iceberg data location `s3://keystone/<warehouse-id>/<ns-id>/<table-id>` carries ids,
         # not names; the table name comes from the symlink (see graph.py).
