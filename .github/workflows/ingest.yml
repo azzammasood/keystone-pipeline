@@ -1,0 +1,80 @@
+name: ingest
+
+# Scheduled incremental ingest (Phase 10, ADR-202): the last completed GH Archive hours, verified,
+# parsed to silver, gaps reported. Calls only the CLI. The schedule is off until the repository
+# variable KEYSTONE_SCHEDULES is `true`; a manual dispatch always runs. Logs are public: steps
+# print counts only, never actor keys or secrets. Needs the production KEYSTONE_ACTOR_SALT
+# secret (owner, Phase 9).
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      hours:
+        description: Completed hours to (re)check, counting back from two hours ago.
+        default: "6"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keystone-data  # ingest and publish share the cached data directory
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    if: github.event_name == 'workflow_dispatch' || vars.KEYSTONE_SCHEDULES == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write  # failure issue only
+    env:
+      KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}
+      HOURS: ${{ inputs.hours || '6' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Production salt is set
+        run: |
+          if [ -z "$KEYSTONE_ACTOR_SALT" ]; then
+            echo "::error::secret KEYSTONE_ACTOR_SALT is not set (owner sets it in Phase 9)"
+            exit 1
+          fi
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --frozen
+      - name: Pipeline run id and window
+        run: |
+          echo "KEYSTONE_RUN_ID=$(cat /proc/sys/kernel/random/uuid)" >> "$GITHUB_ENV"
+          # Exclusive end: the top of the previous hour (the newest file is two hours old).
+          end=$(( $(date -u +%s) / 3600 * 3600 - 3600 ))
+          start=$(( end - HOURS * 3600 ))
+          echo "START=$(date -u -d "@$start" +%Y-%m-%dT%H)" >> "$GITHUB_ENV"
+          echo "END=$(date -u -d "@$end" +%Y-%m-%dT%H)" >> "$GITHUB_ENV"
+      # Interim store until the Phase 9 storage decision: the data directory (manifest, silver,
+      # rollup state, run log) travels between runs in the Actions cache, encrypted (the repo is
+      # public and fork PRs can restore base-branch caches; data/ holds salted actor keys).
+      - id: data
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: data-cache
+          key: keystone-data-${{ github.run_id }}
+          restore-keys: keystone-data-
+      - if: steps.data.outputs.cache-matched-key != ''
+        run: bash .github/scripts/data-cache.sh unpack
+      - run: uv run keystone machine
+      - run: uv run keystone ingest gharchive --start "$START" --end "$END"
+      - run: uv run keystone ingest gaps --start "$START" --end "$END"
+      - run: bash .github/scripts/data-cache.sh pack
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: data-cache
+          key: keystone-data-${{ github.run_id }}
+      - if: failure()
+        run: bash .github/scripts/failure-issue.sh
+        env:
+          GH_TOKEN: ${{ github.token }}

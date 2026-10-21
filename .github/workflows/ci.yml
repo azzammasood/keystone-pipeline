@@ -81,7 +81,7 @@ jobs:
       - run: uv sync --frozen --all-groups
       - run: |
           uv run keystone parse files tests/fixtures/gharchive/*.json.gz             tests/fixtures/gharchive/quarantine/*.json.gz --root ci-data
-          uv run keystone rollup run --root ci-data
+          uv run keystone profile check --run --root ci-data  # no full stack: falls back to free
           uv run keystone parse osv --zip tests/fixtures/osv/PyPI/all.zip --root ci-data
           uv run keystone warehouse build --root ci-data
       - run: uv run keystone lineage dbt --root ci-data  # dbt-ol runs natively on Linux
@@ -90,6 +90,10 @@ jobs:
       # The full gate path needs an Iceberg publish: the parity workflow checks it.
       - run: uv run keystone metadata export --root ci-data --out ci-metadata
       - run: uv run keystone metrics emit --root ci-data --metadata-dir ci-metadata
+      # The fallback decision reached pipeline_metrics.json (ADR-201); all JSON Schemas and their
+      # examples pass (ADR-204).
+      - run: jq -e '.produced_by.profile == "free" and .produced_by.fallback' ci-data/metrics/pipeline_metrics.json
+      - run: uv run python -m keystone.export.schemas
 
   security:
     runs-on: ubuntu-latest
@@ -105,3 +109,5 @@ jobs:
       # Audit the locked dependency set (runtime and dev), not the runner's environment.
       - run: uv export --frozen --all-groups --no-emit-project --format requirements-txt -o requirements.lock.txt
       - run: uvx pip-audit --strict --disable-pip -r requirements.lock.txt
+      # Workflow audit (template injection, permissions, pinning); offline, no token needed.
+      - run: uvx zizmor@1.31.1 --offline .github/workflows

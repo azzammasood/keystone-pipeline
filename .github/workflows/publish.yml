@@ -1,0 +1,76 @@
+name: publish
+
+# Daily publish skeleton (Phase 10, ADR-202). Calls only the CLI: the rollup through the profile
+# check (no full stack on a runner, so it records `produced_by: free`), OSV, the warehouse,
+# contracts, the metadata export and pipeline_metrics.json, then the schema check. The site
+# exports (radar, project pages) and the push to the site come after Phase 8 and are not here.
+# Off until the repository variable KEYSTONE_SCHEDULES is `true`; a manual dispatch always runs.
+on:
+  schedule:
+    - cron: "41 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keystone-data
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event_name == 'workflow_dispatch' || vars.KEYSTONE_SCHEDULES == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write  # failure issue only
+    env:
+      KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}  # decrypts the data cache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --frozen --all-groups
+      - run: echo "KEYSTONE_RUN_ID=$(cat /proc/sys/kernel/random/uuid)" >> "$GITHUB_ENV"
+      - id: data
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: data-cache
+          key: keystone-data-${{ github.run_id }}
+          restore-keys: keystone-data-
+      - if: steps.data.outputs.cache-matched-key != ''
+        run: bash .github/scripts/data-cache.sh unpack
+      - name: Ingested data exists
+        if: steps.data.outputs.cache-matched-key == ''
+        run: |
+          echo "::error::no cached data directory; run the ingest workflow first"
+          exit 1
+      - run: uv run keystone profile check --run
+      - run: uv run keystone ingest osv
+      - run: uv run keystone parse osv
+      - run: uv run keystone warehouse build
+      - run: uv run keystone quality contracts --require-all
+      - run: uv run keystone metadata export --out data/publish/metadata
+      - run: uv run keystone metrics emit --metadata-dir data/publish/metadata
+      - run: uv run python -m keystone.export.schemas
+      # Phase 10 after Phase 8: `keystone export radar|project` in the envelope
+      # (contracts/export_envelope.schema.json) and the push to the site go here.
+      - run: bash .github/scripts/data-cache.sh pack
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: data-cache
+          key: keystone-data-${{ github.run_id }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pipeline-metrics
+          path: data/metrics/pipeline_metrics.json
+          retention-days: 7
+      - if: failure()
+        run: bash .github/scripts/failure-issue.sh
+        env:
+          GH_TOKEN: ${{ github.token }}
