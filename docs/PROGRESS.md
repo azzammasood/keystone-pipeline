@@ -3,10 +3,12 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
-Phase 5 (lakehouse and warehouse) gate checks pass locally: `dbt build` on the `duckdb` target
-(73 nodes, docs coverage 100%), and the same Iceberg tables give identical fingerprints in DuckDB,
-Spark, Flink and Trino (ADR-028 to 030). Databricks rung skipped (no token). Review and CI: see Done.
-Next phase: **Phase 6**.
+Phase 6 (metadata, lineage, observability) gate checks pass locally on the local data
+(2026-10-21): the path from a GH Archive hourly file to a published Iceberg field exists in
+the static `metadata/lineage.json`, in Marquez and in DataHub; completeness 100% (19/19
+models, 483/483 columns, 44/44 datasets complete, no owner missing); `pipeline_metrics.json`
+validates and equals Grafana on 50 of 50 values (ADR-031 to 035). Review and CI: see Done.
+Next phase: **Phase 7**.
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -53,7 +55,10 @@ Next phase: **Phase 6**.
   checked with gh as azzammasood).
 
 ## Next
-1. **Phase 6** (next in the brief). Phase 5 leftovers: Databricks target when a token exists
+1. **Phase 7** (next in the brief). Phase 6 leftovers: Airflow lineage when the DAGs exist
+   (Phase 10); push of the compressed OpenLineage log to a data branch with the live refresh
+   (Phase 10); the site export adds one hop to the lineage graph (Phase 8); Databricks and
+   Unity Catalog lineage when a token exists. Phase 5 leftovers: Databricks target when a token exists
    (ADR-030); atomic Iceberg publish (ADR-029); E1 2012 repositories without ids are resolved by
    name in Phase 7 (ADR-028). Known Phase 4 limit: a re-parsed hour already streamed needs a
    Flink batch rebuild (ADR-026).
@@ -72,6 +77,10 @@ Next phase: **Phase 6**.
   Compose profile at a time.
 - Optional rungs skipped until tokens exist: Databricks (Phase 5 rung: dbt-databricks, Unity
   Catalog, Lakeflow pipeline; logged 2026-10-20, ADR-030), BigQuery sandbox, OpenRouter.
+- **Owner: disk, now 8.4 GB free on C: after Phase 6.** DataHub (GMS, upgrade, OpenSearch)
+  added about 5.5 GB of images, Grafana 1.4 GB, Marquez 0.6 GB; rebuilding the Flink and Spark
+  images left two more untagged images (layers mostly shared). Stopped containers hold 2.3 GB
+  (`docker system df`). Removing images or containers is the owner's call; nothing was deleted.
 - **Owner: disk.** 20 GB free after Phase 5 (Spark and Trino images 2.5 GB). An untagged
   1.07 GB Flink image from an earlier build is reclaimable (`docker image prune`); freeing disk
   is the owner's call.
@@ -110,3 +119,11 @@ Next phase: **Phase 6**.
 | 2026-10-20 | Engine reads, 10 tables (fingerprint after review) | DuckDB+Spark+Flink 30/30 match (5.2 min); DuckDB+Trino 20/20 (2.2 min) |
 | 2026-10-20 | Reader RAM (docker stats) | Trino 0.91 GB idle, 1.45 GB peak (limit 1.5 GB); Flink TM 1.08 GB, JM 0.62 GB |
 | 2026-10-20 | Disk free after Phase 5 (C:) | 20 GB; spark 1.1 GB + trino 1.38 GB images; data/warehouse 403 MB |
+| 2026-10-21 | Gate run (local data, one run id, 18 stages) | parse 8 kept hours 294,072 events 27.9 s (10.5k/s); produce 2,363,426 records 56.1 s (42k/s); Flink batch + fold 96.8 s; publish 3,399,621 rows 8.1 s |
+| 2026-10-21 | Lineage graph (metadata/lineage.json) | 103 nodes, 118 edges, 256 column edges; dbt-ol 76 events, column lineage on 17 models, 61 unresolved column inputs dropped |
+| 2026-10-21 | Gate path present | static JSON, Marquez (11 of 11 nodes), DataHub (5 of 5 upstream datasets) |
+| 2026-10-21 | Completeness | 19/19 models, 483/483 columns, 44/44 datasets, 0 owners missing |
+| 2026-10-21 | Grafana vs pipeline_metrics.json | 50 of 50 equal (tolerance 0.001); 15 engines with versions |
+| 2026-10-21 | DataHub ingestion | dbt 451 events, iceberg 261, kafka 6, 0 failures; 57 assertions; 53 datasets tagged and owned |
+| 2026-10-21 | Phase 6 RAM (docker stats) | DataHub GMS 1.58 GB, OpenSearch 0.94 GB, Postgres 37 MB; Marquez 300 MB + db 58 MB; collector 31 MB, Prometheus 42 MB, Grafana 296 MB |
+| 2026-10-21 | Disk free after Phase 6 (C:) | 8.4 GB (df) |

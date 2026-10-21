@@ -2,6 +2,127 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-035 (2026-10-21) Telemetry: stage run log, OpenTelemetry, pipeline_metrics.json
+- Every data command is a measured `Stage` (telemetry/runlog.py): wall-clock seconds, records
+  and bytes it counted (null when it cannot count), status, one line in
+  `<root>/telemetry/runs.jsonl`. A pipeline run is the set of stages sharing `KEYSTONE_RUN_ID`
+  (an orchestrator sets it; else one id per process). Rate = records out / the stage's seconds.
+  Phase 4's `rollup/runs.jsonl` is replaced by this log.
+- `keystone metrics emit` builds `pipeline_metrics.json` (schema:
+  `contracts/pipeline_metrics.schema.json`, JSON Schema 2020-12, validated on every emit) from
+  the log, the data (silver and rollup counts, newest event, quarantine rows) and the metadata
+  export. Definitions: `events_processed` sums parse work (a re-parsed hour counts again);
+  `events_stored` counts silver rows; an engine is `active` when it ran in the last run;
+  `cost.usd` is 0 because no service used has a billing account; the one free quota measured
+  so far is the disk budget. Timestamps are UTC (DuckDB hands TIMESTAMPTZ back in the local
+  zone; converted). Nothing is estimated.
+- OpenTelemetry (`obs` profile): each stage records gauges (`keystone_stage_*`, labels stage
+  and service) via OTLP/HTTP to the collector 0.163.1, which exposes them to Prometheus 3.15.0;
+  Grafana 13.2.4 provisions the `keystone-pipeline` dashboard. The resource has a fixed
+  `service.instance.id` (the SDK would start a new series per process, and `max` over stale
+  series showed old values; found in the first gate check). `metrics emit` also exports the
+  pipeline totals as gauges.
+- Gate check (`keystone metrics check-grafana`): reads the dashboard from Grafana's API, runs
+  each panel's query through Grafana's `/api/ds/query`, and compares it with the JSON path in
+  the panel description (stage panels per stage of `last_run`); tolerance 0.001 (the JSON
+  rounds rates and durations to 3 decimals). The stage gauges are written by each stage as it
+  ends, independently of the JSON, which is built later from the run log. Order: emit, then
+  check (a check is itself a stage, so a check before a new emit compares older JSON).
+- Measured 2026-10-21 (gate run on the local data, 18 stages): 50 of 50 values equal; 15
+  engines with versions read from the running service or its pinned tag. Stage numbers are in
+  PROGRESS.md. RAM: collector 31 MB, Prometheus 42 MB, Grafana 296 to 323 MB (limit 512 MB).
+
+## ADR-034 (2026-10-21) Catalog metadata, generated contracts, static export, completeness
+- One source: `config/metadata.yml` (owner group, domains, classifications, freshness SLAs,
+  glossary, column docs, datasets outside dbt) and dbt `meta` per folder and model (owner,
+  domain, layer, classification, SLA). The owner is the maintainers group, never a person.
+- Contracts: hand-written ODCS contracts stay in `contracts/` (silver GH Archive). The others
+  are generated into `metadata/contracts/` (`keystone metadata contracts`): OSV silver (Arrow
+  schemas), the free rollup tables (DuckDB) and every dbt model and seed (types from
+  `catalog.json`, descriptions from dbt YAML, `required` from not_null tests).
+  datacontract-cli 1.2.7 tests them, DuckDB-file contracts with its `duckdb` server type. CI
+  regenerates them (`--check`) and fails on any difference, so a schema or description change
+  needs a reviewed contract change. Exception: `stg_rollup__repo_hour` is a view over the
+  attached rollup database, which datacontract-cli cannot attach; dbt build checks it.
+- Static export (`keystone metadata export`): `metadata/catalog.json` (44 datasets with owner,
+  description, domain, layer, SLA, contract, classification, columns and glossary terms),
+  `glossary.json` (the six terms and where they are attached), `lineage.json` (ADR-031) and
+  `contracts/` (all contracts). Completeness gate: models and columns documented >= 95% each,
+  every dataset with every catalog field, no owner missing; measured 19/19 models, 483/483
+  columns, 44/44 datasets. Published tables are classified public (tested).
+- "Published export field" (gate wording) is, until the site export exists (Phase 8), a
+  column of a table in the published Iceberg namespaces (`marts`, `metrics`); the site export
+  will add one hop to the same graph.
+
+## ADR-033 (2026-10-21) What Spark and Flink report to OpenLineage (measured)
+- openlineage-flink 1.54.0 (job-status listener, FLIP-314, jar pinned by SHA-256) works with
+  Flink 2.2.1: for the batch job it reported the Kafka topic as input and the four Iceberg
+  `_ontime`/`_late` tables as outputs, and the fold job's inputs and outputs, all table level,
+  with schemas, no column lineage. It emitted START events only (no COMPLETE) in our batch
+  runs, and named Iceberg tables `ice.<namespace>.<table>` with an empty namespace;
+  `naming.canonical` maps them, and the graph takes edges from START events too (run counts
+  use COMPLETE only).
+- openlineage-spark 1.54.0 (listener in spark-defaults.conf) ran in every Spark read but, for
+  the read-only fingerprint queries, emitted only application START/COMPLETE without datasets.
+  Spark is therefore listed as a lakehouse reader that ran, not as a lineage source.
+- Both write to the mounted `data/lineage/incoming/` (file transport); `keystone lineage
+  collect` canonicalises the events into the log. The parity workflow checks that Flink wrote
+  lineage on every run.
+
+## ADR-032 (2026-10-21) DataHub: lightest viable setup, sources plus Keystone's own aspects
+- Setup (`datahub` profile): DataHub v1.7.0.1 GMS (consumers embedded, no frontend), the
+  system-update job, OpenSearch 2.19.3 (512 MB heap) and Postgres 17.6 as the store; the
+  message bus is the Redpanda broker already in the stack. DataHub's Kafka-free `pgqueue`
+  transport was tried first and failed: it needs the `pg_partman` extension, absent from the
+  stock Postgres image. Measured: GMS 1.22 to 1.58 GB (limit 1.75 GB), OpenSearch 0.93 GB,
+  Postgres 40 MB; images about 3 GB compressed, so free disk fell from 15 GB to 9.4 GB. It runs
+  with the Flink containers stopped.
+- Sources (acryl-datahub 1.7, `metadata` group): `dbt` (451 events: models, sources, column
+  lineage from the compiled SQL, 57 assertions from the tests and their last results),
+  `iceberg` (Lakekeeper REST, 261 events) and `kafka` (the topic and its registry schema).
+- Keystone's own aspects (lineage/datahub.py): 5 domains, the owner group, the glossary (node
+  plus 6 terms), and per dataset ownership, domain, tags (layer, classification, freshness
+  SLA), description, a link to its contract and column glossary terms; every non-dbt job of
+  the lineage graph (CLI and Flink) as a DataJob with inputs, outputs and column lineage. The
+  rollup SQL's column lineage comes from DataHub's own SQL parser (sqlglot): 15 edges for
+  repo_hour, 23 for repo_actor_day.
+- Check: every dataset of the gate path is upstream of the published table in DataHub's
+  lineage search (dbt nodes count by either sibling, dbt or duckdb; indexing is asynchronous,
+  so the check retries for up to 2 minutes). Databricks and Unity Catalog lineage: skipped, no
+  token (ADR-030).
+
+## ADR-031 (2026-10-21) OpenLineage from the CLI and dbt; one naming scheme; Marquez
+- The CLI emits OpenLineage 2-0-2 events with openlineage-python 1.54 (START at a stage's
+  start, COMPLETE or FAIL at its end, a parent facet pointing at the pipeline run) to
+  `<root>/lineage/events/YYYY-MM-DD.jsonl`, and posts them to Marquez when `OPENLINEAGE_URL` is
+  set (`keystone lineage push` replays the log; Marquez de-duplicates). Column lineage is
+  emitted where the CLI knows it exactly: the topic (projection of silver events) and the
+  Iceberg publish (identity copies). The publish is one job per table, so no table seems to
+  feed another (the first version listed all tables in one event; caught in the gate run).
+- Naming (lineage/naming.py): stable logical namespaces instead of machine paths
+  (`file://keystone`, `duckdb://keystone`, `kafka://redpanda:9092`,
+  `iceberg://lakekeeper/keystone`, the GH Archive and OSV URLs). Other tools' identifiers are
+  mapped onto it and the rewrite is counted in a `keystone_canonical` run facet.
+- dbt: `dbt-ol send-events` (openlineage-dbt 1.54) over the build's artifacts (the build's
+  run_results.json is restored after `docs generate`). openlineage-sql has no Windows wheel,
+  so on Windows it runs in a pinned uv container (the `lineage` group of the same lock); on
+  Linux (CI) natively. Measured: 76 events, column lineage on 17 models; 61 column inputs name
+  CTEs or `read_parquet` and are dropped and counted, not guessed.
+- Graph and gate path (`lineage.json`): datasets, jobs, fields; the gate path from an hourly
+  file to a published table (table level) and the published field whose column lineage reaches
+  furthest back along it; the full-engine branch (topic, Flink job, Iceberg rollup) beside it.
+- Marquez 0.51.1 (`lineage` profile, Postgres 17.6, search off, no web UI): the gate path's 11
+  nodes and the full-engine path are present in its lineage API (job names compared by
+  `simpleName`, since Marquez prefixes child jobs with the parent's name).
+- Who could do what (table / column): CLI yes / where exact; dbt-ol yes / yes (parsed SQL);
+  DataHub dbt source yes / yes; DataHub SQL parser on the rollup SQL - / yes; Flink yes / no;
+  Spark ran, no datasets for reads; Airflow not run (deferred to Phase 10, when DAGs exist:
+  the provider adds nothing until a DAG calls the CLI); Databricks not run (no token).
+- Retention: past days are gzipped and capped (`keystone lineage compact`, default 50 MB); the
+  oldest days beyond the cap are summarised into `lineage/summary.jsonl` and removed. The push
+  of the compressed log to a data branch belongs to the production workflow and is deferred
+  to the live refresh (Phase 10).
+
 ## ADR-030 (2026-10-20) Phase 5 rungs: Databricks skipped, Trino done (Tier 2)
 - Databricks (dbt-databricks, Unity Catalog, a Lakeflow Declarative Pipeline for marts) needs a
   workspace token, which does not exist yet: skipped and logged in PROGRESS.md. The dbt SQL is

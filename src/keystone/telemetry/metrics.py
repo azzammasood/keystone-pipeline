@@ -109,6 +109,14 @@ def _count(con: duckdb.DuckDBPyConnection, glob: str) -> int:
     return int(row[0]) if row else 0
 
 
+def _utc(value: datetime | None) -> datetime | None:
+    """Timestamps are reported in UTC (CLAUDE.md). DuckDB returns TIMESTAMPTZ in the session's
+    local zone and TIMESTAMP naive (silver stores UTC)."""
+    if value is None:
+        return None
+    return value.astimezone(UTC) if value.tzinfo else value.replace(tzinfo=UTC)
+
+
 def _data_facts(root: Path) -> dict[str, Any]:
     con = duckdb.connect()
     silver = (root / "silver" / "gharchive").as_posix()
@@ -121,9 +129,7 @@ def _data_facts(root: Path) -> dict[str, Any]:
     except duckdb.IOException:
         row = None
     first, newest, hours = row or (None, None, 0)
-    # silver timestamps are UTC (CLAUDE.md); DuckDB may hand them back naive
-    facts["first_event"] = first.replace(tzinfo=UTC) if first and not first.tzinfo else first
-    facts["newest_event"] = newest.replace(tzinfo=UTC) if newest and not newest.tzinfo else newest
+    facts["first_event"], facts["newest_event"] = _utc(first), _utc(newest)
     facts["hours"] = hours
     q = (root / "quarantine").as_posix()
     facts["quarantined_rows"] = _count(con, f"{q}/gharchive/*/*.parquet") + _count(

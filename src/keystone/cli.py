@@ -815,7 +815,18 @@ def warehouse_verify(
     if not tables:
         typer.echo("no tables to read", err=True)
         raise typer.Exit(2)
-    reads = whlake.verify(tables, engine)
+    import duckdb
+
+    engine_versions = {
+        "duckdb": duckdb.__version__,
+        "spark": versions.compose_tag("keystone-spark"),
+        "flink": versions.flink(),
+        "trino": versions.compose_tag("trinodb/trino"),
+    }
+    with Stage(DATA_DIR, "lakehouse-verify", "keystone", __version__) as st:
+        reads = whlake.verify(tables, engine)
+        st.records_in, st.records_out = len(reads), sum(r.matches for r in reads)
+        st.detail["services"] = {e: engine_versions[e] for e in engine}
     for r in reads:
         typer.echo(f"{r.engine:7} {r.table:45} rows={r.rows} match={r.matches}")
     if json_out is not None:
@@ -992,6 +1003,9 @@ def metrics_check_grafana(
 def lineage_push(
     root: Path = typer.Option(DATA_DIR, help="Data directory holding lineage/events."),
     url: str = typer.Option("http://127.0.0.1:5000", help="Marquez base URL."),
+    check_gate: bool = typer.Option(
+        False, help="Then check the gate path of metadata/lineage.json exists in Marquez."
+    ),
 ) -> None:
     """Send the whole event log to Marquez (it de-duplicates by run id and event time)."""
     import httpx
@@ -1006,7 +1020,54 @@ def lineage_push(
                 client.post("/api/v1/lineage", json=ev).raise_for_status()
                 sent += 1
         st.records_in, st.records_out = len(events), sent
-    typer.echo(f"sent {sent} events to {url}")
+        typer.echo(f"sent {sent} events to {url}")
+        if check_gate:
+            from keystone.paths import METADATA_DIR
+
+            lineage = jsonlib.loads((METADATA_DIR / "lineage.json").read_text("utf-8"))
+            path = lineage["gate_path"]["tables"]
+            missing = _marquez_missing(url, path)
+            st.detail["gate_missing"] = missing
+            typer.echo(f"gate path in Marquez: {len(path)} nodes, missing={missing}")
+            if not path or missing:
+                raise typer.Exit(1)
+
+
+def _marquez_missing(url: str, path: list[str]) -> list[str]:
+    """Nodes of the gate path absent from Marquez's lineage graph around its last dataset."""
+    import httpx
+
+    from keystone.lineage.graph import ds_id
+
+    if not path:
+        return []
+    *_, last = path
+    ns, name = _split_id(last)
+    r = httpx.get(
+        f"{url}/api/v1/lineage", params={"nodeId": f"dataset:{ns}:{name}", "depth": 40}, timeout=60
+    )
+    r.raise_for_status()
+    have = set()
+    for node in r.json()["graph"]:
+        data = node.get("data") or {}
+        if node["type"] == "DATASET":
+            have.add(ds_id(data["namespace"], data["name"]))
+        elif node["type"] == "JOB":  # Marquez prefixes a child job's name with its parent's
+            have.add(f"job:{data['namespace']}/{data.get('simpleName') or data['name']}")
+    return [p for p in path if p not in have]
+
+
+def _split_id(did: str) -> tuple[str, str]:
+    """`<namespace>/<name>` (lineage.graph.ds_id) back into namespace and name."""
+    from keystone.lineage import naming
+
+    for ns in (naming.ICEBERG_NS, naming.DUCKDB_NS, naming.FILE_NS, naming.KAFKA_NS):
+        if did.startswith(ns + "/"):
+            return ns, did.removeprefix(ns + "/")
+    for ns in (naming.GHARCHIVE_NS, naming.OSV_NS):  # names that are paths keep their slash
+        if did.startswith(ns + "/"):
+            return ns, did.removeprefix(ns)
+    raise ValueError(f"unknown namespace: {did}")
 
 
 @lineage_app.command("collect")
@@ -1033,3 +1094,69 @@ def lineage_collect(
         total += len(events)
         typer.echo(f"{path.name}: {len(events)} events")
     typer.echo(f"collected {total} events")
+
+
+@lineage_app.command("datahub")
+def lineage_datahub(
+    root: Path = typer.Option(DATA_DIR, help="Data directory (warehouse/ for the dbt source)."),
+    metadata_dir: Path = typer.Option(None, help="Metadata export to read (default metadata/)."),
+    gms: str = typer.Option("http://127.0.0.1:8080", help="DataHub GMS URL."),
+    kafka: bool = typer.Option(True, help="Ingest the Kafka topic (Redpanda must be running)."),
+) -> None:
+    """DataHub: dbt, Iceberg and Kafka sources, Keystone metadata and lineage; then check that
+    the gate path (hourly file to published table) is upstream-connected in DataHub."""
+    import os
+
+    from keystone.export.meta import Metadata
+    from keystone.lineage import datahub as dh
+    from keystone.paths import METADATA_DIR
+
+    mdir = metadata_dir or METADATA_DIR
+    catalog = jsonlib.loads((mdir / "catalog.json").read_text("utf-8"))
+    lineage = jsonlib.loads((mdir / "lineage.json").read_text("utf-8"))
+    s3 = {
+        "s3.access-key-id": os.environ.get("KEYSTONE_S3_ACCESS_KEY", "keystone-local"),
+        "s3.secret-access-key": os.environ.get("KEYSTONE_S3_SECRET_KEY", "keystone-local-only"),
+    }
+    with Stage(root, "lineage-datahub", "datahub", dh.version(gms)) as st:
+        report = dh.run_sources(root, s3, kafka, gms)
+        from keystone.export.catalog import published_copies
+        from keystone.warehouse.dbt import WarehousePaths
+
+        meta = Metadata()
+        for d in published_copies(meta.register_dbt(WarehousePaths(root).target_dir)):
+            meta.register(d)
+        written = dh.emit(catalog, lineage, meta, gms)
+        gate = lineage["gate_path"]["tables"]
+        datasets = [d for d in gate if not d.startswith("job:")]
+        missing = dh.gate_missing(gms, datasets) if datasets else []
+        assertions = dh.count(gms, "ASSERTION")
+        st.records_out = sum(written.values())
+        st.detail.update(
+            source_events=report.events,
+            source_failures=report.failures,
+            written=written,
+            assertions=assertions,
+            gate_missing=missing,
+        )
+    typer.echo(f"sources: events={report.events} failures={report.failures}")
+    typer.echo("written: " + " ".join(f"{k}={v}" for k, v in sorted(written.items())))
+    typer.echo(f"assertions in DataHub: {assertions}")
+    if not datasets:
+        typer.echo("gate path: none in lineage.json", err=True)
+        raise typer.Exit(1)
+    typer.echo(f"gate path upstream of {dh.dataset_urn(datasets[-1])}: missing={missing}")
+    if missing or any(report.failures.values()):
+        raise typer.Exit(1)
+
+
+@lineage_app.command("compact")
+def lineage_compact(
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding lineage/events."),
+    max_mb: float = typer.Option(50.0, help="Cap for the compressed event files, in MB."),
+) -> None:
+    """Gzip past days of the event log; summarise and drop the oldest beyond the cap."""
+    from keystone.lineage.retention import compact
+
+    c = compact(root, int(max_mb * 1e6), datetime.now(UTC).date())
+    typer.echo(f"compressed={c.compressed} summarised={c.summarised} bytes_kept={c.bytes_kept}")

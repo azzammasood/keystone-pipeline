@@ -70,6 +70,12 @@ uv run keystone warehouse build [--root DIR]              # dbt build + docs cov
 uv run keystone warehouse publish [--root DIR] [--prefix ci_]  # tagged marts -> Iceberg
 uv run keystone warehouse verify --namespace marts [--table NS.T] --engine duckdb --engine spark ...
 docker compose -f compose/docker-compose.yml --profile trino up -d --wait trino   # Tier 2 reader
+uv run keystone lineage dbt|collect|push [--check-gate]|datahub|compact   # OpenLineage, Marquez, DataHub
+uv run keystone metadata contracts [--check] ; uv run keystone metadata export [--require-path]
+uv run keystone metrics emit ; uv run keystone metrics check-grafana   # pipeline_metrics.json vs Grafana
+# Phase 6 profiles: lineage (Marquez), obs (collector, Prometheus, Grafana), datahub (stop Flink first)
+# Env: OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318, OPENLINEAGE_URL=http://127.0.0.1:5000,
+#      KEYSTONE_RUN_ID=<uuid> groups stages into one pipeline run
 uv run pytest                             # network tests skip unless KEYSTONE_NETWORK_TESTS=1
 KEYSTONE_STACK_TESTS=1 uv run pytest tests/parity  # engine parity on the running stack
 uv run ruff check . ; uv run ruff format . ; uv run sqlfluff lint src/keystone/rollup/sql
@@ -84,14 +90,16 @@ src/keystone/            cli.py (Typer), paths.py, policy.py, machine.py
   parsers/ quality/      era-aware parser, privacy, drift, Parquet sink; contracts + GX (Phase 3)
   rollup/                sql/ (the logic, once), duck (free), stream + flink (full), compare (Phase 4)
   warehouse/             dbt runner, docs coverage, Iceberg publish + engine reads (Phase 5)
+  lineage/ telemetry/    OpenLineage, graph, DataHub; stage run log, OTel, pipeline_metrics (Phase 6)
+  export/                catalog metadata, generated contracts, static metadata export (Phase 6)
   planned subpackages:   eras resolve metrics score backtest bench
-                         profile lineage telemetry narrate export (created when a phase needs them)
-config/                  policy.yml (UA, limits, disk budget); later sources.yml, incidents.yml
+                         profile narrate (created when a phase needs them)
+config/                  policy.yml (UA, limits, disk budget), sources.yml, metadata.yml (catalog)
 contracts/               ODCS contracts (*.odcs.yaml), drift/gharchive.yml, avro/ (event topic schema)
 compose/                 docker-compose.yml (profiles), flink/ + spark/ Dockerfiles (pinned jars),
-                         trino/catalog, catalog/init.sh
+                         trino/catalog, catalog/init.sh, obs/ (collector, Prometheus, Grafana)
 dbt/                     staging, intermediate, marts, metrics (+ seeds, tests); portable SQL
-metadata/                (filled in by later phases)
+metadata/                static export: catalog/glossary/lineage JSON, contracts/ (generated ODCS)
 tests/                   tests/fixtures/ (small, committed), tests/parity/ (Flink vs DuckDB)
 docs/                    PLAN, PROGRESS, DECISIONS, roshni-patterns, reviews/
 data/                    generated, git-ignored

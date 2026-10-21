@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-21T05:31:39.064946+00:00",
+ "generated_at": "2026-10-21T06:08:14.796920+00:00",
  "generator": "keystone metadata export",
  "terms": [
   {
@@ -22,6 +22,7 @@
     "duckdb://keystone/rollup.main.repo_actor_day#actor_key",
     "file://keystone/silver/gharchive/events#actor_key",
     "iceberg://lakekeeper/keystone/{namespace}.repo_actor_day#actor_key",
+    "iceberg://lakekeeper/keystone/{namespace}.repo_actor_day_{part}#actor_key",
     "kafka://redpanda:9092/keystone.gharchive.events.v1#actor_key"
    ]
   },
@@ -61,7 +62,9 @@
     "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#era",
     "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day#era",
     "iceberg://lakekeeper/keystone/{namespace}.repo_actor_day#era",
+    "iceberg://lakekeeper/keystone/{namespace}.repo_actor_day_{part}#era",
     "iceberg://lakekeeper/keystone/{namespace}.repo_hour#era",
+    "iceberg://lakekeeper/keystone/{namespace}.repo_hour_{part}#era",
     "kafka://redpanda:9092/keystone.gharchive.events.v1#era"
    ]
   },
@@ -73,7 +76,9 @@
     "duckdb://keystone/rollup.main.repo_actor_day",
     "duckdb://keystone/rollup.main.repo_hour",
     "iceberg://lakekeeper/keystone/{namespace}.repo_actor_day",
-    "iceberg://lakekeeper/keystone/{namespace}.repo_hour"
+    "iceberg://lakekeeper/keystone/{namespace}.repo_actor_day_{part}",
+    "iceberg://lakekeeper/keystone/{namespace}.repo_hour",
+    "iceberg://lakekeeper/keystone/{namespace}.repo_hour_{part}"
    ]
   }
  ]

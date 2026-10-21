@@ -29,7 +29,7 @@ x-flink-env: &flink-env
 services:
   # --- streaming ---------------------------------------------------------------------------
   redpanda:
-    profiles: [streaming]
+    profiles: [streaming, datahub]  # also DataHub's message bus (Kafka API)
     image: redpandadata/redpanda:v26.2.5@sha256:badca2d958f81da675c3055a9ecb6ebb590325582bcf16936148ffd65e96e920
     command:
       - redpanda
@@ -231,8 +231,10 @@ services:
     mem_limit: 512m  # 287 MB at first start
     depends_on: [prometheus]
 
-  # --- datahub (Phase 6: lightest viable setup; v1.7 can use Postgres as the message queue,
-  # so no Kafka; no frontend: the CLI and checks use GMS's REST and GraphQL APIs) ----------
+  # --- datahub (Phase 6: lightest viable setup: Postgres store, OpenSearch, GMS with its
+  # consumers embedded, Redpanda as the Kafka bus (DataHub's pgqueue transport needs the
+  # pg_partman extension, absent from the stock Postgres image), no frontend: the CLI and the
+  # checks use GMS's REST and GraphQL APIs) ---------------------------------------------
   datahub-db:
     profiles: [datahub]
     image: postgres:17.6-alpine@sha256:ef257d85f76e48da1c64832459b59fcaba1a4dac97bf5d7450c77753542eee94
@@ -272,10 +274,13 @@ services:
       EBEAN_DATASOURCE_HOST: datahub-db:5432
       EBEAN_DATASOURCE_URL: jdbc:postgresql://datahub-db:5432/datahub
       EBEAN_DATASOURCE_DRIVER: org.postgresql.Driver
-      DATAHUB_MESSAGING_TRANSPORT: pgqueue
-      DATAHUB_PGQUEUE_ENABLED: "true"
       DATAHUB_SQL_SETUP_ENABLED: "true"
-      SKIP_KAFKA_CHECK: "true"
+      KAFKA_BOOTSTRAP_SERVER: redpanda:9092
+      SCHEMA_REGISTRY_TYPE: INTERNAL
+      KAFKA_SCHEMAREGISTRY_URL: http://datahub-gms:8080/schema-registry/api/
+      DATAHUB_PRECREATE_TOPICS: "true"
+      PARTITIONS: "1"
+      USE_CONFLUENT_SCHEMA_REGISTRY: "false"
       GRAPH_SERVICE_IMPL: elasticsearch
       ELASTICSEARCH_HOST: datahub-search
       ELASTICSEARCH_PORT: "9200"
@@ -296,6 +301,7 @@ services:
     depends_on:
       datahub-db: {condition: service_healthy}
       datahub-search: {condition: service_healthy}
+      redpanda: {condition: service_healthy}
     restart: "no"
 
   datahub-gms:

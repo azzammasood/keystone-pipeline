@@ -185,7 +185,15 @@ def _meter() -> Any:
 
     reader = PeriodicExportingMetricReader(OTLPMetricExporter(), export_interval_millis=60_000)
     provider = MeterProvider(
-        resource=Resource.create({"service.name": "keystone", "service.version": __version__}),
+        # A fixed instance id: every CLI process writes the same series, so a gauge holds the
+        # latest run's value (the SDK would otherwise give each process a new series).
+        resource=Resource.create(
+            {
+                "service.name": "keystone",
+                "service.version": __version__,
+                "service.instance.id": "keystone-cli",
+            }
+        ),
         metric_readers=[reader],
     )
     atexit.register(provider.shutdown)  # exports what was recorded before the process ends

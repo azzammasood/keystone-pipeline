@@ -181,6 +181,24 @@ datasets:
     classification: pseudonymous
     description: The Flink job's repo_actor_day in Iceberg; internal, never published.
     contract: metadata/contracts/rollup_repo_actor_day.odcs.yaml
+  - id: iceberg://lakekeeper/keystone/{namespace}.repo_hour_{part}
+    title: Flink repo_hour before the fold
+    layer: rollup
+    domain: activity
+    classification: public
+    description: >-
+      The Flink job's two outputs before the fold (ADR-026): `_ontime` windows and `_late` rows
+      routed instead of dropped; the fold sums them into repo_hour.
+    contract: metadata/contracts/rollup_repo_hour.odcs.yaml
+  - id: iceberg://lakekeeper/keystone/{namespace}.repo_actor_day_{part}
+    title: Flink repo_actor_day before the fold
+    layer: rollup
+    domain: activity
+    classification: pseudonymous
+    description: >-
+      The Flink job's two outputs before the fold (ADR-026), `_ontime` and `_late`; internal,
+      never published.
+    contract: metadata/contracts/rollup_repo_actor_day.odcs.yaml
 
 # Column descriptions for generated contracts outside dbt (dbt columns are described in dbt
 # YAML; the hand-written contracts in contracts/ describe their own). `_lineage` applies to the

@@ -114,11 +114,11 @@ def versions(
         out["prometheus"] = str(info["data"]["version"])
         q = httpx.get(
             f"{prometheus}/api/v1/query",
-            params={"query": "otelcol_process_uptime_seconds_total"},
+            params={"query": 'target_info{job="otel-collector"}'},
             timeout=5,
         ).json()
-        for res in q["data"]["result"]:
-            ver = res["metric"].get("service_version")
+        for res in q["data"]["result"]:  # the collector's own resource, scraped from :8888
+            ver = res["metric"].get("service.version")
             if ver:
                 out["otel-collector"] = ver
     except (httpx.HTTPError, KeyError, ValueError):

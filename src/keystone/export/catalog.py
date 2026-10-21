@@ -208,6 +208,13 @@ def build_lineage(root: Path, meta: Metadata, catalog: dict[str, Any]) -> dict[s
             key = (reach, -len(tpath))
             if key > best_key:
                 best_key, path, field_path = key, tpath, chain
+    # The full engine's branch (Kafka topic, Flink job, Iceberg rollup), recorded beside it.
+    full = {
+        d
+        for d in g.datasets
+        if d.startswith(naming.ICEBERG_NS + "/") and d not in published and d.endswith(".repo_hour")
+    }
+    full_path = lgraph.shortest_path(g, hours, full)
     nodes = len(g.datasets) + len(g.jobs)
     return {
         "datasets": [describe(d) for d in sorted(g.datasets)],
@@ -218,6 +225,7 @@ def build_lineage(root: Path, meta: Metadata, catalog: dict[str, Any]) -> dict[s
         "unresolved_column_inputs": g.unresolved,
         "hour_files_kept": len(hours),
         "gate_path": {"tables": path, "field": field_path},
+        "full_engine_path": full_path,
         "summary": {
             "nodes": nodes,
             "edges": len(g.edges),

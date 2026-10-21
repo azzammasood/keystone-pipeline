@@ -1,13 +1,13 @@
 {
- "generated_at": "2026-10-21T05:31:39.064946+00:00",
+ "generated_at": "2026-10-21T06:08:14.796920+00:00",
  "generator": "keystone metadata export",
  "completeness": {
   "models": 19,
   "models_documented": 19,
-  "columns": 453,
-  "columns_documented": 453,
-  "datasets": 42,
-  "datasets_complete": 42,
+  "columns": 483,
+  "columns_documented": 483,
+  "datasets": 44,
+  "datasets_complete": 44,
   "owners_missing": 0,
   "documented_pct": 100.0
  },
@@ -1083,6 +1083,201 @@
    "domain": "activity",
    "classification": "pseudonymous",
    "description": "The Flink job's repo_actor_day in Iceberg; internal, never published.",
+   "contract": "metadata/contracts/rollup_repo_actor_day.odcs.yaml",
+   "freshness_sla_hours": 26,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [
+    "rollup"
+   ],
+   "columns": [
+    {
+     "name": "window_start",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "Start of the UTC day."
+    },
+    {
+     "name": "repo_id",
+     "type": "BIGINT",
+     "description": "GitHub repository id."
+    },
+    {
+     "name": "actor_key",
+     "type": "VARCHAR",
+     "description": "Salted key of the account (ADR-019); internal, never published.",
+     "glossary_terms": [
+      "maintenance actor"
+     ]
+    },
+    {
+     "name": "actor_key_kind",
+     "type": "VARCHAR",
+     "description": "Whether the key hashes an account id or a login (E1)."
+    },
+    {
+     "name": "era",
+     "type": "VARCHAR",
+     "description": "Schema era of the events.",
+     "glossary_terms": [
+      "era"
+     ]
+    },
+    {
+     "name": "events",
+     "type": "BIGINT",
+     "description": "Events by the account in the repository that day."
+    },
+    {
+     "name": "pushes",
+     "type": "BIGINT",
+     "description": "Push events."
+    },
+    {
+     "name": "prs_opened",
+     "type": "BIGINT",
+     "description": "Pull requests opened."
+    },
+    {
+     "name": "prs_closed",
+     "type": "BIGINT",
+     "description": "Pull requests closed."
+    },
+    {
+     "name": "prs_merged",
+     "type": "BIGINT",
+     "description": "Pull requests closed as merged (the merged flag exists in E1, E2 only)."
+    },
+    {
+     "name": "issues_opened",
+     "type": "BIGINT",
+     "description": "Issues opened."
+    },
+    {
+     "name": "issues_closed",
+     "type": "BIGINT",
+     "description": "Issues closed."
+    },
+    {
+     "name": "releases",
+     "type": "BIGINT",
+     "description": "Releases published."
+    },
+    {
+     "name": "members_added",
+     "type": "BIGINT",
+     "description": "Members added."
+    },
+    {
+     "name": "comments",
+     "type": "BIGINT",
+     "description": "Issue comments, pull-request reviews and review comments, commit comments."
+    },
+    {
+     "name": "fetched_at_max",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "Newest fetch time of the contributing source files (UTC)."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/{namespace}.repo_hour_{part}",
+   "title": "Flink repo_hour before the fold",
+   "layer": "rollup",
+   "domain": "activity",
+   "classification": "public",
+   "description": "The Flink job's two outputs before the fold (ADR-026): `_ontime` windows and `_late` rows routed instead of dropped; the fold sums them into repo_hour.",
+   "contract": "metadata/contracts/rollup_repo_hour.odcs.yaml",
+   "freshness_sla_hours": 26,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [
+    "rollup"
+   ],
+   "columns": [
+    {
+     "name": "window_start",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "Start of the UTC hour."
+    },
+    {
+     "name": "repo_id",
+     "type": "BIGINT",
+     "description": "GitHub repository id."
+    },
+    {
+     "name": "era",
+     "type": "VARCHAR",
+     "description": "Schema era of the events.",
+     "glossary_terms": [
+      "era"
+     ]
+    },
+    {
+     "name": "event_type",
+     "type": "VARCHAR",
+     "description": "GitHub event type."
+    },
+    {
+     "name": "events",
+     "type": "BIGINT",
+     "description": "Events in the window."
+    },
+    {
+     "name": "human_events",
+     "type": "BIGINT",
+     "description": "Events by accounts not flagged as bots."
+    },
+    {
+     "name": "opened",
+     "type": "BIGINT",
+     "description": "Events with action opened."
+    },
+    {
+     "name": "closed",
+     "type": "BIGINT",
+     "description": "Events with action closed."
+    },
+    {
+     "name": "reopened",
+     "type": "BIGINT",
+     "description": "Events with action reopened."
+    },
+    {
+     "name": "merged",
+     "type": "BIGINT",
+     "description": "Pull requests closed as merged (counted only where merge_known counts them)."
+    },
+    {
+     "name": "merge_known",
+     "type": "BIGINT",
+     "description": "Closed pull requests whose merged flag is present (E1, E2)."
+    },
+    {
+     "name": "published",
+     "type": "BIGINT",
+     "description": "Events with action published (releases)."
+    },
+    {
+     "name": "added",
+     "type": "BIGINT",
+     "description": "Events with action added (members)."
+    },
+    {
+     "name": "fetched_at_max",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "Newest fetch time of the contributing source files (UTC)."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/{namespace}.repo_actor_day_{part}",
+   "title": "Flink repo_actor_day before the fold",
+   "layer": "rollup",
+   "domain": "activity",
+   "classification": "pseudonymous",
+   "description": "The Flink job's two outputs before the fold (ADR-026), `_ontime` and `_late`; internal, never published.",
    "contract": "metadata/contracts/rollup_repo_actor_day.odcs.yaml",
    "freshness_sla_hours": 26,
    "owner": "keystone-maintainers",

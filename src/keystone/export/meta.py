@@ -118,6 +118,9 @@ class Metadata:
             out.append(ds)
         return sorted(out, key=lambda d: d.id)
 
+    def register(self, ds: DatasetMeta) -> None:
+        self._dbt[ds.id] = ds
+
     def dataset(self, dataset_id: str) -> DatasetMeta:
         if dataset_id in self._dbt:
             return self._dbt[dataset_id]

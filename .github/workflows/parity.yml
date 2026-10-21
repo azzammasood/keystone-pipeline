@@ -10,6 +10,7 @@ on:
   push:
     branches: [main]
     paths:
+      - src/keystone/lineage/**
       - src/keystone/warehouse/**
       - dbt/**
       - tests/fixtures/**
@@ -24,6 +25,7 @@ on:
       - .github/workflows/parity.yml
   pull_request:
     paths:
+      - src/keystone/lineage/**
       - src/keystone/warehouse/**
       - dbt/**
       - tests/fixtures/**
@@ -62,7 +64,8 @@ jobs:
       - run: uv sync --frozen --all-groups
       - name: Start the streaming and catalog profiles
         run: |
-          mkdir -p data/flink/jobs
+          mkdir -p data/flink/jobs data/lineage/incoming
+          chmod 777 data/lineage/incoming  # Flink (uid 9999) and Spark (uid 185) write lineage here
           docker compose -f compose/docker-compose.yml --profile streaming --profile catalog up -d --build
           # The one-shot catalog bootstrap must have finished cleanly.
           for i in $(seq 1 60); do
@@ -103,6 +106,9 @@ jobs:
           docker stats --no-stream --format '{{.Name}} {{.MemUsage}}'
           tables="--namespace ci_marts --namespace ci_metrics --table ci_rollup.repo_hour"
           uv run keystone warehouse verify $tables --engine duckdb --engine spark --engine flink --engine trino
+          # openlineage-flink wrote the batch job's datasets (Phase 6, ADR-033)
+          uv run keystone lineage collect --root ci-data | tee lineage-collect.txt
+          grep -E "^flink.jsonl: [1-9]" lineage-collect.txt
       - if: failure()
         run: docker compose -f compose/docker-compose.yml --profile streaming --profile catalog --profile trino logs --tail 200
       - if: always()
