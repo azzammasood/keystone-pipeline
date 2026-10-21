@@ -11,6 +11,7 @@ import typer
 from keystone import __version__
 from keystone.fetch.client import DiskBudgetExceeded, DiskGuard, PoliteClient
 from keystone.fetch.manifest import FileRecord, Manifest
+from keystone.lineage import datasets as lds
 from keystone.machine import measure
 from keystone.parsers import drift as driftmod
 from keystone.parsers import osv as osvparse
@@ -21,6 +22,8 @@ from keystone.paths import DATA_DIR, QUALITY_DIR, QUARANTINE_DIR, REPO_ROOT, SIL
 from keystone.policy import load_policy
 from keystone.sources import GhArchiveConfig, load_sources, osv
 from keystone.sources import gharchive as gha
+from keystone.telemetry import versions
+from keystone.telemetry.runlog import Stage
 from keystone.warehouse import coverage as whcoverage
 from keystone.warehouse import dbt as whdbt
 from keystone.warehouse import lake as whlake
@@ -132,16 +135,36 @@ def ingest_gharchive(
         finally:
             manifest.close()
 
-    try:
-        summary = asyncio.run(run())
-    except DiskBudgetExceeded as exc:
-        typer.echo(f"stopped: {exc}", err=True)
-        raise typer.Exit(2) from exc
-    typer.echo(summary.line())
-    if sink is not None:
-        typer.echo(" ".join(f"parsed_{k}={v}" for k, v in sink.totals.items()))
-    if summary.counts.get("error"):
-        raise typer.Exit(1)
+    stage = Stage(
+        DATA_DIR,
+        "ingest",
+        "gharchive-fetch",
+        __version__,
+        outputs=lds.silver_gharchive() if sink is not None else (),
+        job="ingest.gharchive",
+    )
+    with stage:
+        try:
+            summary = asyncio.run(run())
+        except DiskBudgetExceeded as exc:
+            typer.echo(f"stopped: {exc}", err=True)
+            raise typer.Exit(2) from exc
+        stage.bytes_in = summary.downloaded_bytes
+        stage.detail.update(counts=dict(summary.counts), requests=summary.requests)
+        typer.echo(summary.line())
+        if sink is not None:
+            _count_parse(stage, sink)
+            typer.echo(" ".join(f"parsed_{k}={v}" for k, v in sink.totals.items()))
+        if summary.counts.get("error"):
+            raise typer.Exit(1)
+
+
+def _count_parse(stage: Stage, sink: GhArchiveSink) -> None:
+    stage.records_in = sink.totals["events"] + sink.totals["quarantined"]
+    stage.records_out = sink.totals["events"]
+    stage.bytes_out = sink.totals["bytes_out"]
+    stage.detail.update(files=sink.totals["files"], quarantined=sink.totals["quarantined"])
+    stage.inputs = lds.hour_files(sink.stems)
 
 
 def _sink(cfg: GhArchiveConfig) -> GhArchiveSink:
@@ -191,19 +214,37 @@ def parse_gharchive(
 ) -> None:
     """Parse kept, verified raw hours (data/raw) to Parquet; drift fails the hour."""
     sink = _sink(load_sources().gharchive)
-    failed = 0
-    for path, rec in _kept_hours(start, end):
-        try:
-            sink(path, rec)
-        except driftmod.DriftError as exc:
-            failed += 1
-            typer.echo(f"drift: {exc}", err=True)
-        except Exception as exc:  # one bad file (corrupt gzip, ...) must not stop the batch
-            failed += 1
-            typer.echo(f"error: {path.name}: {exc!r}"[:300], err=True)
-    typer.echo(" ".join(f"parsed_{k}={v}" for k, v in sink.totals.items()) + f" failed={failed}")
-    if failed:
-        raise typer.Exit(1)
+    _parse_batch(DATA_DIR, sink, _kept_hours(start, end))
+
+
+def _parse_batch(root: Path, sink: GhArchiveSink, files: list[tuple[Path, FileRecord]]) -> None:
+    """Parse files with the sink as one measured stage; drift or errors fail it at the end."""
+    stage = Stage(
+        root,
+        "parse",
+        "keystone-parser",
+        __version__,
+        outputs=lds.silver_gharchive(),
+        job="parse.gharchive",
+    )
+    with stage:
+        failed = 0
+        for path, rec in files:
+            try:
+                sink(path, rec)
+            except driftmod.DriftError as exc:
+                failed += 1
+                typer.echo(f"drift: {exc}", err=True)
+            except Exception as exc:  # one bad file (corrupt gzip, ...) must not stop the batch
+                failed += 1
+                typer.echo(f"error: {path.name}: {exc!r}"[:300], err=True)
+        _count_parse(stage, sink)
+        stage.bytes_in = sink.totals["bytes_in"]
+        stage.detail["failed"] = failed
+        totals = " ".join(f"parsed_{k}={v}" for k, v in sink.totals.items())
+        typer.echo(f"{totals} failed={failed}")
+        if failed:
+            raise typer.Exit(1)
 
 
 @parse_app.command("files")
@@ -218,7 +259,7 @@ def parse_files(
     sink.silver_dir = root / "silver" / "gharchive"
     sink.quarantine_dir = root / "quarantine" / "gharchive"
     sink.drift_dir = root / "quality" / "drift"
-    failed = 0
+    batch = []
     for path in files:
         day, _, h = path.name.removesuffix(".json.gz").rpartition("-")
         hour = datetime.fromisoformat(day).replace(hour=int(h), tzinfo=UTC)
@@ -230,17 +271,8 @@ def parse_files(
             hour=hour,
             sha256=gha.sha256_file(path),
         )
-        try:
-            sink(path, rec)
-        except driftmod.DriftError as exc:
-            failed += 1
-            typer.echo(f"drift: {exc}", err=True)
-        except Exception as exc:  # one bad file (corrupt gzip, ...) must not stop the batch
-            failed += 1
-            typer.echo(f"error: {path.name}: {exc!r}"[:300], err=True)
-    typer.echo(" ".join(f"parsed_{k}={v}" for k, v in sink.totals.items()) + f" failed={failed}")
-    if failed:
-        raise typer.Exit(1)
+        batch.append((path, rec))
+    _parse_batch(root, sink, batch)
 
 
 @parse_app.command("learn-drift")
@@ -308,13 +340,29 @@ def parse_osv(
     if not jobs:
         typer.echo("no kept, verified OSV zips", err=True)
         raise typer.Exit(1)
-    for name, path, ctx in jobs:
-        result = osvparse.parse_zip(path, ctx)
-        write_osv(name, result, root / "silver" / "osv", root / "quarantine" / "osv")
-        typer.echo(
-            f"{name}: vulns={len(result.vulns)} affected={len(result.affected)} "
-            f"repo_refs={len(result.repo_refs)} quarantined={len(result.quarantine)}"
-        )
+    stage = Stage(
+        root,
+        "parse-osv",
+        "keystone-parser",
+        __version__,
+        inputs=[lds.osv_zip(name) for name, _, _ in jobs],
+        outputs=lds.silver_osv(),
+        job="parse.osv",
+    )
+    with stage:
+        records = quarantined = size = 0
+        for name, path, ctx in jobs:
+            size += path.stat().st_size
+            result = osvparse.parse_zip(path, ctx)
+            write_osv(name, result, root / "silver" / "osv", root / "quarantine" / "osv")
+            records += len(result.vulns)
+            quarantined += len(result.quarantine)
+            typer.echo(
+                f"{name}: vulns={len(result.vulns)} affected={len(result.affected)} "
+                f"repo_refs={len(result.repo_refs)} quarantined={len(result.quarantine)}"
+            )
+        stage.records_in, stage.records_out, stage.bytes_in = records + quarantined, records, size
+        stage.detail["quarantined"] = quarantined
 
 
 @ingest_app.command("gaps")
@@ -470,15 +518,6 @@ app.add_typer(stream_app, name="stream")
 ROLLUP_DIR = DATA_DIR / "rollup"
 
 
-def _log_run(root: Path, record: dict[str, object]) -> None:
-    """Append one measured run to `rollup/runs.jsonl` (the pipeline-metrics feed, Phase 6)."""
-    path = root / "rollup" / "runs.jsonl"
-    path.parent.mkdir(parents=True, exist_ok=True)
-    record = {"at": datetime.now(UTC).isoformat(), **record}
-    with path.open("a", encoding="utf-8") as fh:
-        fh.write(jsonlib.dumps(record, default=str) + "\n")
-
-
 @rollup_app.command("run")
 def rollup_run(
     root: Path = typer.Option(DATA_DIR, help="Data directory holding silver/; state in rollup/."),
@@ -487,16 +526,31 @@ def rollup_run(
     """`free` engine: incremental DuckDB rollup of new, re-parsed or removed silver hours."""
     from dataclasses import asdict
 
+    import duckdb
+
     from keystone.rollup.duck import DuckRollup
 
-    duck = DuckRollup(root / "rollup" / "rollup.duckdb", root / "silver" / "gharchive")
-    try:
-        stats = duck.run()
-        counts = duck.counts()
-    finally:
-        duck.close()
+    stage = Stage(
+        root,
+        "rollup",
+        "duckdb",
+        duckdb.__version__,
+        [lds.events_input()],
+        lds.rollup_tables(),
+        job="rollup.duckdb",
+    )
+    with stage:
+        duck = DuckRollup(root / "rollup" / "rollup.duckdb", root / "silver" / "gharchive")
+        try:
+            stats = duck.run()
+            counts = duck.counts()
+        finally:
+            duck.close()
+        stage.records_out = sum(stats.rows_written.values())
+        stage.detail.update(
+            changed_files=stats.changed_files, removed_files=stats.removed_files, table_rows=counts
+        )
     out = {"engine": "duckdb", **asdict(stats), "table_rows": counts}
-    _log_run(root, out)
     if json:
         typer.echo(jsonlib.dumps(out, indent=2))
         return
@@ -544,9 +598,21 @@ def stream_produce(
     if shuffle_seed is not None:
         random.Random(shuffle_seed).shuffle(files)
         typer.echo("order: " + " ".join(p.stem.rsplit("-", 1)[1] for p in files))
-    stats = st.produce(files, topic)
+    stage = Stage(
+        root,
+        "produce",
+        "redpanda",
+        versions.compose_tag("redpanda"),
+        [lds.events_input()],
+        [lds.topic(topic)],
+        job="stream.produce",
+    )
+    with stage:
+        stats = st.produce(files, topic)
+        stage.records_in = stage.records_out = stats.records
+        stage.bytes_out = stats.bytes
+        stage.detail.update(files=stats.files, topic=topic)
     rate = stats.records / stats.seconds if stats.seconds else 0.0
-    _log_run(root, {"engine": "redpanda", "topic": topic, **vars(stats)})
     typer.echo(
         f"files={stats.files} records={stats.records} bytes={stats.bytes} "
         f"seconds={stats.seconds:.1f} records_per_s={rate:.0f}"
@@ -566,25 +632,33 @@ def rollup_flink(
 
     if mode not in ("stream", "batch"):
         raise typer.BadParameter("mode is stream or batch")
-    job = fl.submit(
-        fl.render_job(namespace, topic, cast(fl.Mode, mode), bounded=not unbounded),
-        f"{namespace}-{mode}",
-    )
     if unbounded:
+        job = fl.submit(
+            fl.render_job(namespace, topic, cast(fl.Mode, mode), bounded=False),
+            f"{namespace}-{mode}",
+        )
         typer.echo(f"live job submitted ({job.seconds:.0f}s); run `rollup fold` to merge late rows")
         return
-    fold = fl.submit(fl.render_fold(namespace), f"{namespace}-fold")
-    _log_run(
+    stage = Stage(
         root,
-        {
-            "engine": "flink",
-            "mode": mode,
-            "namespace": namespace,
-            "topic": topic,
-            "job_seconds": job.seconds,
-            "fold_seconds": fold.seconds,
-        },
+        f"rollup-flink-{mode}",
+        "flink",
+        versions.flink(),
+        [lds.topic(topic)],
+        lds.flink_outputs(namespace),
+        job=f"rollup.flink.{mode}",
     )
+    with stage:
+        job = fl.submit(
+            fl.render_job(namespace, topic, cast(fl.Mode, mode), bounded=True),
+            f"{namespace}-{mode}",
+        )
+        read, written = versions.flink_last_job_records(f"keystone-rollup-{mode}-{namespace}")
+        fold = fl.submit(fl.render_fold(namespace), f"{namespace}-fold")
+        stage.records_in, stage.records_out = read, written
+        stage.detail.update(
+            namespace=namespace, topic=topic, job_seconds=job.seconds, fold_seconds=fold.seconds
+        )
     typer.echo(f"{mode} job {job.seconds:.0f}s, fold {fold.seconds:.0f}s -> ice.{namespace}")
 
 
@@ -610,7 +684,6 @@ def rollup_parity(
     results = compare.compare(root / "rollup" / "rollup.duckdb", namespace)
     late = compare.late_rows(namespace)
     out = [{**vars(r), "ok": r.ok, "late_rows": late[r.table]} for r in results]
-    _log_run(root, {"engine": "parity", "namespace": namespace, "tables": out})
     if json:
         typer.echo(jsonlib.dumps(out, indent=2))
     else:
@@ -637,10 +710,24 @@ def warehouse_build(
     """`dbt build` (seeds, models, tests) on the target; then the docs-coverage gate."""
     paths = whdbt.WarehousePaths(root)
     args = ["build", *(["--select", select] if select else [])]
-    if not whdbt.run_dbt(args, paths, target):
-        raise typer.Exit(1)
+    with Stage(root, "warehouse", "dbt", versions.package("dbt-core")) as stage:
+        ok = whdbt.run_dbt(args, paths, target)
+        results = whdbt.run_results(paths.target_dir)
+        if ok:
+            stage.records_out = whdbt.published_rows(paths)
+        stage.detail.update(
+            nodes=results.nodes,
+            tests_passed=results.tests_passed,
+            tests_failed=results.tests_failed,
+            target=target,
+        )
+        if not ok:
+            raise typer.Exit(1)
+    # `docs generate` rewrites run_results.json; keep the build's (dbt-ol and the metrics read it).
+    build_results = (paths.target_dir / "run_results.json").read_bytes()
     if not whdbt.run_dbt(["docs", "generate"], paths, target):
         raise typer.Exit(1)
+    (paths.target_dir / "run_results.json").write_bytes(build_results)
     cov = whcoverage.measure(paths.target_dir)
     typer.echo(
         f"docs coverage: {cov.ratio:.1%} (models {cov.models_documented}/{cov.models}, "
@@ -658,8 +745,18 @@ def warehouse_publish(
     prefix: str = typer.Option("", help="Namespace prefix (e.g. ci_) for test runs."),
 ) -> None:
     """Copy the dbt models tagged `publish` into Iceberg (namespace = prefix + schema)."""
+    import duckdb
+
     paths = whdbt.WarehousePaths(root)
-    for p in whlake.publish(paths.warehouse_db, paths.target_dir, prefix):
+    stage = Stage(root, "publish", "duckdb-iceberg", duckdb.__version__, job="warehouse.publish")
+    with stage:
+        done = whlake.publish(paths.warehouse_db, paths.target_dir, prefix)
+        stage.records_out = sum(p.rows for p in done)
+        stage.inputs = [lds.warehouse_model(p.schema, p.table.name, list(p.columns)) for p in done]
+        stage.outputs = [
+            lds.published(p.schema, p.table.name, list(p.columns), p.table.namespace) for p in done
+        ]
+    for p in done:
         typer.echo(f"published {p.table.label}: rows={p.rows}")
 
 
@@ -689,3 +786,32 @@ def warehouse_verify(
         json_out.write_text(jsonlib.dumps([r.__dict__ for r in reads], indent=1), "utf-8")
     if not all(r.matches for r in reads):
         raise typer.Exit(1)
+
+
+lineage_app = typer.Typer(
+    no_args_is_help=True, help="OpenLineage, lineage graph, DataHub (Phase 6)."
+)
+app.add_typer(lineage_app, name="lineage")
+
+
+@lineage_app.command("dbt")
+def lineage_dbt(
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding warehouse/."),
+    target: str = typer.Option("duckdb", help="dbt target of the last build."),
+) -> None:
+    """OpenLineage events for the last dbt build (dbt-ol send-events), canonical names."""
+    from keystone.lineage import dbt as ldbt
+
+    with Stage(
+        root, "lineage-dbt", "openlineage-dbt", versions.package("openlineage-python")
+    ) as st:
+        events = ldbt.send_events(root, target)
+        st.records_out = len(events)
+        with_cll = sum(
+            1
+            for e in events
+            for d in e.get("outputs", [])
+            if "columnLineage" in d.get("facets", {})
+        )
+        st.detail["outputs_with_column_lineage"] = with_cll
+    typer.echo(f"dbt-ol events={len(events)} outputs_with_column_lineage={with_cll}")

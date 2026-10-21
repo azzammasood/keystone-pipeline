@@ -100,7 +100,8 @@ class GhArchiveSink:
         self.drift_dir = drift_dir
         self.hasher = hasher
         self.registry = registry
-        self.totals = {"files": 0, "events": 0, "quarantined": 0}
+        self.totals = {"files": 0, "events": 0, "quarantined": 0, "bytes_in": 0, "bytes_out": 0}
+        self.stems: list[str] = []  # hours written by this sink (lineage inputs)
 
     def context(self, record: FileRecord) -> FileContext:
         if record.hour is None or record.sha256 is None:
@@ -124,6 +125,7 @@ class GhArchiveSink:
         ctx = self.context(record)
         if ctx.era == "PRE":
             raise ValueError(f"{ctx.source_file}: before the first era")
+        size = path.stat().st_size
         result = parse_file(path, ctx, self.hasher, self.registry)
         stem = ctx.source_file.rsplit("/", 1)[-1].removesuffix(".json.gz")
         if result.drift:
@@ -132,6 +134,7 @@ class GhArchiveSink:
             more = f" (+{len(result.drift) - 5} more)" if len(result.drift) > 5 else ""
             raise DriftError(f"{ctx.source_file} ({ctx.era}): {lines}{more}")
         self.write(stem, ctx, result)
+        self.totals["bytes_in"] += size
 
     def write(self, stem: str, ctx: FileContext, result: ParseResult) -> None:
         # The events file is written last: `is_done` checks it, so a crash part-way leaves the
@@ -147,9 +150,13 @@ class GhArchiveSink:
             write_rows(result.quarantine, QUARANTINE_SCHEMA, qpath)
         else:
             qpath.unlink(missing_ok=True)  # a re-parse that is now clean
-        write_rows(
-            result.events, EVENT_SCHEMA, self.silver_dir / "events" / part / f"{stem}.parquet"
-        )
+        epath = self.silver_dir / "events" / part / f"{stem}.parquet"
+        write_rows(result.events, EVENT_SCHEMA, epath)
+        written = [epath, self.silver_dir / "hour_types" / part / f"{stem}.parquet"]
+        if result.quarantine:
+            written.append(qpath)
+        self.totals["bytes_out"] += sum(p.stat().st_size for p in written)
+        self.stems.append(stem)
         self.totals["files"] += 1
         self.totals["events"] += len(result.events)
         self.totals["quarantined"] += len(result.quarantine)

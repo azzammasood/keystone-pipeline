@@ -50,6 +50,8 @@ class Table:
 class Published:
     table: Table
     rows: int
+    schema: str = ""  # dbt schema of the source model
+    columns: tuple[tuple[str, str], ...] = ()  # (name, DuckDB type)
 
 
 def _check(name: str) -> str:
@@ -76,7 +78,8 @@ def publish(warehouse_db: Path, target_dir: Path, prefix: str = "") -> list[Publ
     for schema, model in published_models(target_dir):
         ns = _check(prefix + schema)
         _check(model)
-        cols = [r[0] for r in con.execute(f"DESCRIBE wh.{schema}.{model}").fetchall()]
+        described = con.execute(f"DESCRIBE wh.{schema}.{model}").fetchall()
+        cols = [r[0] for r in described]
         bad = [c for c in cols if PERSON.search(c)]
         if bad:
             raise ValueError(f"{schema}.{model}: person-like columns {bad}; not published")
@@ -84,7 +87,14 @@ def publish(warehouse_db: Path, target_dir: Path, prefix: str = "") -> list[Publ
         con.execute(f'DROP TABLE IF EXISTS ice."{ns}".{model}')
         con.execute(f'CREATE TABLE ice."{ns}".{model} AS SELECT * FROM wh.{schema}.{model}')
         rows = con.execute(f'SELECT COUNT(*) FROM ice."{ns}".{model}').fetchone()
-        out.append(Published(Table(ns, model), int(rows[0]) if rows else 0))
+        out.append(
+            Published(
+                Table(ns, model),
+                int(rows[0]) if rows else 0,
+                schema,
+                tuple((str(r[0]), str(r[1])) for r in described),
+            )
+        )
     con.close()
     return out
 

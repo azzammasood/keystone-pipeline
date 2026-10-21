@@ -5,6 +5,7 @@ the docs-coverage gate are the same everywhere. Paths are absolute with forward 
 DuckDB globs and dbt Jinja both accept them on Windows and Linux.
 """
 
+import json
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -69,3 +70,45 @@ def run_dbt(args: list[str], paths: WarehousePaths, target: str = "duckdb") -> b
     with _environ(paths.env()):
         result = dbtRunner().invoke([*args, *common])
     return bool(result.success)
+
+
+@dataclass(frozen=True)
+class RunResults:
+    nodes: int
+    tests_passed: int
+    tests_failed: int
+
+
+def run_results(target_dir: Path) -> RunResults:
+    """Counts from dbt's `run_results.json` of the last build."""
+    path = target_dir / "run_results.json"
+    if not path.exists():
+        return RunResults(0, 0, 0)
+    results = json.loads(path.read_text("utf-8"))["results"]
+    tests = [r for r in results if r["unique_id"].startswith(("test.", "unit_test."))]
+    return RunResults(
+        nodes=len(results),
+        tests_passed=sum(r["status"] == "pass" for r in tests),
+        tests_failed=sum(r["status"] in ("fail", "error") for r in tests),
+    )
+
+
+def published_rows(paths: WarehousePaths) -> int:
+    """Rows in the models tagged `publish` (marts and metrics), counted in the warehouse."""
+    import duckdb
+
+    manifest = json.loads((paths.target_dir / "manifest.json").read_text("utf-8"))
+    models = [
+        (n["schema"], n["name"])
+        for n in manifest["nodes"].values()
+        if n["resource_type"] == "model" and "publish" in n.get("tags", [])
+    ]
+    con = duckdb.connect(str(paths.warehouse_db), read_only=True)
+    try:
+        total = 0
+        for schema, name in models:
+            row = con.execute(f'SELECT COUNT(*) FROM "{schema}"."{name}"').fetchone()
+            total += int(row[0]) if row else 0
+        return total
+    finally:
+        con.close()

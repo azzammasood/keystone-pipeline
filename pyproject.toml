@@ -8,6 +8,10 @@ requires-python = ">=3.12,<3.13"
 dependencies = [
     "duckdb>=1.5.6",
     "httpx>=0.28",
+    "jsonschema>=4.26",
+    "openlineage-python>=1.54",
+    "opentelemetry-exporter-otlp-proto-http>=1.45",
+    "opentelemetry-sdk>=1.45",
     "orjson>=3.13.0",
     "psutil>=6.0",
     "pyarrow>=26.0.0",
@@ -30,6 +34,14 @@ dev = [
     "sqlfluff>=3.4",
     "types-psutil>=6.0",
     "types-pyyaml>=6.0",
+]
+# dbt-ol needs openlineage-sql, which has no Windows wheel: on Windows `keystone lineage dbt`
+# runs it in a Linux container (lineage/dbt.py).
+lineage = [
+    "openlineage-dbt>=1.54; sys_platform == 'linux'",
+]
+metadata = [
+    "acryl-datahub[datahub-business-glossary,datahub-rest,dbt,iceberg,kafka]>=1.7",
 ]
 quality = [
     "datacontract-cli[duckdb,parquet]>=1.2.7",
