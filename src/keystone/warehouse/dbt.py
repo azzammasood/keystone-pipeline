@@ -103,7 +103,8 @@ def published_rows(paths: WarehousePaths) -> int:
         for n in manifest["nodes"].values()
         if n["resource_type"] == "model" and "publish" in n.get("tags", [])
     ]
-    con = duckdb.connect(str(paths.warehouse_db), read_only=True)
+    # Not read-only: dbt (same process) may still hold the file open read-write.
+    con = duckdb.connect(str(paths.warehouse_db))
     try:
         total = 0
         for schema, name in models:

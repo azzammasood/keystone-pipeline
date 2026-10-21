@@ -53,14 +53,19 @@ def load_contract(path: Path) -> dict[str, Any]:
     return data
 
 
-def run_contract(path: Path, rows_glob: str | None = None) -> ContractResult:
-    """Test one contract against its `local` server, or against `rows_glob` instead."""
+def run_contract(
+    path: Path, rows_glob: str | None = None, database: str | None = None
+) -> ContractResult:
+    """Test one contract against its `local` server: Parquet files (`rows_glob` overrides the
+    path) or a DuckDB database file (`database` overrides it)."""
     from datacontract.data_contract import DataContract  # heavy; optional `quality` group
 
     spec = load_contract(path)
     server = spec["servers"][0]
     if rows_glob is not None:
         server["path"] = rows_glob
+    if database is not None:
+        server["database"] = database
     run = DataContract(data_contract_str=yaml.safe_dump(spec), server=server["server"]).test()
     checks = [
         ContractCheck(
@@ -71,4 +76,4 @@ def run_contract(path: Path, rows_glob: str | None = None) -> ContractResult:
         )
         for c in run.checks or []
     ]
-    return ContractResult(spec["id"], str(server["path"]), checks)
+    return ContractResult(spec["id"], str(server.get("path") or server["database"]), checks)

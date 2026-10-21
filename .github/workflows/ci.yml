@@ -61,7 +61,7 @@ jobs:
       - run: >-
           uv run keystone parse files tests/fixtures/gharchive/*.json.gz
           tests/fixtures/gharchive/quarantine/*.json.gz --root ci-data
-      - run: uv run keystone quality contracts --root ci-data --require-all
+      - run: uv run keystone quality contracts --root ci-data --require-all --no-generated
       - run: uv run keystone quality gx --root ci-data
 
   security:

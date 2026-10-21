@@ -1,0 +1,258 @@
+# Catalog metadata (brief section 9b): one source for the static export (metadata/*.json),
+# DataHub (owners, domains, glossary, tags) and the completeness gate. dbt models take their
+# descriptions from dbt YAML; everything else is described here.
+#
+# Owners are the project, never people from GH Archive data (CLAUDE.md privacy).
+owner:
+  id: keystone-maintainers
+  kind: group
+  description: Maintainers of the keystone-pipeline repository; corrections go through its issues.
+
+domains:
+  sources: External inputs as fetched (GH Archive hourly files, OSV zips).
+  activity: Repository activity derived from GH Archive (silver events, rollups, repository facts).
+  vulnerabilities: OSV advisories and the packages they affect.
+  packages: Packages and their mapping to repositories.
+  operations: How the pipeline itself ran (metrics, lineage, quality).
+
+# Classification levels. No published table may hold personal data.
+classifications:
+  public: Repository- or package-level facts; safe to publish.
+  pseudonymous: Salted keys of accounts (ADR-019); internal only, never published.
+  internal: Pipeline-internal (quarantine, staging); no personal data, not published.
+
+# Freshness SLA in hours: the longest acceptable age of the newest data hour (or input) at the
+# time the site is built. Live data arrives hourly; the site refresh is daily (brief 9c).
+freshness_sla_hours:
+  sources: 3
+  silver: 26
+  rollup: 26
+  stream: 26
+  warehouse: 26
+  published: 26
+  osv: 48
+
+glossary:
+  criticality:
+    definition: >-
+      How much of the open-source ecosystem depends on a package or repository, from
+      dependents and downloads (ecosyste.ms, ADR-010). A signal of exposure, not of quality.
+    status: planned (Phase 7)
+  fragility:
+    definition: >-
+      Signals that a repository's maintenance could be thin, such as few active maintainers or
+      slowing reviews. Signals, never a prediction that a project will be abandoned.
+    status: planned (Phase 8)
+  maintenance actor:
+    definition: >-
+      An account that performs maintenance actions on a repository (merges, closes, releases,
+      membership). Counted only as aggregate shares per repository, by salted key; never named,
+      ranked or labelled.
+    status: input exists (rollup repo_actor_day, internal)
+  bus factor:
+    definition: >-
+      The smallest number of maintenance actors that together account for most maintenance
+      actions of a repository. A share computed per repository, never a statement about people.
+    status: planned (Phase 8)
+  era:
+    definition: >-
+      A schema era of GH Archive payloads (E0 to E3, docs/era-map.md). Fields exist only in some
+      eras; a metric uses only fields present in the whole period it covers and is versioned at
+      a break.
+    status: in use
+  rollup:
+    definition: >-
+      An aggregate of silver events per repository and UTC window (hour or day), written once in
+      portable SQL and computed by DuckDB (free) or Flink (full) with identical results (ADR-024).
+    status: in use
+
+# Glossary terms attached to columns by name (any dataset) and to datasets by layer.
+column_terms:
+  era: [era]
+  first_era: [era]
+  last_era: [era]
+  schema_era: [era]
+  actor_key: [maintenance actor]
+term_by_layer:
+  rollup: [rollup]
+
+# Datasets outside dbt. `contract` is the ODCS file in contracts/ (or metadata/contracts/ for the
+# generated ones); the Avro schema is the Kafka topic's registry contract.
+datasets:
+  - id: https://data.gharchive.org/{hour}.json.gz
+    title: GH Archive hourly file
+    layer: sources
+    domain: sources
+    classification: internal
+    description: >-
+      One gzipped JSON-lines file per UTC hour of public GitHub events (data.gharchive.org).
+      Fetched politely, verified by MD5 and SHA-256, parsed and deleted; never republished.
+    contract: config/sources.yml
+  - id: https://osv-vulnerabilities.storage.googleapis.com/{ecosystem}/all.zip
+    title: OSV ecosystem zip
+    layer: sources
+    domain: sources
+    classification: public
+    description: All OSV records of one ecosystem (osv.dev, CC BY 4.0), fetched conditionally.
+    contract: config/sources.yml
+  - id: file://keystone/silver/gharchive/events
+    title: Silver GH Archive events
+    layer: silver
+    domain: activity
+    classification: pseudonymous
+    description: One row per GH Archive event; repository facts and salted actor keys only.
+    contract: contracts/gharchive_events.odcs.yaml
+  - id: file://keystone/silver/gharchive/hour_types
+    title: Silver hour x event-type counts
+    layer: silver
+    domain: activity
+    classification: public
+    description: Events per source hour and type, with the hour's era and completeness period.
+    contract: contracts/gharchive_hour_types.odcs.yaml
+  - id: file://keystone/quarantine/gharchive
+    title: GH Archive quarantine
+    layer: silver
+    domain: operations
+    classification: internal
+    description: Records that could not be parsed, with a reason; no record content.
+    contract: contracts/gharchive_quarantine.odcs.yaml
+  - id: file://keystone/silver/osv/vulns
+    title: Silver OSV records
+    layer: silver
+    domain: vulnerabilities
+    classification: public
+    description: One row per OSV record (no free text, no credits).
+    contract: metadata/contracts/osv_vulns.odcs.yaml
+  - id: file://keystone/silver/osv/affected
+    title: Silver OSV affected packages
+    layer: silver
+    domain: vulnerabilities
+    classification: public
+    description: One row per OSV affected[] entry with a package.
+    contract: metadata/contracts/osv_affected.odcs.yaml
+  - id: file://keystone/silver/osv/repo_refs
+    title: Silver OSV repository pointers
+    layer: silver
+    domain: packages
+    classification: public
+    description: Repository pointers in OSV records (GIT ranges and FIX references).
+    contract: metadata/contracts/osv_repo_refs.odcs.yaml
+  - id: file://keystone/quarantine/osv
+    title: OSV quarantine
+    layer: silver
+    domain: operations
+    classification: internal
+    description: OSV records that could not be parsed, with a reason; no record content.
+    contract: metadata/contracts/osv_quarantine.odcs.yaml
+  - id: duckdb://keystone/rollup.main.repo_hour
+    title: Rollup repo_hour (free engine)
+    layer: rollup
+    domain: activity
+    classification: public
+    description: Activity per repository, era and event type in UTC hours (ADR-024), DuckDB.
+    contract: metadata/contracts/rollup_repo_hour.odcs.yaml
+  - id: duckdb://keystone/rollup.main.repo_actor_day
+    title: Rollup repo_actor_day (free engine)
+    layer: rollup
+    domain: activity
+    classification: pseudonymous
+    description: >-
+      Maintenance actions per repository, salted actor key, era and UTC day; bots excluded.
+      Internal input of bus-factor shares; never published.
+    contract: metadata/contracts/rollup_repo_actor_day.odcs.yaml
+  - id: kafka://redpanda:9092/keystone.gharchive.events.v1
+    title: Event topic
+    layer: stream
+    domain: activity
+    classification: pseudonymous
+    description: Silver events replayed in arrival order (Avro, schema registry BACKWARD).
+    contract: contracts/avro/gharchive_event.avsc
+  - id: iceberg://lakekeeper/keystone/{namespace}.repo_hour
+    title: Rollup repo_hour (full engine)
+    layer: rollup
+    domain: activity
+    classification: public
+    description: The Flink job's repo_hour in Iceberg after the late-row fold; equal row for row to the free engine (parity).
+    contract: metadata/contracts/rollup_repo_hour.odcs.yaml
+  - id: iceberg://lakekeeper/keystone/{namespace}.repo_actor_day
+    title: Rollup repo_actor_day (full engine)
+    layer: rollup
+    domain: activity
+    classification: pseudonymous
+    description: The Flink job's repo_actor_day in Iceberg; internal, never published.
+    contract: metadata/contracts/rollup_repo_actor_day.odcs.yaml
+
+# Column descriptions for generated contracts outside dbt (dbt columns are described in dbt
+# YAML; the hand-written contracts in contracts/ describe their own). `_lineage` applies to the
+# lineage columns every source-derived table carries.
+column_docs:
+  _lineage:
+    source_file: Source file the row came from (`osv/<ecosystem>/all.zip` for OSV).
+    source_sha256: SHA-256 of the verified source file.
+    fetched_at: When the source file was fetched (UTC).
+    source_member: Member of the zip the record came from.
+  osv_vulns:
+    vuln_id: OSV record id.
+    schema_version: OSV schema version of the record.
+    published_at: When the record was published (UTC), if stated.
+    modified_at: When the record was last modified (UTC).
+    withdrawn_at: When the record was withdrawn (UTC), if it was.
+    alias_count: Number of aliases (CVE, GHSA, ...).
+    affected_count: Number of affected[] entries.
+    is_malicious: True for a malicious-package report (MAL- id).
+    severity_label: Severity label from database_specific, if any.
+    cvss_v3_vector: CVSS v3 vector, if given.
+    cvss_v4_vector: CVSS v4 vector, if given.
+    github_reviewed: GitHub's reviewed flag, where the record comes from GitHub.
+  osv_affected:
+    vuln_id: OSV record id.
+    affected_index: Position of the entry in affected[].
+    ecosystem: Package ecosystem as OSV spells it.
+    package_name: Package name as OSV spells it.
+    purl: Package URL, if given.
+    range_count: Number of version ranges.
+    version_count: Number of listed versions.
+    has_fixed: A fixed version is known in some range.
+  osv_repo_refs:
+    vuln_id: OSV record id.
+    affected_index: affected[] entry of a GIT range; null for a FIX reference of the record.
+    kind: git_range or fix_reference.
+    url: The repository URL as given.
+    repo_host: Host of the repository URL (lower case).
+    repo_full_name: owner/name, lower case (GitHub names are case-insensitive).
+  osv_quarantine:
+    reason: Why the record could not be parsed.
+    member_sha256: SHA-256 of the zip member.
+    member_bytes: Size of the zip member in bytes.
+  repo_hour:
+    window_start: Start of the UTC hour.
+    repo_id: GitHub repository id.
+    era: Schema era of the events.
+    event_type: GitHub event type.
+    events: Events in the window.
+    human_events: Events by accounts not flagged as bots.
+    opened: Events with action opened.
+    closed: Events with action closed.
+    reopened: Events with action reopened.
+    merged: Pull requests closed as merged (counted only where merge_known counts them).
+    merge_known: Closed pull requests whose merged flag is present (E1, E2).
+    published: Events with action published (releases).
+    added: Events with action added (members).
+    fetched_at_max: Newest fetch time of the contributing source files (UTC).
+  repo_actor_day:
+    window_start: Start of the UTC day.
+    repo_id: GitHub repository id.
+    actor_key: Salted key of the account (ADR-019); internal, never published.
+    actor_key_kind: Whether the key hashes an account id or a login (E1).
+    era: Schema era of the events.
+    events: Events by the account in the repository that day.
+    pushes: Push events.
+    prs_opened: Pull requests opened.
+    prs_closed: Pull requests closed.
+    prs_merged: Pull requests closed as merged (the merged flag exists in E1, E2 only).
+    issues_opened: Issues opened.
+    issues_closed: Issues closed.
+    releases: Releases published.
+    members_added: Members added.
+    comments: Issue comments, pull-request reviews and review comments, commit comments.
+    fetched_at_max: Newest fetch time of the contributing source files (UTC).

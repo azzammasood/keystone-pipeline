@@ -461,33 +461,63 @@ _TABLE_DIRS = {
 
 
 def _glob(root: Path, rel: str) -> tuple[str, bool]:
-    path = root / Path(rel).relative_to("data")
-    return path.as_posix(), any(path.parent.parent.glob("*/*.parquet"))
+    pattern = Path(rel).relative_to("data")
+    return (root / pattern).as_posix(), any(root.glob(pattern.as_posix()))
 
 
 @quality_app.command("contracts")
 def quality_contracts(
     root: Path = typer.Option(DATA_DIR, help="Data directory holding silver/ and quarantine/."),
     require_all: bool = typer.Option(False, help="Fail if any contract's table has no rows (CI)."),
+    generated: bool = typer.Option(
+        True, help="Also test the generated contracts in metadata/contracts/ (Phase 6)."
+    ),
 ) -> None:
-    """Test every ODCS contract in contracts/ with datacontract-cli; fail on any violation."""
+    """Test every ODCS contract with datacontract-cli; fail on any violation."""
+    from keystone.paths import METADATA_DIR
     from keystone.quality.contracts import contract_files, load_contract, run_contract
 
-    bad = 0
-    for path in contract_files():
-        rows, present = _glob(root, load_contract(path)["servers"][0]["path"])
-        if not present:
-            typer.echo(f"{path.name}: no rows under {rows} (skipped)")
-            bad += require_all
-            continue
-        result = run_contract(path, rows)
-        status = "ok" if result.ok else "FAILED"
-        typer.echo(f"{path.name}: {status} ({len(result.checks)} checks)")
-        for c in result.problems:
-            bad += 1
-            typer.echo(f"  {c.result}: {c.field or ''} {c.name} | {c.reason}"[:300])
-    if bad:
-        raise typer.Exit(1)
+    files = contract_files()
+    if generated:  # metadata/contracts also holds copies of the hand-written ones
+        hand = {p.name for p in files}
+        files += [p for p in contract_files(METADATA_DIR / "contracts") if p.name not in hand]
+    bad = passed = tested = 0
+    with Stage(
+        root, "quality-contracts", "datacontract-cli", versions.package("datacontract-cli")
+    ) as st:
+        for path in files:
+            spec = load_contract(path)
+            skip = [
+                p["value"]
+                for p in spec.get("customProperties", [])
+                if p["property"] == "keystoneTest"
+            ]
+            if skip:
+                typer.echo(f"{path.name}: {skip[0]}")
+                continue
+            server = spec["servers"][0]
+            if server["type"] == "duckdb":
+                db = root / Path(server["database"]).relative_to("data")
+                target, present = {"database": db.as_posix()}, db.exists()
+            else:
+                rows, present = _glob(root, server["path"])
+                target = {"rows_glob": rows}
+            if not present:
+                typer.echo(f"{path.name}: no data at {next(iter(target.values()))} (skipped)")
+                bad += require_all
+                continue
+            result = run_contract(path, **target)
+            tested += 1
+            passed += sum(c.result == "passed" for c in result.checks)
+            status = "ok" if result.ok else "FAILED"
+            typer.echo(f"{path.name}: {status} ({len(result.checks)} checks)")
+            for c in result.problems:
+                bad += 1
+                typer.echo(f"  {c.result}: {c.field or ''} {c.name} | {c.reason}"[:300])
+        st.records_in, st.records_out = tested, passed
+        st.detail.update(contracts=tested, checks_passed=passed, violations=bad)
+        if bad:
+            raise typer.Exit(1)
 
 
 @quality_app.command("gx")
@@ -815,3 +845,78 @@ def lineage_dbt(
         )
         st.detail["outputs_with_column_lineage"] = with_cll
     typer.echo(f"dbt-ol events={len(events)} outputs_with_column_lineage={with_cll}")
+
+
+metadata_app = typer.Typer(no_args_is_help=True, help="Static metadata export (Phase 6).")
+app.add_typer(metadata_app, name="metadata")
+
+
+@metadata_app.command("contracts")
+def metadata_contracts(
+    root: Path = typer.Option(DATA_DIR, help="Data directory with rollup/ and warehouse/."),
+    check: bool = typer.Option(False, help="Fail if metadata/contracts differs (CI)."),
+) -> None:
+    """Generate the ODCS contracts of OSV silver, rollups and dbt nodes (metadata/contracts)."""
+    from keystone.export.contracts import generate
+    from keystone.export.meta import Metadata
+    from keystone.paths import METADATA_DIR
+
+    out = METADATA_DIR / "contracts"
+    generated = generate(Metadata(), root)
+    if check:
+        stale = [
+            n
+            for n, text in generated.items()
+            if not (out / n).exists() or (out / n).read_text("utf-8") != text
+        ]
+        for n in stale:
+            typer.echo(f"contract out of date: metadata/contracts/{n}", err=True)
+        typer.echo(f"contracts={len(generated)} out_of_date={len(stale)}")
+        if stale:
+            raise typer.Exit(1)
+        return
+    out.mkdir(parents=True, exist_ok=True)
+    for n, text in generated.items():
+        (out / n).write_text(text, "utf-8", newline="\n")
+    typer.echo(f"wrote {len(generated)} contracts to {out}")
+
+
+@metadata_app.command("export")
+def metadata_export(
+    root: Path = typer.Option(DATA_DIR, help="Data directory (events, warehouse, rollup)."),
+    out: Path = typer.Option(None, help="Output directory (default: metadata/)."),
+    require_path: bool = typer.Option(
+        False, help="Fail unless lineage runs from an hourly file to a published field (gate)."
+    ),
+) -> None:
+    """Write catalog.json, glossary.json, lineage.json and contracts/; gate completeness."""
+    from keystone.export.catalog import write_export
+    from keystone.export.contracts import generate
+    from keystone.export.meta import Metadata
+    from keystone.paths import METADATA_DIR
+
+    target = out or METADATA_DIR
+    with Stage(root, "metadata-export", "keystone", __version__) as st:
+        summary = write_export(root, target, generate(Metadata(), root))
+        comp, lin, gate = summary["completeness"], summary["lineage"], summary["gate_path"]
+        st.records_out = lin["nodes"]
+        st.detail.update(
+            nodes=lin["nodes"],
+            edges=lin["edges"],
+            field_edges=lin["field_edges"],
+            documented_pct=round(comp.documented_pct * 100, 2),
+        )
+        typer.echo(
+            f"completeness: models {comp.models_documented}/{comp.models}, columns "
+            f"{comp.columns_documented}/{comp.columns} ({comp.documented_pct:.1%}), datasets "
+            f"complete {comp.datasets_complete}/{comp.datasets}, owners missing "
+            f"{comp.owners_missing}"
+        )
+        typer.echo(
+            f"lineage: nodes={lin['nodes']} edges={lin['edges']} field_edges={lin['field_edges']}"
+        )
+        typer.echo("path: " + " -> ".join(gate["tables"]) if gate["tables"] else "path: none")
+        if gate["field"]:
+            typer.echo("field: " + " <- ".join(gate["field"]))
+        if not comp.ok or (require_path and not (gate["tables"] and gate["field"])):
+            raise typer.Exit(1)

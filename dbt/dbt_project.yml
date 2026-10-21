@@ -15,25 +15,43 @@ clean-targets: [target]
 flags:
   send_anonymous_usage_stats: false
 
+# Catalog metadata (config/metadata.yml describes the meaning): owner, domain, layer,
+# classification and freshness SLA per node, read by the metadata export and DataHub.
 seeds:
   keystone:
     +schema: ref
+    +meta: {owner: keystone-maintainers, domain: operations, layer: reference,
+            classification: public, freshness_sla_hours: 720}
     +column_types:
       start_at: "{{ 'string' if target.type == 'databricks' else 'varchar' }}"
 
 models:
   keystone:
+    +meta: {owner: keystone-maintainers, domain: activity, classification: public,
+            freshness_sla_hours: 26}
     staging:
       +schema: staging
       +materialized: view
+      +meta: {layer: warehouse}
+      stg_osv__vulns: {+meta: {domain: vulnerabilities, freshness_sla_hours: 48}}
+      stg_osv__affected: {+meta: {domain: vulnerabilities, freshness_sla_hours: 48}}
+      stg_osv__repo_refs: {+meta: {domain: packages, freshness_sla_hours: 48}}
+      stg_ref__completeness_periods: {+meta: {domain: operations, freshness_sla_hours: 720}}
     intermediate:
       +schema: intermediate
       +materialized: table
+      +meta: {layer: warehouse}
+      int_package_repo_evidence: {+meta: {domain: packages, freshness_sla_hours: 48}}
     marts:
       +schema: marts
       +materialized: table
       +tags: [publish]
+      +meta: {layer: published}
+      dim_package: {+meta: {domain: packages, freshness_sla_hours: 48}}
+      bridge_package_repo: {+meta: {domain: packages, freshness_sla_hours: 48}}
+      fct_vuln: {+meta: {domain: vulnerabilities, freshness_sla_hours: 48}}
     metrics:
       +schema: metrics
       +materialized: table
       +tags: [publish]
+      +meta: {layer: published}
