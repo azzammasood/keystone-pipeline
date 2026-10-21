@@ -82,7 +82,13 @@ Next phase: **Phase 7**.
    with Phases 7-8, decide storage before Phase 9). Silver for the whole archive is an
    estimated ~490 GB (estimate: 85 MB for 2026-10-19 x ~5,700 days; earlier years are smaller,
    so it is an upper-side figure). Measure silver per year from the sample hours first, then
-   ask the owner for a drive. Do not start it. Before it:
+   design for the space there is: the owner cannot attach another drive (2026-10-21) and
+   asks to use GitHub's storage where possible. Phase 9 options to measure and decide (ADR):
+   keep silver only for a rolling window and the rollups for all of history (stream, roll up,
+   delete); curated Parquet snapshots as GitHub Release assets (under 2 GiB each; check
+   GitHub's terms on Releases as data storage first); never bulk data in the git history (repo
+   size limits). Credentials: the owner provides them when a phase needs them; ask then.
+   Do not start it. Before it:
    learn drift from a stratified sample, measure late pushes (ADR-022), parallelise parsing.
 
 ## Blockers (hard stops)
@@ -95,14 +101,14 @@ Next phase: **Phase 7**.
   and an OpenRouter key (values go in `.env` only, never in chat or git). Until they appear:
 - Optional rungs skipped until tokens exist: Databricks (Phase 5 rung: dbt-databricks, Unity
   Catalog, Lakeflow pipeline; logged 2026-10-20, ADR-030), BigQuery sandbox, OpenRouter.
-- **Owner: disk, 8.6 GB free on C: after Phase 6.** Cleaned 2026-10-21 (owner asked): the
-  DataHub images, containers and volumes (re-created from the pinned digests by
+- **Disk: 17.8 GB free on C: (2026-10-21, after cleanup and compaction).** Removed (owner
+  asked): the DataHub images, containers and volumes (re-created from the pinned digests by
   `docker compose --profile datahub up` and `keystone lineage datahub`), three untagged
   Flink/Spark builds and the Phase 4 replay copy of 2026-10-19 (`data/replay`, also in
-  `data/silver`). That freed about 6.4 GB inside Docker's WSL disk, which Windows sees only
-  after the disk is compacted (Docker Desktop "Clean / Purge data" does not keep images;
-  `wsl --shutdown` plus `Optimize-VHD` needs admin): an owner action. Images of other projects
-  (roshni, mqtt-rawevent-batch, bigqueryjob*, SAM build, Redpanda Console) were not touched.
+  `data/silver`). Docker's WSL disk was then trimmed and compacted (`Optimize-VHD`, elevated
+  with the owner's UAC approval): 33.1 GB to 26.9 GB. Images of other projects (roshni,
+  mqtt-rawevent-batch, bigqueryjob*, SAM build, Redpanda Console) were not touched. No other
+  drive can be attached (owner): Phase 9 designs for this space (Next, item 3).
 - **Owner: disk.** 20 GB free after Phase 5 (Spark and Trino images 2.5 GB). An untagged
   1.07 GB Flink image from an earlier build is reclaimable (`docker image prune`); freeing disk
   is the owner's call.
@@ -148,4 +154,4 @@ Next phase: **Phase 7**.
 | 2026-10-21 | Grafana vs pipeline_metrics.json | 50 of 50 equal (tolerance 0.001); 15 engines with versions |
 | 2026-10-21 | DataHub ingestion | dbt 451 events, iceberg 261, kafka 6, 0 failures; 57 assertions; 53 datasets tagged and owned |
 | 2026-10-21 | Phase 6 RAM (docker stats) | DataHub GMS 1.58 GB, OpenSearch 0.94 GB, Postgres 37 MB; Marquez 300 MB + db 58 MB; collector 31 MB, Prometheus 42 MB, Grafana 296 MB |
-| 2026-10-21 | Disk free after Phase 6 (C:) | 8.4 GB (df) |
+| 2026-10-21 | Disk free after Phase 6 (C:) | 8.4 GB (df); 17.8 GB after cleanup and Docker disk compaction |
