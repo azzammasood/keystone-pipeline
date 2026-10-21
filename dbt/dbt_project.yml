@@ -22,8 +22,21 @@ seeds:
     +schema: ref
     +meta: {owner: keystone-maintainers, domain: operations, layer: reference,
             classification: public, freshness_sla_hours: 720}
-    +column_types:
-      start_at: "{{ 'string' if target.type == 'databricks' else 'varchar' }}"
+    completeness_periods:
+      +column_types:
+        start_at: "{{ 'string' if target.type == 'databricks' else 'varchar' }}"
+    schema_eras:
+      +column_types:
+        start_at: "{{ 'string' if target.type == 'databricks' else 'varchar' }}"
+    resolve_decisions:
+      +meta: {domain: packages, freshness_sla_hours: 8760}
+      +column_types:
+        subject: "{{ 'string' if target.type == 'databricks' else 'varchar' }}"
+        subject_key: "{{ 'string' if target.type == 'databricks' else 'varchar' }}"
+        candidate: "{{ 'string' if target.type == 'databricks' else 'varchar' }}"
+        decision: "{{ 'string' if target.type == 'databricks' else 'varchar' }}"
+        decided_on: "{{ 'string' if target.type == 'databricks' else 'varchar' }}"
+        note: "{{ 'string' if target.type == 'databricks' else 'varchar' }}"
 
 models:
   keystone:
@@ -37,11 +50,17 @@ models:
       stg_osv__affected: {+meta: {domain: vulnerabilities, freshness_sla_hours: 48}}
       stg_osv__repo_refs: {+meta: {domain: packages, freshness_sla_hours: 48}}
       stg_ref__completeness_periods: {+meta: {domain: operations, freshness_sla_hours: 720}}
+      stg_registry__packages: {+meta: {domain: packages, freshness_sla_hours: 192}}
+      stg_registry__repo_names: {+meta: {domain: packages, freshness_sla_hours: 192}}
+      stg_resolve__llm_choices: {+meta: {domain: packages, freshness_sla_hours: 8760}}
     intermediate:
       +schema: intermediate
       +materialized: table
       +meta: {layer: warehouse}
       int_package_repo_evidence: {+meta: {domain: packages, freshness_sla_hours: 48}}
+      int_package_universe: {+meta: {domain: packages, freshness_sla_hours: 48}}
+      int_package_repo_claims: {+meta: {domain: packages, freshness_sla_hours: 48}}
+      int_repo_identity: {+meta: {domain: packages, freshness_sla_hours: 48}}
     marts:
       +schema: marts
       +materialized: table
@@ -50,6 +69,7 @@ models:
       dim_package: {+meta: {domain: packages, freshness_sla_hours: 48}}
       bridge_package_repo: {+meta: {domain: packages, freshness_sla_hours: 48}}
       fct_vuln: {+meta: {domain: vulnerabilities, freshness_sla_hours: 48}}
+      map_package_repo: {+meta: {domain: packages, freshness_sla_hours: 48}}
     metrics:
       +schema: metrics
       +materialized: table

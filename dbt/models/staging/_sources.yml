@@ -24,6 +24,22 @@ sources:
         description: Repository pointers in OSV records (GIT ranges and FIX references).
         meta:
           external_location: "read_parquet('{{ env_var('KEYSTONE_DATA_ROOT') }}/silver/osv/repo_refs/*.parquet')"
+      - name: registry_packages
+        description: >
+          Registry claims per package and source (`keystone resolve fetch`): ecosyste.ms bulk
+          lookups and the npm registry `repository` field; allow-listed fields and lineage.
+        meta:
+          external_location: "read_parquet('{{ env_var('KEYSTONE_DATA_ROOT') }}/silver/registry/packages/*.parquet', union_by_name = true)"
+      - name: registry_repo_names
+        description: Current and previous names of GitHub repositories, per ecosyste.ms.
+        meta:
+          external_location: "read_parquet('{{ env_var('KEYSTONE_DATA_ROOT') }}/silver/registry/repo_names/*.parquet', union_by_name = true)"
+      - name: resolve_llm_choices
+        description: >
+          Answers of the language-model rung (`keystone resolve choose`), validated against the
+          listed candidates; empty while the rung is skipped (no key).
+        meta:
+          external_location: "read_parquet('{{ env_var('KEYSTONE_DATA_ROOT') }}/silver/resolve/llm_choices/*.parquet', union_by_name = true)"
   - name: rollup
     description: Rollup tables of the free engine (`keystone rollup run`), attached read-only.
     database: rollup

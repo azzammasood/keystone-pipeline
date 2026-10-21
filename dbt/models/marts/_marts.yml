@@ -239,3 +239,165 @@ models:
         description: ForkEvents.
       - name: fetched_at_max
         description: Newest fetch time of the source files (lineage).
+  - name: map_package_repo
+    description: >
+      Package to repository mapping (Phase 7, ADR-037): one row per package and candidate
+      repository with status (auto_exact, accepted, suggested, rejected), the rule that decided
+      it and a confidence. Only exact matches (two independent sources, no rival) are
+      auto_exact; ambiguous cases follow documented rules; suggested rows go to the review CSV.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [package_key, repo_key]
+    columns:
+      - name: package_key
+        description: ecosystem/name normalised (PEP 503 for PyPI).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_package_universe')
+                field: package_key
+      - name: ecosystem
+        description: Ecosystem in OSV spelling.
+      - name: package_name
+        description: Package name as the registry or OSV spells it.
+      - name: scope
+        description: critical, osv, osv_malware_only or registry_only (int_package_universe).
+      - name: repo_key
+        description: Candidate key, github.com#<id> when the GitHub id is known, else host/owner/name.
+        data_tests: [not_null]
+      - name: repo_host
+        description: github.com, gitlab.com or bitbucket.org.
+      - name: repo_full_name
+        description: Current owner/name in lower case (renames followed when the id is known).
+      - name: repo_id
+        description: GitHub repository id, or null when it is not known.
+      - name: repo_id_rule
+        description: How the id was found (int_repo_identity.id_rule).
+      - name: seen_in_gharchive
+        description: The repository id appears in the loaded GH Archive data.
+      - name: claimed_names
+        description: Distinct names the claims used for this repository (more than 1 after a rename).
+      - name: by_ecosystems
+        description: ecosyste.ms names this repository.
+      - name: by_npm_registry
+        description: The npm registry `repository` field names it.
+      - name: by_osv_git_range
+        description: An OSV GIT range of the package names it.
+      - name: by_osv_fix_sole
+        description: A FIX reference in an OSV record about this package only names it.
+      - name: by_osv_fix_shared
+        description: A FIX reference in an OSV record about several packages names it.
+      - name: in_subpath
+        description: A claim names a directory inside the repository (monorepo package).
+      - name: osv_evidence_vulns
+        description: OSV records giving evidence for this candidate.
+      - name: independent_sources
+        description: >
+          Independent source families naming it (0 to 2): the registry (npm registry field or
+          ecosyste.ms, which derives from it) and an OSV GIT range.
+      - name: candidates
+        description: Candidate repositories of the package.
+      - name: status
+        description: auto_exact, accepted, suggested or rejected.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [auto_exact, accepted, suggested, rejected]
+      - name: rule
+        description: The documented rule that set the status (see the model's header and ADR-037).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [review, sources_agree, contested, single_source, single_source_unverified,
+                         most_sources, llm, tie, outvoted, fix_reference_only]
+      - name: confidence
+        description: high, medium or low, fixed per rule.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [high, medium, low]
+      - name: decided_by
+        description: rules, review (resolve_decisions seed) or llm.
+      - name: llm_confidence
+        description: The model's stated confidence when the rule is llm.
+  - name: dim_repo_rename
+    description: >
+      Repository renames: one row per id and name change, from GH Archive (the id under
+      consecutive names: auto_exact) and ecosyste.ms previous names (accepted when GH Archive
+      did not see the change).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [repo_id, from_name, to_name, renamed_before]
+    columns:
+      - name: repo_id
+        description: GitHub repository id.
+        data_tests: [not_null]
+      - name: from_name
+        description: Name before the change (owner/name, lower case).
+      - name: to_name
+        description: Name after the change.
+      - name: renamed_after
+        description: Last GH Archive sighting of the old name (UTC); null for ecosyste.ms rows.
+      - name: renamed_before
+        description: First GH Archive sighting of the new name (UTC); null for ecosyste.ms rows.
+      - name: by_gharchive
+        description: GH Archive shows the change.
+      - name: by_ecosystems
+        description: ecosyste.ms lists from_name as a previous name of the id.
+      - name: status
+        description: auto_exact or accepted.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [auto_exact, accepted]
+      - name: rule
+        description: same_id_new_name (GH Archive) or ecosystems_previous_name.
+      - name: confidence
+        description: high or medium.
+  - name: map_repo_name_id
+    description: >
+      GH Archive events with a repository name but no id (E1 2012, some E0), resolved by name:
+      one row per name and UTC hour with the chosen id, status, rule and confidence.
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [repo_name_lower, event_hour]
+    columns:
+      - name: repo_name_lower
+        description: owner/name in lower case.
+        data_tests: [not_null]
+      - name: event_hour
+        description: UTC hour of the events.
+      - name: era
+        description: Schema era of the events (E0 or E1).
+      - name: events
+        description: Events of that name and hour without an id.
+      - name: repo_id
+        description: Chosen GitHub repository id (nearest candidate for suggested rows).
+      - name: id_existed
+        description: The chosen id is no larger than an id seen in an event before the hour.
+      - name: candidate_ids
+        description: Ids GH Archive saw with the name.
+      - name: gap_hours
+        description: Hours between the events and the chosen id's nearest spell of the name (0 inside it).
+      - name: status
+        description: auto_exact, accepted, suggested or rejected.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [auto_exact, accepted, suggested, rejected]
+      - name: rule
+        description: >
+          review, spell_covers, unique_name_near, unique_name_id_existed, unique_name_far or
+          several_ids (see the model's header and ADR-037).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [review, spell_covers, unique_name_near, unique_name_id_existed,
+                         unique_name_far, several_ids]
+      - name: confidence
+        description: high, medium or low.

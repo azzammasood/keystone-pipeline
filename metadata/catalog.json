@@ -1,13 +1,13 @@
 {
- "generated_at": "2026-10-21T06:38:45.391034+00:00",
+ "generated_at": "2026-10-21T18:05:34.101106+00:00",
  "generator": "keystone metadata export",
  "completeness": {
-  "models": 19,
-  "models_documented": 19,
-  "columns": 483,
-  "columns_documented": 483,
-  "datasets": 44,
-  "datasets_complete": 44,
+  "models": 29,
+  "models_documented": 29,
+  "columns": 679,
+  "columns_documented": 679,
+  "datasets": 63,
+  "datasets_complete": 63,
   "owners_missing": 0,
   "documented_pct": 100.0
  },
@@ -699,6 +699,315 @@
    "missing": []
   },
   {
+   "id": "https://packages.ecosyste.ms/api/v1/packages/bulk_lookup",
+   "title": "ecosyste.ms packages API (bulk lookup)",
+   "layer": "sources",
+   "domain": "sources",
+   "classification": "public",
+   "description": "Package records from ecosyste.ms (CC BY-SA 4.0, non-commercial use): repository URL, GitHub id and previous names of the repository, criticality inputs. 100 purls per POST, within the anonymous quota (ADR-010, ADR-037).",
+   "contract": "config/policy.yml",
+   "freshness_sla_hours": 3,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [],
+   "missing": []
+  },
+  {
+   "id": "https://registry.npmjs.org/{package}/latest",
+   "title": "npm registry, latest version document",
+   "layer": "sources",
+   "domain": "sources",
+   "classification": "public",
+   "description": "The repository field npm package maintainers published; one GET per package.",
+   "contract": "config/policy.yml",
+   "freshness_sla_hours": 3,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [],
+   "missing": []
+  },
+  {
+   "id": "file://keystone/silver/registry/packages",
+   "title": "Silver registry claims",
+   "layer": "silver",
+   "domain": "packages",
+   "classification": "public",
+   "description": "One row per package lookup and source: the repository the source names, allow-listed fields only (no maintainers, authors or emails).",
+   "contract": "metadata/contracts/registry_packages.odcs.yaml",
+   "freshness_sla_hours": 26,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "source_file",
+     "type": "STRING",
+     "description": "Source file the row came from (`osv/<ecosystem>/all.zip` for OSV)."
+    },
+    {
+     "name": "source_sha256",
+     "type": "STRING",
+     "description": "SHA-256 of the verified source file."
+    },
+    {
+     "name": "fetched_at",
+     "type": "TIMESTAMP",
+     "description": "When the source file was fetched (UTC)."
+    },
+    {
+     "name": "source",
+     "type": "STRING",
+     "description": "ecosystems (ecosyste.ms packages API) or npm_registry (registry.npmjs.org)."
+    },
+    {
+     "name": "ecosystem",
+     "type": "STRING",
+     "description": "Ecosystem in OSV spelling (PyPI, npm, crates.io, ...)."
+    },
+    {
+     "name": "package_name",
+     "type": "STRING",
+     "description": "Package name as requested."
+    },
+    {
+     "name": "package_key",
+     "type": "STRING",
+     "description": "ecosystem/name normalised as the registry compares names (PEP 503 for PyPI)."
+    },
+    {
+     "name": "found",
+     "type": "BOOLEAN",
+     "description": "False when the source was asked and has no record of the package."
+    },
+    {
+     "name": "critical",
+     "type": "BOOLEAN",
+     "description": "ecosyste.ms critical flag (ecosystems rows only)."
+    },
+    {
+     "name": "repository_url",
+     "type": "STRING",
+     "description": "The repository URL as the source spells it."
+    },
+    {
+     "name": "repo_host",
+     "type": "STRING",
+     "description": "github.com, gitlab.com or bitbucket.org; null when the URL names no repository."
+    },
+    {
+     "name": "repo_full_name",
+     "type": "STRING",
+     "description": "owner/name in lower case."
+    },
+    {
+     "name": "repo_subpath",
+     "type": "STRING",
+     "description": "Directory inside the repository (a monorepo package), if given."
+    },
+    {
+     "name": "url_rejected",
+     "type": "STRING",
+     "description": "Why repository_url names no repository (other_host, no_repository_path, ...)."
+    },
+    {
+     "name": "repo_github_id",
+     "type": "INT64",
+     "description": "GitHub repository id per ecosyste.ms (repo_metadata.uuid)."
+    },
+    {
+     "name": "repo_current_name",
+     "type": "STRING",
+     "description": "Current owner/name of that repository per ecosyste.ms, lower case."
+    },
+    {
+     "name": "repo_fork",
+     "type": "BOOLEAN",
+     "description": "The repository is a fork (ecosyste.ms)."
+    },
+    {
+     "name": "repo_archived",
+     "type": "BOOLEAN",
+     "description": "The repository is archived (ecosyste.ms)."
+    },
+    {
+     "name": "dependent_packages",
+     "type": "INT64",
+     "description": "Packages depending on this one (ecosyste.ms)."
+    },
+    {
+     "name": "dependent_repos",
+     "type": "INT64",
+     "description": "Repositories depending on this package (ecosyste.ms)."
+    },
+    {
+     "name": "downloads",
+     "type": "INT64",
+     "description": "Downloads in downloads_period (ecosyste.ms)."
+    },
+    {
+     "name": "downloads_period",
+     "type": "STRING",
+     "description": "Period of downloads, e.g. last-month."
+    },
+    {
+     "name": "latest_release_at",
+     "type": "TIMESTAMP",
+     "description": "Latest release time per ecosyste.ms (UTC)."
+    },
+    {
+     "name": "etag",
+     "type": "STRING",
+     "description": "ETag of the npm response, for conditional refreshes."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "file://keystone/silver/registry/repo_names",
+   "title": "Silver repository names (ecosyste.ms)",
+   "layer": "silver",
+   "domain": "packages",
+   "classification": "public",
+   "description": "Current and previous names of GitHub repositories by id, per ecosyste.ms.",
+   "contract": "metadata/contracts/registry_repo_names.odcs.yaml",
+   "freshness_sla_hours": 26,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "source_file",
+     "type": "STRING",
+     "description": "Source file the row came from (`osv/<ecosystem>/all.zip` for OSV)."
+    },
+    {
+     "name": "source_sha256",
+     "type": "STRING",
+     "description": "SHA-256 of the verified source file."
+    },
+    {
+     "name": "fetched_at",
+     "type": "TIMESTAMP",
+     "description": "When the source file was fetched (UTC)."
+    },
+    {
+     "name": "repo_github_id",
+     "type": "INT64",
+     "description": "GitHub repository id."
+    },
+    {
+     "name": "repo_name_lower",
+     "type": "STRING",
+     "description": "owner/name in lower case."
+    },
+    {
+     "name": "kind",
+     "type": "STRING",
+     "description": "current or previous."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "file://keystone/quarantine/registry",
+   "title": "Registry quarantine",
+   "layer": "silver",
+   "domain": "operations",
+   "classification": "internal",
+   "description": "Registry records that could not be used, with a reason; no record content.",
+   "contract": "metadata/contracts/registry_quarantine.odcs.yaml",
+   "freshness_sla_hours": 26,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "source_file",
+     "type": "STRING",
+     "description": "Source file the row came from (`osv/<ecosystem>/all.zip` for OSV)."
+    },
+    {
+     "name": "source_sha256",
+     "type": "STRING",
+     "description": "SHA-256 of the verified source file."
+    },
+    {
+     "name": "fetched_at",
+     "type": "TIMESTAMP",
+     "description": "When the source file was fetched (UTC)."
+    },
+    {
+     "name": "source",
+     "type": "STRING",
+     "description": "ecosystems or npm_registry."
+    },
+    {
+     "name": "package_key",
+     "type": "STRING",
+     "description": "Package the record was for, when known."
+    },
+    {
+     "name": "reason",
+     "type": "STRING",
+     "description": "Why the record could not be used."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "file://keystone/silver/resolve/llm_choices",
+   "title": "Language-model choices",
+   "layer": "silver",
+   "domain": "packages",
+   "classification": "public",
+   "description": "Validated answers of the language-model rung: a candidate from the listed set, a decline, or a refusal (an unlisted answer); empty while the rung is skipped.",
+   "contract": "metadata/contracts/resolve_llm_choices.odcs.yaml",
+   "freshness_sla_hours": 26,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "package_key",
+     "type": "STRING",
+     "description": "Package asked about."
+    },
+    {
+     "name": "candidate",
+     "type": "STRING",
+     "description": "The chosen candidate (a listed repo_key); null unless outcome is chosen."
+    },
+    {
+     "name": "confidence",
+     "type": "DOUBLE",
+     "description": "The model's stated confidence in [0, 1], for chosen answers."
+    },
+    {
+     "name": "outcome",
+     "type": "STRING",
+     "description": "chosen, declined or refused (an answer outside the listed candidates)."
+    },
+    {
+     "name": "model",
+     "type": "STRING",
+     "description": "Model identifier."
+    },
+    {
+     "name": "candidates",
+     "type": "STRING",
+     "description": "The listed candidates, pipe-separated, exactly as asked."
+    },
+    {
+     "name": "decided_at",
+     "type": "TIMESTAMP",
+     "description": "When the answer was recorded (UTC)."
+    }
+   ],
+   "missing": []
+  },
+  {
    "id": "duckdb://keystone/rollup.main.repo_hour",
    "title": "Rollup repo_hour (free engine)",
    "layer": "rollup",
@@ -1376,6 +1685,57 @@
    "missing": []
   },
   {
+   "id": "duckdb://keystone/keystone.intermediate.int_package_repo_claims",
+   "title": "intermediate.int_package_repo_claims",
+   "layer": "warehouse",
+   "domain": "packages",
+   "classification": "public",
+   "description": "One row per package, source and named repository (OSV, ecosyste.ms, npm registry).",
+   "contract": "metadata/contracts/dbt_intermediate_int_package_repo_claims.odcs.yaml",
+   "freshness_sla_hours": 48,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "package_key",
+     "type": "VARCHAR",
+     "description": "ecosystem/name normalised."
+    },
+    {
+     "name": "source",
+     "type": "VARCHAR",
+     "description": "osv_git_range, osv_fix_sole, osv_fix_shared, ecosystems or npm_registry."
+    },
+    {
+     "name": "repo_host",
+     "type": "VARCHAR",
+     "description": "github.com, gitlab.com or bitbucket.org."
+    },
+    {
+     "name": "repo_full_name",
+     "type": "VARCHAR",
+     "description": "owner/name in lower case, as the claim names it."
+    },
+    {
+     "name": "in_subpath",
+     "type": "BOOLEAN",
+     "description": "The claim names a directory inside the repository (monorepo)."
+    },
+    {
+     "name": "ecosystems_repo_id",
+     "type": "BIGINT",
+     "description": "GitHub id ecosyste.ms resolved the URL to (ecosystems claims only)."
+    },
+    {
+     "name": "evidence",
+     "type": "BIGINT",
+     "description": "OSV records giving the claim (1 for registry claims)."
+    }
+   ],
+   "missing": []
+  },
+  {
    "id": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence",
    "title": "intermediate.int_package_repo_evidence",
    "layer": "warehouse",
@@ -1417,6 +1777,108 @@
      "name": "packages_in_vuln",
      "type": "BIGINT",
      "description": "Distinct packages named by that record."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "duckdb://keystone/keystone.intermediate.int_package_universe",
+   "title": "intermediate.int_package_universe",
+   "layer": "warehouse",
+   "domain": "packages",
+   "classification": "public",
+   "description": "Packages Phase 7 resolves, one row per normalised key: OSV packages and the ecosyste.ms critical sets. Packages with malware reports only are kept as scope osv_malware_only.",
+   "contract": "metadata/contracts/dbt_intermediate_int_package_universe.odcs.yaml",
+   "freshness_sla_hours": 48,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "package_key",
+     "type": "VARCHAR",
+     "description": "ecosystem/name normalised (PEP 503 for PyPI)."
+    },
+    {
+     "name": "ecosystem",
+     "type": "VARCHAR",
+     "description": "Ecosystem in OSV spelling."
+    },
+    {
+     "name": "package_name",
+     "type": "VARCHAR",
+     "description": "Name as the registry or OSV spells it."
+    },
+    {
+     "name": "in_osv",
+     "type": "BOOLEAN",
+     "description": "The package has OSV records."
+    },
+    {
+     "name": "osv_spellings",
+     "type": "BIGINT",
+     "description": "OSV spellings that normalise to this key (dim_package rows)."
+    },
+    {
+     "name": "critical",
+     "type": "BOOLEAN",
+     "description": "ecosyste.ms flags the package critical."
+    },
+    {
+     "name": "scope",
+     "type": "VARCHAR",
+     "description": "critical, osv (has a non-malware advisory), osv_malware_only or registry_only."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "duckdb://keystone/keystone.intermediate.int_repo_identity",
+   "title": "intermediate.int_repo_identity",
+   "layer": "warehouse",
+   "domain": "packages",
+   "classification": "public",
+   "description": "The GitHub repository id each claimed github.com name means today, with the rule used.",
+   "contract": "metadata/contracts/dbt_intermediate_int_repo_identity.odcs.yaml",
+   "freshness_sla_hours": 48,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "repo_name_lower",
+     "type": "VARCHAR",
+     "description": "Claimed owner/name in lower case."
+    },
+    {
+     "name": "repo_id",
+     "type": "BIGINT",
+     "description": "Resolved GitHub repository id, or null."
+    },
+    {
+     "name": "id_rule",
+     "type": "VARCHAR",
+     "description": "ecosystems_current, ecosystems_previous_name, gharchive_unique_name, gharchive_latest_holder, ambiguous or not_seen."
+    },
+    {
+     "name": "current_name",
+     "type": "VARCHAR",
+     "description": "Current owner/name of the resolved id (ecosyste.ms, else GH Archive)."
+    },
+    {
+     "name": "seen_in_gharchive",
+     "type": "BOOLEAN",
+     "description": "The resolved id appears in the loaded GH Archive data."
+    },
+    {
+     "name": "gharchive_ids",
+     "type": "BIGINT",
+     "description": "Distinct ids GH Archive saw with the name."
+    },
+    {
+     "name": "gharchive_disagrees",
+     "type": "BOOLEAN",
+     "description": "GH Archive's latest holder of the name is another id than the resolved one."
     }
    ],
    "missing": []
@@ -1744,6 +2206,72 @@
    "missing": []
   },
   {
+   "id": "duckdb://keystone/keystone.marts.dim_repo_rename",
+   "title": "marts.dim_repo_rename",
+   "layer": "published",
+   "domain": "activity",
+   "classification": "public",
+   "description": "Repository renames: one row per id and name change, from GH Archive (the id under consecutive names: auto_exact) and ecosyste.ms previous names (accepted when GH Archive did not see the change).",
+   "contract": "metadata/contracts/dbt_marts_dim_repo_rename.odcs.yaml",
+   "freshness_sla_hours": 26,
+   "owner": "keystone-maintainers",
+   "published": true,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "repo_id",
+     "type": "BIGINT",
+     "description": "GitHub repository id."
+    },
+    {
+     "name": "from_name",
+     "type": "VARCHAR",
+     "description": "Name before the change (owner/name, lower case)."
+    },
+    {
+     "name": "to_name",
+     "type": "VARCHAR",
+     "description": "Name after the change."
+    },
+    {
+     "name": "renamed_after",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "Last GH Archive sighting of the old name (UTC); null for ecosyste.ms rows."
+    },
+    {
+     "name": "renamed_before",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "First GH Archive sighting of the new name (UTC); null for ecosyste.ms rows."
+    },
+    {
+     "name": "by_gharchive",
+     "type": "BOOLEAN",
+     "description": "GH Archive shows the change."
+    },
+    {
+     "name": "by_ecosystems",
+     "type": "BOOLEAN",
+     "description": "ecosyste.ms lists from_name as a previous name of the id."
+    },
+    {
+     "name": "status",
+     "type": "VARCHAR",
+     "description": "auto_exact or accepted."
+    },
+    {
+     "name": "rule",
+     "type": "VARCHAR",
+     "description": "same_id_new_name (GH Archive) or ecosystems_previous_name."
+    },
+    {
+     "name": "confidence",
+     "type": "VARCHAR",
+     "description": "high or medium."
+    }
+   ],
+   "missing": []
+  },
+  {
    "id": "duckdb://keystone/keystone.marts.fct_repo_day",
    "title": "marts.fct_repo_day",
    "layer": "published",
@@ -1949,6 +2477,221 @@
      "name": "fetched_at",
      "type": "TIMESTAMP WITH TIME ZONE",
      "description": "Lineage, fetch time of the zip (UTC)."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "duckdb://keystone/keystone.marts.map_package_repo",
+   "title": "marts.map_package_repo",
+   "layer": "published",
+   "domain": "packages",
+   "classification": "public",
+   "description": "Package to repository mapping (Phase 7, ADR-037): one row per package and candidate repository with status (auto_exact, accepted, suggested, rejected), the rule that decided it and a confidence. Only exact matches (two independent sources, no rival) are auto_exact; ambiguous cases follow documented rules; suggested rows go to the review CSV.",
+   "contract": "metadata/contracts/dbt_marts_map_package_repo.odcs.yaml",
+   "freshness_sla_hours": 48,
+   "owner": "keystone-maintainers",
+   "published": true,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "package_key",
+     "type": "VARCHAR",
+     "description": "ecosystem/name normalised (PEP 503 for PyPI)."
+    },
+    {
+     "name": "ecosystem",
+     "type": "VARCHAR",
+     "description": "Ecosystem in OSV spelling."
+    },
+    {
+     "name": "package_name",
+     "type": "VARCHAR",
+     "description": "Package name as the registry or OSV spells it."
+    },
+    {
+     "name": "scope",
+     "type": "VARCHAR",
+     "description": "critical, osv, osv_malware_only or registry_only (int_package_universe)."
+    },
+    {
+     "name": "repo_key",
+     "type": "VARCHAR",
+     "description": "Candidate key, github.com#<id> when the GitHub id is known, else host/owner/name."
+    },
+    {
+     "name": "repo_host",
+     "type": "VARCHAR",
+     "description": "github.com, gitlab.com or bitbucket.org."
+    },
+    {
+     "name": "repo_full_name",
+     "type": "VARCHAR",
+     "description": "Current owner/name in lower case (renames followed when the id is known)."
+    },
+    {
+     "name": "repo_id",
+     "type": "BIGINT",
+     "description": "GitHub repository id, or null when it is not known."
+    },
+    {
+     "name": "repo_id_rule",
+     "type": "VARCHAR",
+     "description": "How the id was found (int_repo_identity.id_rule)."
+    },
+    {
+     "name": "seen_in_gharchive",
+     "type": "BOOLEAN",
+     "description": "The repository id appears in the loaded GH Archive data."
+    },
+    {
+     "name": "claimed_names",
+     "type": "BIGINT",
+     "description": "Distinct names the claims used for this repository (more than 1 after a rename)."
+    },
+    {
+     "name": "by_ecosystems",
+     "type": "BOOLEAN",
+     "description": "ecosyste.ms names this repository."
+    },
+    {
+     "name": "by_npm_registry",
+     "type": "BOOLEAN",
+     "description": "The npm registry `repository` field names it."
+    },
+    {
+     "name": "by_osv_git_range",
+     "type": "BOOLEAN",
+     "description": "An OSV GIT range of the package names it."
+    },
+    {
+     "name": "by_osv_fix_sole",
+     "type": "BOOLEAN",
+     "description": "A FIX reference in an OSV record about this package only names it."
+    },
+    {
+     "name": "by_osv_fix_shared",
+     "type": "BOOLEAN",
+     "description": "A FIX reference in an OSV record about several packages names it."
+    },
+    {
+     "name": "in_subpath",
+     "type": "BOOLEAN",
+     "description": "A claim names a directory inside the repository (monorepo package)."
+    },
+    {
+     "name": "osv_evidence_vulns",
+     "type": "BIGINT",
+     "description": "OSV records giving evidence for this candidate."
+    },
+    {
+     "name": "independent_sources",
+     "type": "BIGINT",
+     "description": "Independent source families naming it (0 to 2): the registry (npm registry field or ecosyste.ms, which derives from it) and an OSV GIT range."
+    },
+    {
+     "name": "candidates",
+     "type": "BIGINT",
+     "description": "Candidate repositories of the package."
+    },
+    {
+     "name": "status",
+     "type": "VARCHAR",
+     "description": "auto_exact, accepted, suggested or rejected."
+    },
+    {
+     "name": "rule",
+     "type": "VARCHAR",
+     "description": "The documented rule that set the status (see the model's header and ADR-037)."
+    },
+    {
+     "name": "confidence",
+     "type": "VARCHAR",
+     "description": "high, medium or low, fixed per rule."
+    },
+    {
+     "name": "decided_by",
+     "type": "VARCHAR",
+     "description": "rules, review (resolve_decisions seed) or llm."
+    },
+    {
+     "name": "llm_confidence",
+     "type": "DOUBLE",
+     "description": "The model's stated confidence when the rule is llm."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "duckdb://keystone/keystone.marts.map_repo_name_id",
+   "title": "marts.map_repo_name_id",
+   "layer": "published",
+   "domain": "activity",
+   "classification": "public",
+   "description": "GH Archive events with a repository name but no id (E1 2012, some E0), resolved by name: one row per name and UTC hour with the chosen id, status, rule and confidence.",
+   "contract": "metadata/contracts/dbt_marts_map_repo_name_id.odcs.yaml",
+   "freshness_sla_hours": 26,
+   "owner": "keystone-maintainers",
+   "published": true,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "repo_name_lower",
+     "type": "VARCHAR",
+     "description": "owner/name in lower case."
+    },
+    {
+     "name": "event_hour",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "UTC hour of the events."
+    },
+    {
+     "name": "era",
+     "type": "VARCHAR",
+     "description": "Schema era of the events (E0 or E1).",
+     "glossary_terms": [
+      "era"
+     ]
+    },
+    {
+     "name": "events",
+     "type": "BIGINT",
+     "description": "Events of that name and hour without an id."
+    },
+    {
+     "name": "repo_id",
+     "type": "BIGINT",
+     "description": "Chosen GitHub repository id (nearest candidate for suggested rows)."
+    },
+    {
+     "name": "id_existed",
+     "type": "BOOLEAN",
+     "description": "The chosen id is no larger than an id seen in an event before the hour."
+    },
+    {
+     "name": "candidate_ids",
+     "type": "BIGINT",
+     "description": "Ids GH Archive saw with the name."
+    },
+    {
+     "name": "gap_hours",
+     "type": "BIGINT",
+     "description": "Hours between the events and the chosen id's nearest spell of the name (0 inside it)."
+    },
+    {
+     "name": "status",
+     "type": "VARCHAR",
+     "description": "auto_exact, accepted, suggested or rejected."
+    },
+    {
+     "name": "rule",
+     "type": "VARCHAR",
+     "description": "review, spell_covers, unique_name_near, unique_name_id_existed, unique_name_far or several_ids (see the model's header and ADR-037)."
+    },
+    {
+     "name": "confidence",
+     "type": "VARCHAR",
+     "description": "high, medium or low."
     }
    ],
    "missing": []
@@ -2182,6 +2925,52 @@
      "name": "start_at",
      "type": "VARCHAR",
      "description": "First UTC hour of the period (ISO 8601 text)."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "duckdb://keystone/keystone.ref.resolve_decisions",
+   "title": "ref.resolve_decisions",
+   "layer": "reference",
+   "domain": "packages",
+   "classification": "public",
+   "description": "Reviewed resolution decisions (Phase 7, ADR-037): an owner or corrections request accepts or rejects a candidate from the review CSV. A decision overrides every rule on the next build. Repository and package level only.",
+   "contract": "metadata/contracts/dbt_ref_resolve_decisions.odcs.yaml",
+   "freshness_sla_hours": 8760,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "subject",
+     "type": "VARCHAR",
+     "description": "package_repo (a package's repository) or repo_name_id (a name without an id)."
+    },
+    {
+     "name": "subject_key",
+     "type": "VARCHAR",
+     "description": "package_key (ecosystem/normalised name) or the repository name in lower case."
+    },
+    {
+     "name": "candidate",
+     "type": "VARCHAR",
+     "description": "The candidate decided on, as the review CSV lists it (repo_key or repo id)."
+    },
+    {
+     "name": "decision",
+     "type": "VARCHAR",
+     "description": "accepted or rejected."
+    },
+    {
+     "name": "decided_on",
+     "type": "VARCHAR",
+     "description": "Date of the decision (ISO 8601, UTC)."
+    },
+    {
+     "name": "note",
+     "type": "VARCHAR",
+     "description": "Why, in a few words (no personal data)."
     }
    ],
    "missing": []
@@ -2484,6 +3273,224 @@
      "name": "end_at",
      "type": "TIMESTAMP",
      "description": "First UTC instant after the period; null for the open, latest period."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "duckdb://keystone/keystone.staging.stg_registry__packages",
+   "title": "staging.stg_registry__packages",
+   "layer": "warehouse",
+   "domain": "packages",
+   "classification": "public",
+   "description": "The newest registry claim per package and source (ecosystems, npm_registry).",
+   "contract": "metadata/contracts/dbt_staging_stg_registry__packages.odcs.yaml",
+   "freshness_sla_hours": 192,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "source",
+     "type": "VARCHAR",
+     "description": "ecosystems (ecosyste.ms packages API) or npm_registry (registry.npmjs.org)."
+    },
+    {
+     "name": "ecosystem",
+     "type": "VARCHAR",
+     "description": "Ecosystem in OSV spelling (PyPI, npm, crates.io, ...)."
+    },
+    {
+     "name": "package_name",
+     "type": "VARCHAR",
+     "description": "Package name as requested."
+    },
+    {
+     "name": "package_key",
+     "type": "VARCHAR",
+     "description": "ecosystem/name, the name normalised as the registry compares it (PEP 503 for PyPI)."
+    },
+    {
+     "name": "found",
+     "type": "BOOLEAN",
+     "description": "False when the source was asked and has no record of the package."
+    },
+    {
+     "name": "critical",
+     "type": "BOOLEAN",
+     "description": "ecosyste.ms `critical` flag (ecosystems rows only)."
+    },
+    {
+     "name": "repository_url",
+     "type": "VARCHAR",
+     "description": "The repository URL as the source spells it."
+    },
+    {
+     "name": "repo_host",
+     "type": "VARCHAR",
+     "description": "github.com, gitlab.com or bitbucket.org; null when the URL names no repository."
+    },
+    {
+     "name": "repo_full_name",
+     "type": "VARCHAR",
+     "description": "owner/name in lower case."
+    },
+    {
+     "name": "repo_subpath",
+     "type": "VARCHAR",
+     "description": "Directory inside the repository (a monorepo package), if the source gives one."
+    },
+    {
+     "name": "url_rejected",
+     "type": "VARCHAR",
+     "description": "Why repository_url names no repository (other_host, no_repository_path, ...)."
+    },
+    {
+     "name": "repo_github_id",
+     "type": "BIGINT",
+     "description": "GitHub repository id per ecosyste.ms (repo_metadata.uuid), GitHub only."
+    },
+    {
+     "name": "repo_current_name",
+     "type": "VARCHAR",
+     "description": "Current owner/name of that repository per ecosyste.ms, lower case."
+    },
+    {
+     "name": "repo_fork",
+     "type": "BOOLEAN",
+     "description": "The repository is a fork (ecosyste.ms)."
+    },
+    {
+     "name": "repo_archived",
+     "type": "BOOLEAN",
+     "description": "The repository is archived (ecosyste.ms)."
+    },
+    {
+     "name": "dependent_packages",
+     "type": "BIGINT",
+     "description": "Packages depending on this one (ecosyste.ms), a criticality input."
+    },
+    {
+     "name": "dependent_repos",
+     "type": "BIGINT",
+     "description": "Repositories depending on this package (ecosyste.ms)."
+    },
+    {
+     "name": "downloads",
+     "type": "BIGINT",
+     "description": "Downloads in downloads_period (ecosyste.ms)."
+    },
+    {
+     "name": "downloads_period",
+     "type": "VARCHAR",
+     "description": "Period of downloads, e.g. last-month."
+    },
+    {
+     "name": "latest_release_at",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "Latest release time per ecosyste.ms (UTC)."
+    },
+    {
+     "name": "source_file",
+     "type": "VARCHAR",
+     "description": "Request the row came from (bulk lookups carry the batch number)."
+    },
+    {
+     "name": "source_sha256",
+     "type": "VARCHAR",
+     "description": "SHA-256 of the response body."
+    },
+    {
+     "name": "fetched_at",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "When the response was received (UTC)."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "duckdb://keystone/keystone.staging.stg_registry__repo_names",
+   "title": "staging.stg_registry__repo_names",
+   "layer": "warehouse",
+   "domain": "packages",
+   "classification": "public",
+   "description": "Current and previous names per GitHub repository id, per ecosyste.ms.",
+   "contract": "metadata/contracts/dbt_staging_stg_registry__repo_names.odcs.yaml",
+   "freshness_sla_hours": 192,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "repo_id",
+     "type": "BIGINT",
+     "description": "GitHub repository id."
+    },
+    {
+     "name": "repo_name_lower",
+     "type": "VARCHAR",
+     "description": "owner/name in lower case."
+    },
+    {
+     "name": "kind",
+     "type": "VARCHAR",
+     "description": "current or previous."
+    },
+    {
+     "name": "fetched_at",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "Newest fetch that reported the name (UTC)."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "duckdb://keystone/keystone.staging.stg_resolve__llm_choices",
+   "title": "staging.stg_resolve__llm_choices",
+   "layer": "warehouse",
+   "domain": "packages",
+   "classification": "public",
+   "description": "Latest validated language-model answer per package (empty while the rung is skipped).",
+   "contract": "metadata/contracts/dbt_staging_stg_resolve__llm_choices.odcs.yaml",
+   "freshness_sla_hours": 8760,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "package_key",
+     "type": "VARCHAR",
+     "description": "Package asked about."
+    },
+    {
+     "name": "repo_key",
+     "type": "VARCHAR",
+     "description": "The chosen candidate; null unless outcome is chosen."
+    },
+    {
+     "name": "confidence",
+     "type": "DOUBLE",
+     "description": "The model's stated confidence in [0, 1]."
+    },
+    {
+     "name": "outcome",
+     "type": "VARCHAR",
+     "description": "chosen, declined or refused (named a candidate that was not listed)."
+    },
+    {
+     "name": "model",
+     "type": "VARCHAR",
+     "description": "Model identifier used."
+    },
+    {
+     "name": "candidates",
+     "type": "VARCHAR",
+     "description": "The listed candidates, `|`-separated, exactly as asked."
+    },
+    {
+     "name": "decided_at",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "When the answer was recorded (UTC)."
     }
    ],
    "missing": []
@@ -2849,6 +3856,72 @@
    "missing": []
   },
   {
+   "id": "iceberg://lakekeeper/keystone/marts.dim_repo_rename",
+   "title": "Published marts.dim_repo_rename (Iceberg)",
+   "layer": "published",
+   "domain": "activity",
+   "classification": "public",
+   "description": "Published copy of marts.dim_repo_rename: Repository renames: one row per id and name change, from GH Archive (the id under consecutive names: auto_exact) and ecosyste.ms previous names (accepted when GH Archive did not see the change).",
+   "contract": "metadata/contracts/dbt_marts_dim_repo_rename.odcs.yaml",
+   "freshness_sla_hours": 26,
+   "owner": "keystone-maintainers",
+   "published": true,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "repo_id",
+     "type": "BIGINT",
+     "description": "GitHub repository id."
+    },
+    {
+     "name": "from_name",
+     "type": "VARCHAR",
+     "description": "Name before the change (owner/name, lower case)."
+    },
+    {
+     "name": "to_name",
+     "type": "VARCHAR",
+     "description": "Name after the change."
+    },
+    {
+     "name": "renamed_after",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "Last GH Archive sighting of the old name (UTC); null for ecosyste.ms rows."
+    },
+    {
+     "name": "renamed_before",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "First GH Archive sighting of the new name (UTC); null for ecosyste.ms rows."
+    },
+    {
+     "name": "by_gharchive",
+     "type": "BOOLEAN",
+     "description": "GH Archive shows the change."
+    },
+    {
+     "name": "by_ecosystems",
+     "type": "BOOLEAN",
+     "description": "ecosyste.ms lists from_name as a previous name of the id."
+    },
+    {
+     "name": "status",
+     "type": "VARCHAR",
+     "description": "auto_exact or accepted."
+    },
+    {
+     "name": "rule",
+     "type": "VARCHAR",
+     "description": "same_id_new_name (GH Archive) or ecosystems_previous_name."
+    },
+    {
+     "name": "confidence",
+     "type": "VARCHAR",
+     "description": "high or medium."
+    }
+   ],
+   "missing": []
+  },
+  {
    "id": "iceberg://lakekeeper/keystone/marts.fct_repo_day",
    "title": "Published marts.fct_repo_day (Iceberg)",
    "layer": "published",
@@ -3054,6 +4127,221 @@
      "name": "fetched_at",
      "type": "TIMESTAMP WITH TIME ZONE",
      "description": "Lineage, fetch time of the zip (UTC)."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/marts.map_package_repo",
+   "title": "Published marts.map_package_repo (Iceberg)",
+   "layer": "published",
+   "domain": "packages",
+   "classification": "public",
+   "description": "Published copy of marts.map_package_repo: Package to repository mapping (Phase 7, ADR-037): one row per package and candidate repository with status (auto_exact, accepted, suggested, rejected), the rule that decided it and a confidence. Only exact matches (two independent sources, no rival) are auto_exact; ambiguous cases follow documented rules; suggested rows go to the review CSV.",
+   "contract": "metadata/contracts/dbt_marts_map_package_repo.odcs.yaml",
+   "freshness_sla_hours": 48,
+   "owner": "keystone-maintainers",
+   "published": true,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "package_key",
+     "type": "VARCHAR",
+     "description": "ecosystem/name normalised (PEP 503 for PyPI)."
+    },
+    {
+     "name": "ecosystem",
+     "type": "VARCHAR",
+     "description": "Ecosystem in OSV spelling."
+    },
+    {
+     "name": "package_name",
+     "type": "VARCHAR",
+     "description": "Package name as the registry or OSV spells it."
+    },
+    {
+     "name": "scope",
+     "type": "VARCHAR",
+     "description": "critical, osv, osv_malware_only or registry_only (int_package_universe)."
+    },
+    {
+     "name": "repo_key",
+     "type": "VARCHAR",
+     "description": "Candidate key, github.com#<id> when the GitHub id is known, else host/owner/name."
+    },
+    {
+     "name": "repo_host",
+     "type": "VARCHAR",
+     "description": "github.com, gitlab.com or bitbucket.org."
+    },
+    {
+     "name": "repo_full_name",
+     "type": "VARCHAR",
+     "description": "Current owner/name in lower case (renames followed when the id is known)."
+    },
+    {
+     "name": "repo_id",
+     "type": "BIGINT",
+     "description": "GitHub repository id, or null when it is not known."
+    },
+    {
+     "name": "repo_id_rule",
+     "type": "VARCHAR",
+     "description": "How the id was found (int_repo_identity.id_rule)."
+    },
+    {
+     "name": "seen_in_gharchive",
+     "type": "BOOLEAN",
+     "description": "The repository id appears in the loaded GH Archive data."
+    },
+    {
+     "name": "claimed_names",
+     "type": "BIGINT",
+     "description": "Distinct names the claims used for this repository (more than 1 after a rename)."
+    },
+    {
+     "name": "by_ecosystems",
+     "type": "BOOLEAN",
+     "description": "ecosyste.ms names this repository."
+    },
+    {
+     "name": "by_npm_registry",
+     "type": "BOOLEAN",
+     "description": "The npm registry `repository` field names it."
+    },
+    {
+     "name": "by_osv_git_range",
+     "type": "BOOLEAN",
+     "description": "An OSV GIT range of the package names it."
+    },
+    {
+     "name": "by_osv_fix_sole",
+     "type": "BOOLEAN",
+     "description": "A FIX reference in an OSV record about this package only names it."
+    },
+    {
+     "name": "by_osv_fix_shared",
+     "type": "BOOLEAN",
+     "description": "A FIX reference in an OSV record about several packages names it."
+    },
+    {
+     "name": "in_subpath",
+     "type": "BOOLEAN",
+     "description": "A claim names a directory inside the repository (monorepo package)."
+    },
+    {
+     "name": "osv_evidence_vulns",
+     "type": "BIGINT",
+     "description": "OSV records giving evidence for this candidate."
+    },
+    {
+     "name": "independent_sources",
+     "type": "BIGINT",
+     "description": "Independent source families naming it (0 to 2): the registry (npm registry field or ecosyste.ms, which derives from it) and an OSV GIT range."
+    },
+    {
+     "name": "candidates",
+     "type": "BIGINT",
+     "description": "Candidate repositories of the package."
+    },
+    {
+     "name": "status",
+     "type": "VARCHAR",
+     "description": "auto_exact, accepted, suggested or rejected."
+    },
+    {
+     "name": "rule",
+     "type": "VARCHAR",
+     "description": "The documented rule that set the status (see the model's header and ADR-037)."
+    },
+    {
+     "name": "confidence",
+     "type": "VARCHAR",
+     "description": "high, medium or low, fixed per rule."
+    },
+    {
+     "name": "decided_by",
+     "type": "VARCHAR",
+     "description": "rules, review (resolve_decisions seed) or llm."
+    },
+    {
+     "name": "llm_confidence",
+     "type": "DOUBLE",
+     "description": "The model's stated confidence when the rule is llm."
+    }
+   ],
+   "missing": []
+  },
+  {
+   "id": "iceberg://lakekeeper/keystone/marts.map_repo_name_id",
+   "title": "Published marts.map_repo_name_id (Iceberg)",
+   "layer": "published",
+   "domain": "activity",
+   "classification": "public",
+   "description": "Published copy of marts.map_repo_name_id: GH Archive events with a repository name but no id (E1 2012, some E0), resolved by name: one row per name and UTC hour with the chosen id, status, rule and confidence.",
+   "contract": "metadata/contracts/dbt_marts_map_repo_name_id.odcs.yaml",
+   "freshness_sla_hours": 26,
+   "owner": "keystone-maintainers",
+   "published": true,
+   "glossary_terms": [],
+   "columns": [
+    {
+     "name": "repo_name_lower",
+     "type": "VARCHAR",
+     "description": "owner/name in lower case."
+    },
+    {
+     "name": "event_hour",
+     "type": "TIMESTAMP WITH TIME ZONE",
+     "description": "UTC hour of the events."
+    },
+    {
+     "name": "era",
+     "type": "VARCHAR",
+     "description": "Schema era of the events (E0 or E1).",
+     "glossary_terms": [
+      "era"
+     ]
+    },
+    {
+     "name": "events",
+     "type": "BIGINT",
+     "description": "Events of that name and hour without an id."
+    },
+    {
+     "name": "repo_id",
+     "type": "BIGINT",
+     "description": "Chosen GitHub repository id (nearest candidate for suggested rows)."
+    },
+    {
+     "name": "id_existed",
+     "type": "BOOLEAN",
+     "description": "The chosen id is no larger than an id seen in an event before the hour."
+    },
+    {
+     "name": "candidate_ids",
+     "type": "BIGINT",
+     "description": "Ids GH Archive saw with the name."
+    },
+    {
+     "name": "gap_hours",
+     "type": "BIGINT",
+     "description": "Hours between the events and the chosen id's nearest spell of the name (0 inside it)."
+    },
+    {
+     "name": "status",
+     "type": "VARCHAR",
+     "description": "auto_exact, accepted, suggested or rejected."
+    },
+    {
+     "name": "rule",
+     "type": "VARCHAR",
+     "description": "review, spell_covers, unique_name_near, unique_name_id_existed, unique_name_far or several_ids (see the model's header and ADR-037)."
+    },
+    {
+     "name": "confidence",
+     "type": "VARCHAR",
+     "description": "high, medium or low."
     }
    ],
    "missing": []

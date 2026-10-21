@@ -48,3 +48,142 @@ unit_tests:
         - {activity_date: "2020-01-01", repo_id: 1, era: E2, completeness_period: C1, events: 5, human_events: 4, pushes: 0, prs_opened: 1, prs_closed: 2, prs_merged: 1, pr_merge_known: 2, issues_opened: 1, issues_closed: 1, releases_published: 0}
         - {activity_date: "2020-01-02", repo_id: 1, era: E2, completeness_period: C1, events: 4, human_events: 4, pushes: 4, prs_opened: 0, prs_closed: 0, prs_merged: 0, pr_merge_known: 0, issues_opened: 0, issues_closed: 0, releases_published: 0}
         - {activity_date: "2020-01-01", repo_id: 1, era: E3, completeness_period: C1, events: 1, human_events: 1, pushes: 0, prs_opened: 0, prs_closed: 0, prs_merged: 0, pr_merge_known: 0, issues_opened: 0, issues_closed: 0, releases_published: 1}
+
+  - name: package_repo_rules
+    description: >
+      Phase 7 rules (ADR-037): registry and OSV GIT range agreeing is exact; npm registry plus
+      ecosyste.ms is one family (accepted, merged across a rename); a rival with fewer families
+      is outvoted; ties go to the model (only if it saw exactly the current tie) or stay
+      suggested; a review overrides everything and a rejected rival no longer counts.
+    model: map_package_repo
+    given:
+      - input: ref('int_package_repo_claims')
+        rows:
+          - {package_key: npm/a, source: ecosystems, repo_host: github.com, repo_full_name: o/a, in_subpath: false, evidence: 1}
+          - {package_key: npm/a, source: npm_registry, repo_host: github.com, repo_full_name: o/a-old, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/b, source: ecosystems, repo_host: github.com, repo_full_name: o/b, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/c, source: ecosystems, repo_host: github.com, repo_full_name: o/c1, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/c, source: osv_git_range, repo_host: github.com, repo_full_name: o/c1, in_subpath: false, evidence: 2}
+          - {package_key: PyPI/c, source: osv_fix_sole, repo_host: github.com, repo_full_name: o/c2, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/d, source: ecosystems, repo_host: github.com, repo_full_name: o/d1, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/d, source: osv_git_range, repo_host: github.com, repo_full_name: o/d2, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/e, source: ecosystems, repo_host: github.com, repo_full_name: o/e1, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/e, source: osv_git_range, repo_host: gitlab.com, repo_full_name: o/e2, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/f, source: osv_fix_shared, repo_host: github.com, repo_full_name: o/f, in_subpath: false, evidence: 1}
+          - {package_key: npm/g, source: ecosystems, repo_host: github.com, repo_full_name: o/g1, in_subpath: false, evidence: 1}
+          - {package_key: npm/g, source: npm_registry, repo_host: github.com, repo_full_name: o/g1, in_subpath: false, evidence: 1}
+          - {package_key: npm/g, source: osv_git_range, repo_host: github.com, repo_full_name: o/g2, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/h, source: ecosystems, repo_host: github.com, repo_full_name: o/h1, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/h, source: osv_git_range, repo_host: github.com, repo_full_name: o/h2, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/i, source: ecosystems, repo_host: github.com, repo_full_name: o/i, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/j, source: ecosystems, repo_host: github.com, repo_full_name: o/j1, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/j, source: osv_fix_sole, repo_host: github.com, repo_full_name: o/j2, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/j, source: osv_fix_shared, repo_host: github.com, repo_full_name: o/j3, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/k, source: ecosystems, repo_host: github.com, repo_full_name: o/k1, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/k, source: osv_git_range, repo_host: github.com, repo_full_name: o/k2, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/m, source: ecosystems, repo_host: github.com, repo_full_name: o/m1, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/m, source: osv_git_range, repo_host: github.com, repo_full_name: o/m1, in_subpath: false, evidence: 1}
+          - {package_key: PyPI/m, source: osv_git_range, repo_host: github.com, repo_full_name: o/m2, in_subpath: false, evidence: 1}
+      - input: ref('int_repo_identity')
+        rows:
+          - {repo_name_lower: o/a, repo_id: 10, id_rule: ecosystems_current, current_name: o/a, seen_in_gharchive: true}
+          - {repo_name_lower: o/a-old, repo_id: 10, id_rule: ecosystems_previous_name, current_name: o/a, seen_in_gharchive: true}
+          - {repo_name_lower: o/b, repo_id: 20, id_rule: ecosystems_current, current_name: o/b, seen_in_gharchive: false}
+          - {repo_name_lower: o/c1, repo_id: 31, id_rule: ecosystems_current, current_name: o/c1, seen_in_gharchive: false}
+          - {repo_name_lower: o/c2, repo_id: 32, id_rule: gharchive_unique_name, current_name: o/c2, seen_in_gharchive: true}
+          - {repo_name_lower: o/d1, repo_id: 41, id_rule: ecosystems_current, current_name: o/d1, seen_in_gharchive: false}
+          - {repo_name_lower: o/d2, repo_id: 42, id_rule: ecosystems_current, current_name: o/d2, seen_in_gharchive: false}
+          - {repo_name_lower: o/e1, repo_id: 51, id_rule: ecosystems_current, current_name: o/e1, seen_in_gharchive: false}
+          - {repo_name_lower: o/f, repo_id: null, id_rule: not_seen, current_name: o/f, seen_in_gharchive: false}
+          - {repo_name_lower: o/g1, repo_id: 71, id_rule: ecosystems_current, current_name: o/g1, seen_in_gharchive: false}
+          - {repo_name_lower: o/g2, repo_id: 72, id_rule: ecosystems_current, current_name: o/g2, seen_in_gharchive: false}
+          - {repo_name_lower: o/h1, repo_id: 81, id_rule: ecosystems_current, current_name: o/h1, seen_in_gharchive: false}
+          - {repo_name_lower: o/h2, repo_id: 82, id_rule: ecosystems_current, current_name: o/h2, seen_in_gharchive: false}
+          - {repo_name_lower: o/i, repo_id: null, id_rule: not_seen, current_name: o/i, seen_in_gharchive: false}
+          - {repo_name_lower: o/j1, repo_id: 91, id_rule: ecosystems_current, current_name: o/j1, seen_in_gharchive: false}
+          - {repo_name_lower: o/j2, repo_id: 92, id_rule: gharchive_unique_name, current_name: o/j2, seen_in_gharchive: true}
+          - {repo_name_lower: o/j3, repo_id: 93, id_rule: gharchive_unique_name, current_name: o/j3, seen_in_gharchive: true}
+          - {repo_name_lower: o/k1, repo_id: 101, id_rule: ecosystems_current, current_name: o/k1, seen_in_gharchive: false}
+          - {repo_name_lower: o/k2, repo_id: 102, id_rule: ecosystems_current, current_name: o/k2, seen_in_gharchive: false}
+          - {repo_name_lower: o/m1, repo_id: 111, id_rule: ecosystems_current, current_name: o/m1, seen_in_gharchive: false}
+          - {repo_name_lower: o/m2, repo_id: 112, id_rule: ecosystems_current, current_name: o/m2, seen_in_gharchive: false}
+      - input: ref('resolve_decisions')
+        rows:
+          - {subject: package_repo, subject_key: PyPI/h, candidate: "github.com#82", decision: accepted, decided_on: "2026-10-21", note: test}
+          - {subject: package_repo, subject_key: PyPI/m, candidate: "github.com#111", decision: rejected, decided_on: "2026-10-21", note: test}
+      - input: ref('stg_resolve__llm_choices')
+        rows:
+          - {package_key: PyPI/d, repo_key: "github.com#42", confidence: 0.9, outcome: chosen, model: m, candidates: "github.com#41|github.com#42"}
+          - {package_key: PyPI/k, repo_key: github.com/o/k1, confidence: 0.95, outcome: chosen, model: m, candidates: "github.com/o/k1|github.com#102"}
+      - input: ref('int_package_universe')
+        rows:
+          - {package_key: npm/a, ecosystem: npm, package_name: a, scope: critical}
+          - {package_key: PyPI/b, ecosystem: PyPI, package_name: b, scope: critical}
+          - {package_key: PyPI/c, ecosystem: PyPI, package_name: c, scope: osv}
+          - {package_key: PyPI/d, ecosystem: PyPI, package_name: d, scope: osv}
+          - {package_key: PyPI/e, ecosystem: PyPI, package_name: e, scope: osv}
+          - {package_key: PyPI/f, ecosystem: PyPI, package_name: f, scope: osv}
+          - {package_key: npm/g, ecosystem: npm, package_name: g, scope: osv}
+          - {package_key: PyPI/h, ecosystem: PyPI, package_name: h, scope: osv}
+          - {package_key: PyPI/i, ecosystem: PyPI, package_name: i, scope: critical}
+          - {package_key: PyPI/j, ecosystem: PyPI, package_name: j, scope: osv}
+          - {package_key: PyPI/k, ecosystem: PyPI, package_name: k, scope: osv}
+          - {package_key: PyPI/m, ecosystem: PyPI, package_name: m, scope: osv}
+    expect:
+      rows:
+        - {package_key: npm/a, repo_key: "github.com#10", repo_full_name: o/a, claimed_names: 2, status: accepted, rule: single_source, confidence: medium}
+        - {package_key: PyPI/b, repo_key: "github.com#20", repo_full_name: o/b, claimed_names: 1, status: accepted, rule: single_source, confidence: medium}
+        - {package_key: PyPI/c, repo_key: "github.com#31", repo_full_name: o/c1, claimed_names: 1, status: auto_exact, rule: sources_agree, confidence: high}
+        - {package_key: PyPI/c, repo_key: "github.com#32", repo_full_name: o/c2, claimed_names: 1, status: rejected, rule: outvoted, confidence: medium}
+        - {package_key: PyPI/d, repo_key: "github.com#41", repo_full_name: o/d1, claimed_names: 1, status: rejected, rule: llm, confidence: medium}
+        - {package_key: PyPI/d, repo_key: "github.com#42", repo_full_name: o/d2, claimed_names: 1, status: accepted, rule: llm, confidence: medium}
+        - {package_key: PyPI/e, repo_key: "github.com#51", repo_full_name: o/e1, claimed_names: 1, status: suggested, rule: tie, confidence: low}
+        - {package_key: PyPI/e, repo_key: gitlab.com/o/e2, repo_full_name: o/e2, claimed_names: 1, status: suggested, rule: tie, confidence: low}
+        - {package_key: PyPI/f, repo_key: github.com/o/f, repo_full_name: o/f, claimed_names: 1, status: suggested, rule: fix_reference_only, confidence: low}
+        - {package_key: npm/g, repo_key: "github.com#71", repo_full_name: o/g1, claimed_names: 1, status: suggested, rule: tie, confidence: low}
+        - {package_key: npm/g, repo_key: "github.com#72", repo_full_name: o/g2, claimed_names: 1, status: suggested, rule: tie, confidence: low}
+        - {package_key: PyPI/h, repo_key: "github.com#81", repo_full_name: o/h1, claimed_names: 1, status: rejected, rule: review, confidence: high}
+        - {package_key: PyPI/h, repo_key: "github.com#82", repo_full_name: o/h2, claimed_names: 1, status: accepted, rule: review, confidence: high}
+        - {package_key: PyPI/i, repo_key: github.com/o/i, repo_full_name: o/i, claimed_names: 1, status: suggested, rule: single_source_unverified, confidence: low}
+        - {package_key: PyPI/j, repo_key: "github.com#91", repo_full_name: o/j1, claimed_names: 1, status: suggested, rule: contested, confidence: low}
+        - {package_key: PyPI/j, repo_key: "github.com#92", repo_full_name: o/j2, claimed_names: 1, status: suggested, rule: contested, confidence: low}
+        - {package_key: PyPI/j, repo_key: "github.com#93", repo_full_name: o/j3, claimed_names: 1, status: rejected, rule: outvoted, confidence: medium}
+        - {package_key: PyPI/k, repo_key: "github.com#101", repo_full_name: o/k1, claimed_names: 1, status: suggested, rule: tie, confidence: low}
+        - {package_key: PyPI/k, repo_key: "github.com#102", repo_full_name: o/k2, claimed_names: 1, status: suggested, rule: tie, confidence: low}
+        - {package_key: PyPI/m, repo_key: "github.com#111", repo_full_name: o/m1, claimed_names: 1, status: rejected, rule: review, confidence: high}
+        - {package_key: PyPI/m, repo_key: "github.com#112", repo_full_name: o/m2, claimed_names: 1, status: accepted, rule: single_source, confidence: medium}
+
+  - name: repo_name_id_rules
+    description: >
+      Names without ids (ADR-028, ADR-037): a covering spell is exact; one id within 90 days is
+      accepted; one id far away (existing then or newer) or several ids are suggested; E1
+      copies from 2015 on are dropped.
+    model: map_repo_name_id
+    given:
+      - input: ref('stg_gharchive__repo_names')
+        rows:
+          - {repo_id: null, repo_name: a/x, era: E1, created_at: "2012-03-10 12:30:00+00"}
+          - {repo_id: null, repo_name: B/Y, era: E1, created_at: "2012-03-10 12:31:00+00"}
+          - {repo_id: null, repo_name: c/z, era: E1, created_at: "2012-03-10 12:32:00+00"}
+          - {repo_id: null, repo_name: d/w, era: E1, created_at: "2012-03-10 12:33:00+00"}
+          - {repo_id: null, repo_name: e/v, era: E1, created_at: "2012-03-10 12:34:00+00"}
+          - {repo_id: null, repo_name: a/x, era: E1, created_at: "2015-01-01 00:00:00+00"}
+          - {repo_id: 5, repo_name: a/x, era: E1, created_at: "2012-03-10 11:00:00+00"}
+          - {repo_id: 100, repo_name: q/q, era: E1, created_at: "2012-03-10 10:00:00+00"}
+      - input: ref('dim_repo_name_history')
+        rows:
+          - {repo_id: 5, repo_name_lower: a/x, valid_from: "2012-03-10 11:00:00+00", last_seen_at: "2012-03-10 14:00:00+00"}
+          - {repo_id: 6, repo_name_lower: b/y, valid_from: "2016-01-01 00:00:00+00", last_seen_at: "2016-01-02 00:00:00+00"}
+          - {repo_id: 500, repo_name_lower: c/z, valid_from: "2016-01-01 00:00:00+00", last_seen_at: "2016-01-02 00:00:00+00"}
+          - {repo_id: 7, repo_name_lower: d/w, valid_from: "2016-01-01 00:00:00+00", last_seen_at: "2016-01-02 00:00:00+00"}
+          - {repo_id: 8, repo_name_lower: d/w, valid_from: "2017-01-01 00:00:00+00", last_seen_at: "2017-01-02 00:00:00+00"}
+          - {repo_id: 9, repo_name_lower: e/v, valid_from: "2012-01-01 00:00:00+00", last_seen_at: "2012-02-01 00:00:00+00"}
+      - input: ref('resolve_decisions')
+        rows: []
+    expect:
+      rows:
+        - {repo_name_lower: a/x, repo_id: 5, candidate_ids: 1, status: auto_exact, rule: spell_covers}
+        - {repo_name_lower: b/y, repo_id: 6, candidate_ids: 1, status: suggested, rule: unique_name_id_existed}
+        - {repo_name_lower: c/z, repo_id: 500, candidate_ids: 1, status: suggested, rule: unique_name_far}
+        - {repo_name_lower: d/w, repo_id: 7, candidate_ids: 2, status: suggested, rule: several_ids}
+        - {repo_name_lower: e/v, repo_id: 9, candidate_ids: 1, status: accepted, rule: unique_name_near}

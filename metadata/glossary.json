@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-21T06:38:45.391034+00:00",
+ "generated_at": "2026-10-21T18:05:34.101106+00:00",
  "generator": "keystone metadata export",
  "terms": [
   {
@@ -42,6 +42,7 @@
     "duckdb://keystone/keystone.marts.dim_repo_name_history#first_era",
     "duckdb://keystone/keystone.marts.dim_repo_name_history#last_era",
     "duckdb://keystone/keystone.marts.fct_repo_day#era",
+    "duckdb://keystone/keystone.marts.map_repo_name_id#era",
     "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#era",
     "duckdb://keystone/keystone.metrics.metric_maint_v2_repo_day#era",
     "duckdb://keystone/keystone.metrics.metric_release_v1_repo_day#era",
@@ -58,6 +59,7 @@
     "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#first_era",
     "iceberg://lakekeeper/keystone/marts.dim_repo_name_history#last_era",
     "iceberg://lakekeeper/keystone/marts.fct_repo_day#era",
+    "iceberg://lakekeeper/keystone/marts.map_repo_name_id#era",
     "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#era",
     "iceberg://lakekeeper/keystone/metrics.metric_maint_v2_repo_day#era",
     "iceberg://lakekeeper/keystone/metrics.metric_release_v1_repo_day#era",

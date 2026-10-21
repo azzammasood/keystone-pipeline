@@ -23,3 +23,31 @@ seeds:
         description: Short name of the source API or capture of the era.
       - name: start_at
         description: First file hour of the era (ISO 8601 text, UTC).
+  - name: resolve_decisions
+    description: >
+      Reviewed resolution decisions (Phase 7, ADR-037): an owner or corrections request
+      accepts or rejects a candidate from the review CSV. A decision overrides every rule on
+      the next build. Repository and package level only.
+    columns:
+      - name: subject
+        description: package_repo (a package's repository) or repo_name_id (a name without an id).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [package_repo, repo_name_id]
+      - name: subject_key
+        description: package_key (ecosystem/normalised name) or the repository name in lower case.
+        data_tests: [not_null]
+      - name: candidate
+        description: The candidate decided on, as the review CSV lists it (repo_key or repo id).
+        data_tests: [not_null]
+      - name: decision
+        description: accepted or rejected.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [accepted, rejected]
+      - name: decided_on
+        description: Date of the decision (ISO 8601, UTC).
+      - name: note
+        description: Why, in a few words (no personal data).

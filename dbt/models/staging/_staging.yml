@@ -137,3 +137,98 @@ models:
         description: github.com, gitlab.com or bitbucket.org.
       - name: repo_full_name
         description: owner/name in lower case.
+  - name: stg_registry__packages
+    description: The newest registry claim per package and source (ecosystems, npm_registry).
+    data_tests:
+      - unique_combination:
+          arguments:
+            columns: [source, package_key]
+    columns:
+      - name: source
+        description: ecosystems (ecosyste.ms packages API) or npm_registry (registry.npmjs.org).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [ecosystems, npm_registry]
+      - name: ecosystem
+        description: Ecosystem in OSV spelling (PyPI, npm, crates.io, ...).
+      - name: package_name
+        description: Package name as requested.
+      - name: package_key
+        description: ecosystem/name, the name normalised as the registry compares it (PEP 503 for PyPI).
+        data_tests: [not_null]
+      - name: found
+        description: False when the source was asked and has no record of the package.
+      - name: critical
+        description: ecosyste.ms `critical` flag (ecosystems rows only).
+      - name: repository_url
+        description: The repository URL as the source spells it.
+      - name: repo_host
+        description: github.com, gitlab.com or bitbucket.org; null when the URL names no repository.
+      - name: repo_full_name
+        description: owner/name in lower case.
+      - name: repo_subpath
+        description: Directory inside the repository (a monorepo package), if the source gives one.
+      - name: url_rejected
+        description: Why repository_url names no repository (other_host, no_repository_path, ...).
+      - name: repo_github_id
+        description: GitHub repository id per ecosyste.ms (repo_metadata.uuid), GitHub only.
+      - name: repo_current_name
+        description: Current owner/name of that repository per ecosyste.ms, lower case.
+      - name: repo_fork
+        description: The repository is a fork (ecosyste.ms).
+      - name: repo_archived
+        description: The repository is archived (ecosyste.ms).
+      - name: dependent_packages
+        description: Packages depending on this one (ecosyste.ms), a criticality input.
+      - name: dependent_repos
+        description: Repositories depending on this package (ecosyste.ms).
+      - name: downloads
+        description: Downloads in downloads_period (ecosyste.ms).
+      - name: downloads_period
+        description: Period of downloads, e.g. last-month.
+      - name: latest_release_at
+        description: Latest release time per ecosyste.ms (UTC).
+      - name: source_file
+        description: Request the row came from (bulk lookups carry the batch number).
+      - name: source_sha256
+        description: SHA-256 of the response body.
+      - name: fetched_at
+        description: When the response was received (UTC).
+  - name: stg_registry__repo_names
+    description: Current and previous names per GitHub repository id, per ecosyste.ms.
+    columns:
+      - name: repo_id
+        description: GitHub repository id.
+        data_tests: [not_null]
+      - name: repo_name_lower
+        description: owner/name in lower case.
+      - name: kind
+        description: current or previous.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [current, previous]
+      - name: fetched_at
+        description: Newest fetch that reported the name (UTC).
+  - name: stg_resolve__llm_choices
+    description: Latest validated language-model answer per package (empty while the rung is skipped).
+    columns:
+      - name: package_key
+        description: Package asked about.
+      - name: repo_key
+        description: The chosen candidate; null unless outcome is chosen.
+      - name: confidence
+        description: The model's stated confidence in [0, 1].
+      - name: outcome
+        description: chosen, declined or refused (named a candidate that was not listed).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [chosen, declined, refused]
+      - name: model
+        description: Model identifier used.
+      - name: candidates
+        description: The listed candidates, `|`-separated, exactly as asked.
+      - name: decided_at
+        description: When the answer was recorded (UTC).

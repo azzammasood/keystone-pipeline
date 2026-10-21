@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-21T06:38:45.391034+00:00",
+ "generated_at": "2026-10-21T18:05:34.101106+00:00",
  "generator": "keystone metadata export",
  "datasets": [
   {
@@ -468,6 +468,24 @@
    "cataloged": true
   },
   {
+   "id": "file://keystone/quarantine/registry",
+   "namespace": "file://keystone",
+   "name": "quarantine/registry",
+   "title": "Registry quarantine",
+   "layer": "silver",
+   "domain": "operations",
+   "kind": "dataset",
+   "fields": [
+    "fetched_at",
+    "package_key",
+    "reason",
+    "source",
+    "source_file",
+    "source_sha256"
+   ],
+   "cataloged": true
+  },
+  {
    "id": "file://keystone/silver/gharchive/events",
    "namespace": "file://keystone",
    "name": "silver/gharchive/events",
@@ -616,6 +634,60 @@
    "cataloged": true
   },
   {
+   "id": "file://keystone/silver/registry/packages",
+   "namespace": "file://keystone",
+   "name": "silver/registry/packages",
+   "title": "Silver registry claims",
+   "layer": "silver",
+   "domain": "packages",
+   "kind": "dataset",
+   "fields": [
+    "critical",
+    "dependent_packages",
+    "dependent_repos",
+    "downloads",
+    "downloads_period",
+    "ecosystem",
+    "etag",
+    "fetched_at",
+    "found",
+    "latest_release_at",
+    "package_key",
+    "package_name",
+    "repo_archived",
+    "repo_current_name",
+    "repo_fork",
+    "repo_full_name",
+    "repo_github_id",
+    "repo_host",
+    "repo_subpath",
+    "repository_url",
+    "source",
+    "source_file",
+    "source_sha256",
+    "url_rejected"
+   ],
+   "cataloged": true
+  },
+  {
+   "id": "file://keystone/silver/registry/repo_names",
+   "namespace": "file://keystone",
+   "name": "silver/registry/repo_names",
+   "title": "Silver repository names (ecosyste.ms)",
+   "layer": "silver",
+   "domain": "packages",
+   "kind": "dataset",
+   "fields": [
+    "fetched_at",
+    "kind",
+    "repo_github_id",
+    "repo_name_lower",
+    "source_file",
+    "source_sha256"
+   ],
+   "cataloged": true
+  },
+  {
    "id": "https://data.gharchive.org/2011-02-12-0.json.gz",
    "namespace": "https://data.gharchive.org",
    "name": "/2011-02-12-0.json.gz",
@@ -708,6 +780,28 @@
    "namespace": "https://osv-vulnerabilities.storage.googleapis.com",
    "name": "/PyPI/all.zip",
    "title": "OSV ecosystem zip",
+   "layer": "sources",
+   "domain": "sources",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": true
+  },
+  {
+   "id": "https://packages.ecosyste.ms/api/v1/packages/bulk_lookup",
+   "namespace": "https://packages.ecosyste.ms",
+   "name": "/api/v1/packages/bulk_lookup",
+   "title": "ecosyste.ms packages API (bulk lookup)",
+   "layer": "sources",
+   "domain": "sources",
+   "kind": "dataset",
+   "fields": [],
+   "cataloged": true
+  },
+  {
+   "id": "https://registry.npmjs.org/{package}/latest",
+   "namespace": "https://registry.npmjs.org",
+   "name": "/{package}/latest",
+   "title": "npm registry, latest version document",
    "layer": "sources",
    "domain": "sources",
    "kind": "dataset",
@@ -1363,6 +1457,13 @@
    "last_run": "2026-10-21T06:33:25.337575+00:00"
   },
   {
+   "id": "job:keystone/resolve-fetch",
+   "name": "resolve-fetch",
+   "tool": "keystone CLI",
+   "runs": 1,
+   "last_run": "2026-10-21T17:50:20.025518+00:00"
+  },
+  {
    "id": "job:keystone/rollup.duckdb",
    "name": "rollup.duckdb",
    "tool": "keystone CLI",
@@ -1790,6 +1891,16 @@
    "kind": "reads"
   },
   {
+   "from": "https://packages.ecosyste.ms/api/v1/packages/bulk_lookup",
+   "to": "job:keystone/resolve-fetch",
+   "kind": "reads"
+  },
+  {
+   "from": "https://registry.npmjs.org/{package}/latest",
+   "to": "job:keystone/resolve-fetch",
+   "kind": "reads"
+  },
+  {
    "from": "iceberg://lakekeeper/keystone/rollup_full.repo_actor_day_late",
    "to": "job:keystone/keystone-rollup-fold-rollup_full",
    "kind": "reads"
@@ -1957,6 +2068,21 @@
   {
    "from": "job:keystone/parse.osv",
    "to": "file://keystone/silver/osv/vulns",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/resolve-fetch",
+   "to": "file://keystone/quarantine/registry",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/resolve-fetch",
+   "to": "file://keystone/silver/registry/packages",
+   "kind": "writes"
+  },
+  {
+   "from": "job:keystone/resolve-fetch",
+   "to": "file://keystone/silver/registry/repo_names",
    "kind": "writes"
   },
   {
@@ -3541,7 +3667,7 @@
    "column_edges": 1206
   },
   "keystone CLI": {
-   "table_edges": 252,
+   "table_edges": 262,
    "column_edges": 772
   }
  },
@@ -3583,10 +3709,10 @@
   "iceberg://lakekeeper/keystone/rollup_full.repo_hour"
  ],
  "summary": {
-  "nodes": 103,
-  "edges": 118,
+  "nodes": 109,
+  "edges": 123,
   "field_edges": 294,
-  "datasets": 51,
-  "jobs": 52
+  "datasets": 56,
+  "jobs": 53
  }
 }
