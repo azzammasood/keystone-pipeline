@@ -51,6 +51,7 @@ def _arrow_type(annotation: Any) -> tuple[pa.DataType, bool]:
     mapping: dict[Any, pa.DataType] = {
         str: pa.string(),
         int: pa.int64(),
+        float: pa.float64(),
         bool: pa.bool_(),
         datetime: TIMESTAMP,
     }

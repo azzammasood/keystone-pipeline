@@ -20,9 +20,11 @@ from keystone.fetch.client import (
     FetchError,
     IntegrityError,
     PoliteClient,
+    QuotaExhausted,
     RobotsDisallowed,
 )
 from keystone.fetch.manifest import Manifest
+from keystone.fetch.robots import Robots
 from keystone.policy import HostLimits, Policy
 from keystone.sources import gharchive as gha
 from keystone.sources import load_sources, osv
@@ -301,6 +303,66 @@ def test_robots_disallow_and_retry(tmp_path: Path) -> None:
     asyncio.run(go())
     assert [p for m, p in host.calls].count("robots.txt") == 1
     assert [p for m, p in host.calls].count("ok") == 3
+
+
+PYPI_ROBOTS = """User-agent: *
+Disallow: /simple/
+Disallow: /pypi/*/json
+Disallow: /search*
+"""
+
+
+@pytest.mark.parametrize(
+    ("robots", "url", "allowed"),
+    [
+        (PYPI_ROBOTS, "https://pypi.org/pypi/requests/json", False),  # wildcard (pypi.org)
+        (PYPI_ROBOTS, "https://pypi.org/pypi/requests/2.0/json", False),
+        (PYPI_ROBOTS, "https://pypi.org/project/requests/", True),
+        (PYPI_ROBOTS, "https://pypi.org/search?q=x", False),
+        ("User-agent: *\nDisallow: /a\nAllow: /a/b", "https://h.test/a/b/c", True),  # longest
+        ("User-agent: *\nDisallow: /a$", "https://h.test/a/b", True),  # end anchor
+        ("User-agent: *\nDisallow: /a$", "https://h.test/a", False),
+        (
+            "User-agent: *\nDisallow: /\n\nUser-agent: keystone-test\nAllow: /",
+            "https://h.test/x",
+            True,
+        ),
+        ("User-agent: *\nDisallow:", "https://h.test/x", True),  # empty disallow
+        ('{"_id":"robots.txt","name":"robots.txt"}', "https://h.test/x", True),  # npm: JSON
+    ],
+)
+def test_robots_rfc9309_patterns(robots: str, url: str, allowed: bool) -> None:
+    assert Robots.parse(robots).can_fetch("keystone-test/0 (+x)", url) is allowed
+
+
+def test_quota_floor_stops_before_the_free_quota_runs_out() -> None:
+    left = iter([5, 3, 2])
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        assert request.headers["content-type"] == "application/json"
+        return httpx.Response(200, json=[], headers={"x-ratelimit-remaining": str(next(left))})
+
+    pol = policy()
+    pol.hosts["q.test"] = HostLimits(
+        max_concurrent=1,
+        requests_per_second=1000,
+        quota_header="x-ratelimit-remaining",
+        quota_floor=3,
+    )
+
+    async def go() -> int:
+        async with PoliteClient(pol, httpx.MockTransport(handler)) as c:
+            for _ in range(5):
+                try:
+                    async with c.request("POST", "https://q.test/x", json_body={"a": 1}):
+                        pass
+                except QuotaExhausted:
+                    return c.requests
+        return -1
+
+    assert asyncio.run(go()) == 3  # robots + two posts; the third would go below the floor
 
 
 def test_disk_budget_and_integrity(tmp_path: Path) -> None:

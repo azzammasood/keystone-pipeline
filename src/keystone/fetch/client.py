@@ -4,7 +4,9 @@ Every request goes through `PoliteClient`, which
 - sends the policy user agent,
 - holds a per-host concurrency slot for the whole request (including a streamed body),
 - spaces request starts per host at `1 / requests_per_second`,
-- checks robots.txt once per host (RFC 9309: 4xx means allow all, 5xx means disallow all),
+- checks robots.txt once per host (RFC 9309: 4xx means allow all, 5xx means disallow all;
+  `*` and `$` patterns, see `robots.py`),
+- stops before a host's free quota runs out when the policy names its remaining-quota header,
 - retries 429/5xx and transport errors with backoff, honouring `Retry-After`,
 - streams downloads to `<dest>.part`, hashing MD5 and SHA-256 on the way, verifies the MD5
   against the ETag (GH Archive, GCS) or `x-goog-hash`, then renames atomically.
@@ -13,9 +15,9 @@ Every request goes through `PoliteClient`, which
 import asyncio
 import base64
 import hashlib
+import json
 import re
 import time
-import urllib.robotparser
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
@@ -25,6 +27,7 @@ from pathlib import Path
 
 import httpx
 
+from keystone.fetch.robots import Robots
 from keystone.policy import Policy
 
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
@@ -37,6 +40,10 @@ class FetchError(RuntimeError):
 
 class RobotsDisallowed(FetchError):
     """robots.txt forbids this URL for our user agent."""
+
+
+class QuotaExhausted(FetchError):
+    """A host's remaining free quota fell to the policy floor; stop and resume later."""
 
 
 class IntegrityError(FetchError):
@@ -108,6 +115,8 @@ class Download:
 class _HostGate:
     def __init__(self, max_concurrent: int, requests_per_second: float) -> None:
         self.slots = asyncio.Semaphore(max_concurrent)
+        self.quota_left: int | None = None
+        self.quota_limit: int | None = None
         self.interval = 1.0 / requests_per_second
         self.lock = asyncio.Lock()
         self.next_start = 0.0
@@ -136,7 +145,7 @@ class PoliteClient:
         self.backoff_seconds = backoff_seconds
         self.requests = 0
         self._gates: dict[str, _HostGate] = {}
-        self._robots: dict[str, urllib.robotparser.RobotFileParser | bool] = {}
+        self._robots: dict[str, Robots | bool] = {}
         self._robots_lock = asyncio.Lock()
         self._http = httpx.AsyncClient(
             # identity: hashes and Content-Length refer to the stored bytes, not a decoded body.
@@ -151,6 +160,11 @@ class PoliteClient:
 
     async def __aexit__(self, *exc: object) -> None:
         await self._http.aclose()
+
+    def quota(self, host: str) -> tuple[int | None, int | None]:
+        """(requests left, quota size) the host last reported; (None, None) if never."""
+        gate = self._gates.get(host)
+        return (gate.quota_left, gate.quota_limit) if gate else (None, None)
 
     def _gate(self, host: str) -> _HostGate:
         if host not in self._gates:
@@ -168,36 +182,46 @@ class PoliteClient:
             return rules
         return rules.can_fetch(self.policy.user_agent, str(url))
 
-    async def _fetch_robots(self, origin: str) -> urllib.robotparser.RobotFileParser | bool:
+    async def _fetch_robots(self, origin: str) -> Robots | bool:
         async with self._send("GET", httpx.URL(f"{origin}/robots.txt"), {}) as response:
             if response.status_code >= 500:
                 raise FetchError(f"{origin}/robots.txt: HTTP {response.status_code}")
             if response.status_code >= 400:
                 return True  # RFC 9309: unavailable robots.txt allows everything
             text = (await response.aread()).decode("utf-8", errors="replace")
-        parser = urllib.robotparser.RobotFileParser()
-        parser.parse(text.splitlines())
-        return parser
+        return Robots.parse(text)
 
     @asynccontextmanager
     async def _send(
-        self, method: str, url: httpx.URL, headers: dict[str, str]
+        self, method: str, url: httpx.URL, headers: dict[str, str], body: bytes | None = None
     ) -> AsyncIterator[httpx.Response]:
         gate = self._gate(url.host)
+        limits = self.policy.limits_for(url.host)
         attempt = 0
         while True:
             delay = self.backoff_seconds * 2**attempt
             async with gate.slots:
+                floor, left = limits.quota_floor, gate.quota_left
+                if floor is not None and left is not None and left <= floor:
+                    raise QuotaExhausted(
+                        f"{url.host}: {left} requests left, floor {floor} (policy.yml)"
+                    )
                 await gate.pace()
                 self.requests += 1
                 try:
-                    request = self._http.build_request(method, url, headers=headers)
+                    request = self._http.build_request(method, url, headers=headers, content=body)
                     response = await self._http.send(request, stream=True)
                 except httpx.TransportError as exc:
                     if attempt >= self.max_retries:
                         raise FetchError(f"{method} {url}: {exc!r}") from exc
                     response = None
                 if response is not None:
+                    left = response.headers.get(limits.quota_header or "x-keystone-none")
+                    if left is not None and left.strip().isdigit():
+                        gate.quota_left = int(left)
+                    size = response.headers.get(limits.quota_limit_header or "x-keystone-none")
+                    if size is not None and size.strip().isdigit():
+                        gate.quota_limit = int(size)
                     if response.status_code not in RETRY_STATUSES or attempt >= self.max_retries:
                         try:
                             yield response
@@ -213,13 +237,23 @@ class PoliteClient:
 
     @asynccontextmanager
     async def request(
-        self, method: str, url: str, headers: dict[str, str] | None = None
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str] | None = None,
+        *,
+        json_body: object = None,
     ) -> AsyncIterator[httpx.Response]:
         """A polite, robots-checked request; the body streams inside the context."""
         target = httpx.URL(url)
         if not await self._allowed(target):
             raise RobotsDisallowed(f"robots.txt disallows {url}")
-        async with self._send(method, target, headers or {}) as response:
+        headers = dict(headers or {})
+        body = None
+        if json_body is not None:
+            body = json.dumps(json_body, separators=(",", ":")).encode()
+            headers["Content-Type"] = "application/json"
+        async with self._send(method, target, headers, body) as response:
             yield response
 
     async def head(self, url: str) -> httpx.Response:
