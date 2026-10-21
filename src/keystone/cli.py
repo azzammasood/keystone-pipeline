@@ -1214,3 +1214,9 @@ def lineage_compact(
 
     c = compact(root, int(max_mb * 1e6), datetime.now(UTC).date())
     typer.echo(f"compressed={c.compressed} summarised={c.summarised} bytes_kept={c.bytes_kept}")
+
+
+# Phase 10 sub-apps live in their own modules (cli.py is shared with parallel work).
+from keystone.profile.cli import profile_app  # noqa: E402
+
+app.add_typer(profile_app, name="profile")
