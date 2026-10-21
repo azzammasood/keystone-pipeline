@@ -4,10 +4,14 @@
 into the Lakekeeper catalog (namespace = `<prefix><schema>`), written by DuckDB's Iceberg
 extension. A table is dropped and re-created, so a reader can briefly miss it during a publish.
 
-`verify` runs one fingerprint query per table in each engine and compares the results: the row
-count, the non-null count of every column and the sum of every integer and boolean column, all
-exact integers, so any engine that reads a different row set or a different value disagrees.
-The SQL is the common subset of DuckDB, Spark, Flink and Trino (COUNT, SUM, CAST, CASE).
+`verify` runs one fingerprint query per table in each engine and compares the results, all
+exact integers: the row count, and per column the non-null count, plus the sum of an integer or
+boolean column, or the distinct count of any other column and the summed character length of
+a string column. A different row set or a different integer, boolean or string value makes the
+engines disagree; a timestamp or date read with a constant shift (a time-zone slip) would not,
+because only its distinct count is compared (there is no engine-neutral epoch function).
+The SQL is the common subset of DuckDB, Spark, Flink and Trino (COUNT, SUM, CAST, CASE,
+CHAR_LENGTH; Trino spells it LENGTH).
 """
 
 import json
@@ -27,6 +31,7 @@ NAME = re.compile(r"[a-z][a-z0-9_]{0,62}")
 # Published layers hold no person-level columns (CLAUDE.md privacy); dbt tests this too.
 PERSON = re.compile(r"actor|login|email|author|owner", re.IGNORECASE)
 INTEGER_TYPES = ("BIGINT", "INTEGER", "SMALLINT", "TINYINT", "HUGEINT")
+STRING_TYPES = ("VARCHAR",)
 
 Fingerprint = tuple[int | None, ...]
 
@@ -95,6 +100,8 @@ def tables_in(namespaces: Sequence[str]) -> list[Table]:
                 "WHERE table_catalog = 'ice' AND table_schema = ? ORDER BY 1",
                 [_check(ns)],
             ).fetchall()
+            if not rows:  # a publish that wrote nothing must not pass as "all match"
+                raise ValueError(f"namespace {ns!r} has no tables")
             out.extend(Table(ns, r[0]) for r in rows)
         return out
     finally:
@@ -111,10 +118,15 @@ def fingerprint_sql(con: duckdb.DuckDBPyConnection, table: Table, label: str) ->
     for col, dtype, *_ in described:
         _check(col)
         parts.append(f"COUNT({col})")
-        if str(dtype).upper() in INTEGER_TYPES:
+        kind = str(dtype).upper()
+        if kind in INTEGER_TYPES:
             parts.append(f"SUM(CAST({col} AS BIGINT))")
-        elif str(dtype).upper() == "BOOLEAN":
+        elif kind == "BOOLEAN":
             parts.append(f"SUM(CASE WHEN {col} THEN 1 ELSE 0 END)")
+        else:
+            parts.append(f"COUNT(DISTINCT {col})")
+            if kind in STRING_TYPES:
+                parts.append(f"SUM(CAST(CHAR_LENGTH({col}) AS BIGINT))")
     return f"SELECT {', '.join(parts)} FROM ice.{ns}.{name}"
 
 
@@ -177,7 +189,7 @@ def read_flink(queries: dict[str, str]) -> dict[str, Fingerprint]:
 
 def read_trino(queries: dict[str, str]) -> dict[str, Fingerprint]:
     """Through the CLI inside the running `trino` service (Tier 2, `trino` profile)."""
-    sql = ";\n".join(queries.values()) + ";"
+    sql = ";\n".join(q.replace("CHAR_LENGTH(", "LENGTH(") for q in queries.values()) + ";"
     cmd = [*COMPOSE, "--profile", "trino", "exec", "-T", "trino", "trino"]
     stdout = _run([*cmd, "--output-format", "TSV", "--execute", sql])
     return _rows(stdout.splitlines(), set(queries), "\t")
