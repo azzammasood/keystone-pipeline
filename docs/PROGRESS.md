@@ -90,10 +90,14 @@ Next phase: **Phase 7**.
   Compose profile at a time.
 - Optional rungs skipped until tokens exist: Databricks (Phase 5 rung: dbt-databricks, Unity
   Catalog, Lakeflow pipeline; logged 2026-10-20, ADR-030), BigQuery sandbox, OpenRouter.
-- **Owner: disk, now 8.4 GB free on C: after Phase 6.** DataHub (GMS, upgrade, OpenSearch)
-  added about 5.5 GB of images, Grafana 1.4 GB, Marquez 0.6 GB; rebuilding the Flink and Spark
-  images left two more untagged images (layers mostly shared). Stopped containers hold 2.3 GB
-  (`docker system df`). Removing images or containers is the owner's call; nothing was deleted.
+- **Owner: disk, 8.6 GB free on C: after Phase 6.** Cleaned 2026-10-21 (owner asked): the
+  DataHub images, containers and volumes (re-created from the pinned digests by
+  `docker compose --profile datahub up` and `keystone lineage datahub`), three untagged
+  Flink/Spark builds and the Phase 4 replay copy of 2026-10-19 (`data/replay`, also in
+  `data/silver`). That freed about 6.4 GB inside Docker's WSL disk, which Windows sees only
+  after the disk is compacted (Docker Desktop "Clean / Purge data" does not keep images;
+  `wsl --shutdown` plus `Optimize-VHD` needs admin): an owner action. Images of other projects
+  (roshni, mqtt-rawevent-batch, bigqueryjob*, SAM build, Redpanda Console) were not touched.
 - **Owner: disk.** 20 GB free after Phase 5 (Spark and Trino images 2.5 GB). An untagged
   1.07 GB Flink image from an earlier build is reclaimable (`docker image prune`); freeing disk
   is the owner's call.
