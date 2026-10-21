@@ -12,6 +12,10 @@ on:
     paths:
       - src/keystone/warehouse/**
       - dbt/**
+      - tests/fixtures/**
+      - config/sources.yml
+      - pyproject.toml
+      - uv.lock
       - src/keystone/rollup/**
       - src/keystone/parsers/**
       - contracts/avro/**
@@ -22,6 +26,10 @@ on:
     paths:
       - src/keystone/warehouse/**
       - dbt/**
+      - tests/fixtures/**
+      - config/sources.yml
+      - pyproject.toml
+      - uv.lock
       - src/keystone/rollup/**
       - src/keystone/parsers/**
       - contracts/avro/**
