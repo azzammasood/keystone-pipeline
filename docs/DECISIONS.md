@@ -2,6 +2,11 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-036 (2026-10-21) Lakekeeper terms of use accepted (owner)
+- The owner accepted Lakekeeper's terms of use for this non-commercial project on 2026-10-21.
+  `catalog-init` and the parity CI keep sending `accept-terms-of-use: true`. Closes the open
+  question of ADR-027.
+
 ## ADR-035 (2026-10-21) Telemetry: stage run log, OpenTelemetry, pipeline_metrics.json
 - Every data command is a measured `Stage` (telemetry/runlog.py): wall-clock seconds, records
   and bytes it counted (null when it cannot count), status, one line in

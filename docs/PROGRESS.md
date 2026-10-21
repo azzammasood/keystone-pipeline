@@ -76,18 +76,23 @@ Next phase: **Phase 7**.
    name in Phase 7 (ADR-028). Known Phase 4 limit: a re-parsed hour already streamed needs a
    Flink batch rebuild (ADR-026).
 2. Owner: set the production `KEYSTONE_ACTOR_SALT` as a secret before any non-sample parse (the
-   local one in `.env` is for samples only; changing it changes every actor key).
-3. Backfill (Phase 9) still waits on the owner (disk below 50 GB). Do not start it. Before it:
+   local one in `.env` is for samples only; changing it changes every actor key). Owner
+   2026-10-21: deferred to Phase 9; ask then and give the one-line command.
+3. Backfill (Phase 9) still waits on the owner (disk below 50 GB; owner 2026-10-21: continue
+   with Phases 7-8, decide storage before Phase 9). Silver for the whole archive is an
+   estimated ~490 GB (estimate: 85 MB for 2026-10-19 x ~5,700 days; earlier years are smaller,
+   so it is an upper-side figure). Measure silver per year from the sample hours first, then
+   ask the owner for a drive. Do not start it. Before it:
    learn drift from a stratified sample, measure late pushes (ADR-022), parallelise parsing.
 
 ## Blockers (hard stops)
-- **Owner: Lakekeeper terms of use.** Its bootstrap requires `accept-terms-of-use: true`; the
-  local `catalog-init` (and parity CI) send it. Please confirm or say no (then swap the catalog).
 - GH Archive completeness after 2025-05-23 (ADR-012): the owner should know activity signals end there.
 - **Disk: 28.2 GB free on C: (below the brief's 50 GB threshold).** Phase 1 spike is fine; any
   backfill or full Compose stack needs more space or another drive.
 - **RAM: 16.8 GB total, ~4.4 GB available at measurement.** Full-profile stacks must run one
   Compose profile at a time.
+- Owner 2026-10-21: will provide a Databricks Free Edition token, a BigQuery sandbox project
+  and an OpenRouter key (values go in `.env` only, never in chat or git). Until they appear:
 - Optional rungs skipped until tokens exist: Databricks (Phase 5 rung: dbt-databricks, Unity
   Catalog, Lakeflow pipeline; logged 2026-10-20, ADR-030), BigQuery sandbox, OpenRouter.
 - **Owner: disk, 8.6 GB free on C: after Phase 6.** Cleaned 2026-10-21 (owner asked): the
