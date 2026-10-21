@@ -90,6 +90,10 @@ Next phase: **Phase 7**.
    size limits). Credentials: the owner provides them when a phase needs them; ask then.
    Do not start it. Before it:
    learn drift from a stratified sample, measure late pushes (ADR-022), parallelise parsing.
+   *2026-10-21 (Phase 9 prep branch):* measured. `keystone bench run|storage`,
+   `docs/benchmarks.md`, proposal ADR-101 (temporary number; renumber at merge). Silver for
+   the full archive is an estimated ~760 GB (635 GB to 1.03 TB), so the 490 GB figure above
+   was low; no 24-month window fits the disk either. Owner to decide on ADR-101.
 
 ## Blockers (hard stops)
 - GH Archive completeness after 2025-05-23 (ADR-012): the owner should know activity signals end there.

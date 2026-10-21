@@ -2,6 +2,49 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-101 (2026-10-21) Phase 9 storage: stream, roll up, delete; compact history off-machine (proposed)
+*Temporary number from the Phase 9 bench branch, written in parallel with Phase 7: renumber to
+the next free ADR at merge. Status: **proposed**; the owner decides before the backfill.*
+- **Context** (measured in `docs/benchmarks.md`, 2026-10-21): disk budget 17.9 GB (25.5 GB
+  free), no extra drive. Silver is 88.8 MB for 2026-10-19 and 267.0 MB for 2026-08-01 (4.07M
+  events); the rollups are 12.8 and 13.0 MB per day. Projected (estimates, from the HEAD sweep
+  and per-era ratios): raw 4.8 TB, silver ~760 GB (635 GB to 1.03 TB) for the full archive,
+  silver 43 to 234 GB for each 24-month incident window, rollups at today's grains ~160 GB
+  (an upper-side figure: rollups grew 2% for 4x the events between the two E3 days). The old
+  "~490 GB" (85 MB x days) was not an upper bound: 2020-2024 hours are 3 to 10x larger than
+  2026-10. Single-process parse rate: 502 MB of gz in about 12 minutes (~0.7 MB/s), so the full
+  archive is about 80 days of one process (estimate).
+- **Options.** (a) Keep silver for all history: does not fit (no window fits either).
+  (b) Keep silver for a rolling window and all rollups locally: the rollups as designed do not
+  fit (repo_actor_day, salted actor keys, is two thirds of their bytes). (c) Cloudflare R2:
+  10 GB-month free, charges above it, needs an owner account: a money hard stop, not used.
+  (d) Stream, roll up, delete, with compact history on GitHub Release assets (chosen).
+- **Proposal.**
+  1. *Per-day streaming backfill:* fetch an hour, parse, delete the raw file; roll each
+     finished day up; delete its silver once the day's rollup is written and checked. Working
+     set: one day (2026-08-01: 502 MB gz + 267 MB silver) plus the rolling window.
+  2. *Rolling silver window:* the last 14 days only (~3.7 GB at the 2026-08-01 rate), for
+     re-parses and debugging. Backtests read rollups, never silver (point-in-time by window).
+  3. *Actor-free history* (`repo_hour` summed to days and the per-era metric inputs; 3.1 to
+     3.2 MB per measured E3 day, 0.5 MB in 2015): monthly zstd Parquet files as GitHub Release
+     assets, one release per year. GitHub documents each file under 2 GiB, up to 1000 assets
+     per release, and "no limit on the total size of a release, nor bandwidth usage"; the
+     Acceptable Use Policies allow throttling of excessive bandwidth. Never bulk data in git.
+     Local copy only for the years the current phase needs.
+  4. *Actor-level history stays private and local*: never in a Release (actor keys are
+     internal, even salted; a public repo would publish them). Compact `repo_actor_day` to a
+     month grain before keeping it; measure that on the first backfilled month and stop if it
+     does not fit in the budget left after (2) and (3). Fallback: keep only the per-repo-month
+     aggregates the metrics use (shares and counts), not the keys.
+  5. *Compute:* local by default. GitHub Actions only if the owner makes the repo public
+     (unlimited minutes; private repos get 2,000 a month and 14 GB of runner disk, which fits
+     one day of (1) but not the 80 process-days); parallel parsing is a precondition either way.
+- **Why:** $0 and within the disk budget; the published site needs only actor-free history;
+  privacy rules keep actor keys off any shared storage; every step deletes what it no longer
+  needs, so the budget holds for any archive length.
+- **Open for the owner:** accept (3) Releases as the history store (GitHub's terms do not
+  name data hosting; bandwidth is the stated limit); the 14-day window; public repo for (5).
+
 ## ADR-036 (2026-10-21) Lakekeeper terms of use accepted (owner)
 - The owner accepted Lakekeeper's terms of use for this non-commercial project on 2026-10-21.
   `catalog-init` and the parity CI keep sending `accept-terms-of-use: true`. Closes the open

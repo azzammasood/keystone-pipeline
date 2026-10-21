@@ -62,6 +62,7 @@ services:
       - flink-state:/flink-state
       - ../data/flink/jobs:/jobs:ro
       - ../data/lineage/incoming:/lineage
+      - ../data/bench:/bench  # Phase 9 scale-ladder inputs and outputs (keystone bench)
     mem_limit: 1200m
 
   taskmanager:
@@ -69,7 +70,7 @@ services:
     image: keystone-flink:2.2.1
     command: taskmanager
     environment: *flink-env
-    volumes: [flink-state:/flink-state]
+    volumes: [flink-state:/flink-state, ../data/bench:/bench]
     mem_limit: 1800m
     depends_on: [jobmanager]
 
