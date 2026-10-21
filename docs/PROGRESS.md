@@ -4,8 +4,8 @@ Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
 Phase 5 (lakehouse and warehouse) gate checks pass locally: `dbt build` on the `duckdb` target
-(73 nodes, docs coverage 100%), and the same Iceberg tables read identically from DuckDB, Spark,
-Flink and Trino (ADR-028 to 030). Databricks rung skipped (no token). Review and CI: see Done.
+(73 nodes, docs coverage 100%), and the same Iceberg tables give identical fingerprints in DuckDB,
+Spark, Flink and Trino (ADR-028 to 030). Databricks rung skipped (no token). Review and CI: see Done.
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -94,9 +94,9 @@ Flink and Trino (ADR-028 to 030). Databricks rung skipped (no token). Review and
 | 2026-10-20 | Phase 4 stack RAM (docker stats) | 1.4 GB idle, 3.0 GB after the replay (VM 8.2 GB) |
 | 2026-10-20 | Disk free after Phase 4 (C:) | 25.6 GB; stack images 2.4 GB (docker images, uncompressed) |
 | 2026-10-20 | OSV PyPI zip to silver | 26,393 records, 31,997 affected, 3,797 repo pointers, 0 quarantined |
-| 2026-10-20 | dbt build + docs (151 sample hours + 2026-10-19 + PyPI OSV) | 73 nodes pass, 22 s; docs coverage 100% (20 nodes, 178 columns) |
-| 2026-10-20 | Warehouse marts | 810,117 repos; 867,596 repo-days; 13,846 packages; 526 package-repo candidates (242 with a repo id) |
+| 2026-10-20 | dbt build + docs (151 sample hours + 2026-10-19 + PyPI OSV) | 73 nodes pass, 22 s; docs coverage 100% (19 nodes, 174 columns) |
+| 2026-10-20 | Warehouse marts | 809,212 repos; 867,596 repo-days; 13,846 packages; 526 package-repo candidates (242 with a repo id) |
 | 2026-10-20 | Iceberg publish (9 tables, DuckDB) | 12 s |
-| 2026-10-20 | Engine reads, 10 tables | DuckDB+Spark+Flink 30/30 match (52 s); DuckDB+Trino 20/20 (11 s) |
-| 2026-10-20 | Reader RAM (docker stats) | Trino 0.91 GB idle, 1.09 GB after queries; Flink TM 1.08 GB, JM 0.62 GB |
+| 2026-10-20 | Engine reads, 10 tables (fingerprint after review) | DuckDB+Spark+Flink 30/30 match (5.2 min); DuckDB+Trino 20/20 (2.2 min) |
+| 2026-10-20 | Reader RAM (docker stats) | Trino 0.91 GB idle, 1.45 GB peak (limit 1.5 GB); Flink TM 1.08 GB, JM 0.62 GB |
 | 2026-10-20 | Disk free after Phase 5 (C:) | 20 GB; spark 1.1 GB + trino 1.38 GB images; data/warehouse 403 MB |
