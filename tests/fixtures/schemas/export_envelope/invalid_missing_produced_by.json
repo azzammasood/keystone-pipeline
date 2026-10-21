@@ -1,0 +1,24 @@
+{
+ "envelope_version": "1.0",
+ "dataset": "radar",
+ "dataset_version": "v1",
+ "generated_at": "2026-10-21T00:00:00+00:00",
+ "window": {
+  "start": null,
+  "end": null,
+  "periods": []
+ },
+ "sources": [
+  {
+   "name": "GH Archive",
+   "url": "https://www.gharchive.org/"
+  }
+ ],
+ "privacy": {
+  "level": "repository",
+  "people": "aggregate-only"
+ },
+ "corrections": "https://github.com/azzammasood/keystone-pipeline/issues",
+ "row_count": 0,
+ "rows": []
+}

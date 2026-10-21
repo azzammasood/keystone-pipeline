@@ -1,0 +1,138 @@
+{
+ "generated_at": "2026-10-21T17:19:27.456840+00:00",
+ "profile": "free",
+ "produced_by": null,
+ "engines": [
+  {
+   "name": "duckdb",
+   "version": "1.5.6",
+   "role": "free rollup engine",
+   "active": true,
+   "last_used": "2026-10-21T17:19:21.428792+00:00"
+  },
+  {
+   "name": "keystone",
+   "version": "0.1.0",
+   "role": "metadata export and metrics",
+   "active": true,
+   "last_used": "2026-10-21T17:19:21.435496+00:00"
+  },
+  {
+   "name": "keystone-parser",
+   "version": "0.1.0",
+   "role": "era-aware parsing to typed Parquet",
+   "active": false,
+   "last_used": "2026-10-21T17:19:09.167563+00:00"
+  }
+ ],
+ "totals": {
+  "events_processed": 303,
+  "events_stored": 303,
+  "bytes_downloaded": null,
+  "bytes_parsed": 52481,
+  "files_parsed": 7,
+  "rollup_rows": 408,
+  "date_range": {
+   "first_event": "2011-02-12T00:00:00+00:00",
+   "newest_event": "2026-10-19T12:46:03+00:00",
+   "source_hours": 7
+  },
+  "backfill_window": {
+   "start": "2011-02-12T00:00:00+00:00",
+   "end": "present",
+   "decision": "ADR-009"
+  }
+ },
+ "last_run": {
+  "run_id": "01a15f79-6a10-7760-b46d-c392e74d8015",
+  "stages": [
+   {
+    "name": "rollup",
+    "service": "duckdb",
+    "version": "1.5.6",
+    "records_in": null,
+    "records_out": 408,
+    "bytes_in": null,
+    "bytes_out": null,
+    "duration_seconds": 3.234,
+    "records_per_second": 126.152,
+    "mb_per_second": null,
+    "status": "ok",
+    "started_at": "2026-10-21T17:19:18.194268+00:00"
+   },
+   {
+    "name": "profile",
+    "service": "keystone",
+    "version": "0.1.0",
+    "records_in": 5,
+    "records_out": 0,
+    "bytes_in": null,
+    "bytes_out": null,
+    "duration_seconds": 6.474,
+    "records_per_second": 0.0,
+    "mb_per_second": null,
+    "status": "ok",
+    "started_at": "2026-10-21T17:19:14.960321+00:00"
+   }
+  ]
+ },
+ "history": {
+  "runs": [
+   {
+    "run_id": "01a15f79-463e-7379-8d71-25bb0fc18d44",
+    "started_at": "2026-10-21T17:19:05.790566+00:00",
+    "ended_at": "2026-10-21T17:19:09.167563+00:00",
+    "wall_seconds": 3.377,
+    "stages": 1,
+    "events_processed": 303,
+    "status": "ok"
+   },
+   {
+    "run_id": "01a15f79-6a10-7760-b46d-c392e74d8015",
+    "started_at": "2026-10-21T17:19:14.960321+00:00",
+    "ended_at": "2026-10-21T17:19:21.435496+00:00",
+    "wall_seconds": 6.475,
+    "stages": 2,
+    "events_processed": 0,
+    "status": "ok"
+   }
+  ],
+  "daily_volume": [
+   {
+    "date": "2026-10-21",
+    "events_processed": 303
+   }
+  ]
+ },
+ "freshness": {
+  "newest_data_hour": "2026-10-19T12:00:00+00:00",
+  "lag_hours": 52.557,
+  "slo_hours": 26,
+  "status": "breach"
+ },
+ "quality": {
+  "checks_passed": null,
+  "dbt_tests_failed": null,
+  "quarantined_rows": 0,
+  "contract_violations": null
+ },
+ "cost": {
+  "usd": 0.0,
+  "basis": "no billing account exists for any service used (CLAUDE.md $0 rule)",
+  "free_quota": [
+   {
+    "name": "disk budget (70% of free disk, config/policy.yml)",
+    "used_pct": 0.01
+   },
+   {
+    "name": "GitHub Actions minutes (private repository)",
+    "used_pct": null
+   }
+  ]
+ },
+ "lineage_summary": {
+  "nodes": 103,
+  "edges": 118,
+  "documented_pct": 100.0
+ }
+}
