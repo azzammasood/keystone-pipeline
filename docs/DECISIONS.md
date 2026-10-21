@@ -2,48 +2,71 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
-## ADR-101 (2026-10-21) Phase 9 storage: stream, roll up, delete; compact history off-machine (proposed)
+## ADR-101 (2026-10-21) Phase 9 storage and compute: incident windows on Actions, history as Release assets
 *Temporary number from the Phase 9 bench branch, written in parallel with Phase 7: renumber to
-the next free ADR at merge. Status: **proposed**; the owner decides before the backfill.*
-- **Context** (measured in `docs/benchmarks.md`, 2026-10-21): disk budget 17.9 GB (25.5 GB
-  free), no extra drive. Silver is 88.8 MB for 2026-10-19 and 267.0 MB for 2026-08-01 (4.07M
-  events); the rollups are 12.8 and 13.0 MB per day. Projected (estimates, from the HEAD sweep
-  and per-era ratios): raw 4.8 TB, silver ~760 GB (635 GB to 1.03 TB) for the full archive,
-  silver 43 to 234 GB for each 24-month incident window, rollups at today's grains ~160 GB
-  (an upper-side figure: rollups grew 2% for 4x the events between the two E3 days). The old
-  "~490 GB" (85 MB x days) was not an upper bound: 2020-2024 hours are 3 to 10x larger than
-  2026-10. Single-process parse rate: 502 MB of gz in about 12 minutes (~0.7 MB/s), so the full
-  archive is about 80 days of one process (estimate).
-- **Options.** (a) Keep silver for all history: does not fit (no window fits either).
-  (b) Keep silver for a rolling window and all rollups locally: the rollups as designed do not
-  fit (repo_actor_day, salted actor keys, is two thirds of their bytes). (c) Cloudflare R2:
-  10 GB-month free, charges above it, needs an owner account: a money hard stop, not used.
-  (d) Stream, roll up, delete, with compact history on GitHub Release assets (chosen).
-- **Proposal.**
-  1. *Per-day streaming backfill:* fetch an hour, parse, delete the raw file; roll each
-     finished day up; delete its silver once the day's rollup is written and checked. Working
-     set: one day (2026-08-01: 502 MB gz + 267 MB silver) plus the rolling window.
-  2. *Rolling silver window:* the last 14 days only (~3.7 GB at the 2026-08-01 rate), for
-     re-parses and debugging. Backtests read rollups, never silver (point-in-time by window).
-  3. *Actor-free history* (`repo_hour` summed to days and the per-era metric inputs; 3.1 to
-     3.2 MB per measured E3 day, 0.5 MB in 2015): monthly zstd Parquet files as GitHub Release
-     assets, one release per year. GitHub documents each file under 2 GiB, up to 1000 assets
-     per release, and "no limit on the total size of a release, nor bandwidth usage"; the
-     Acceptable Use Policies allow throttling of excessive bandwidth. Never bulk data in git.
-     Local copy only for the years the current phase needs.
-  4. *Actor-level history stays private and local*: never in a Release (actor keys are
-     internal, even salted; a public repo would publish them). Compact `repo_actor_day` to a
-     month grain before keeping it; measure that on the first backfilled month and stop if it
-     does not fit in the budget left after (2) and (3). Fallback: keep only the per-repo-month
-     aggregates the metrics use (shares and counts), not the keys.
-  5. *Compute:* local by default. GitHub Actions only if the owner makes the repo public
-     (unlimited minutes; private repos get 2,000 a month and 14 GB of runner disk, which fits
-     one day of (1) but not the 80 process-days); parallel parsing is a precondition either way.
-- **Why:** $0 and within the disk budget; the published site needs only actor-free history;
-  privacy rules keep actor keys off any shared storage; every step deletes what it no longer
-  needs, so the budget holds for any archive length.
-- **Open for the owner:** accept (3) Releases as the history store (GitHub's terms do not
-  name data hosting; bandwidth is the stated limit); the 14-day window; public repo for (5).
+the next free ADR at merge.* Numbers: `docs/benchmarks.md` (sections 2 to 4; every projection
+is an estimate, sized with `keystone bench storage`).
+- **Owner decisions (2026-10-21, relayed by the Phase 4 kickoff session; not re-asked):**
+  (1) a 30-day rolling silver window plus rollups/aggregates for all downloaded history;
+  (2) download only about 24 months before each backtest incident (event-stream 2018-11,
+  colors/faker 2022-01, xz 2024-03) plus the live score's trailing window; (3) compute on
+  GitHub Actions, the repo made public by the owner (public since 2026-10-21); (4) curated data
+  as GitHub Release assets, each under 2 GiB, after checking GitHub's terms; never publish
+  `repo_actor_day` or any actor key.
+- **Context (measured):** disk budget 17.9 GB; the full archive's silver would be ~760 GB and
+  each 24-month window's 45 to 240 GB (estimates), so nothing is kept whole. Silver is 88.8 to
+  267.0 MB per E3 day, rollups 12.8 to 13.0 MB (two thirds `repo_actor_day`). Parse runs at
+  5,600 to 6,600 events/s per process; download at 5.06 MB/s with 2 connections.
+- **Windows** (`config/incidents.yml`, new): from the first day of the incident month minus
+  24 months to the end of the incident month; live: from the month 24 months back to today
+  (the live score uses the backtest features' lookback). Overlaps are downloaded once. Sized:
+  event-stream 2016-11 to 2018-11, colors-faker 2020-01 to 2022-01, xz 2022-03 to 2024-03,
+  live 2024-10 onward: 3,034 days, 3.8 TB of gz to download, 9.1 billion events (estimates).
+- **Backfill on Actions (one workflow, resumable chunks):**
+  - A job is a run of consecutive days sized to 5 h (the 6 h job limit less an hour of
+    margin): per hour fetch, verify, parse, delete raw; per day roll up, publish, delete. 138
+    jobs, 664 job-hours, about 28 days end to end (estimate, this machine's rates; parallel
+    parsing on the runner's 4 CPUs would shorten it and is not assumed).
+  - Polite: jobs run one at a time (a `concurrency` group), 2 connections and the
+    `config/policy.yml` limits, so GH Archive never sees more than this machine did.
+  - Resumable: a job starts from the published state (which months' assets exist) plus the
+    fetch manifest kept as a Release asset (repository-level only: URLs, sizes, checksums), so a
+    cancelled or failed job is re-run from its first missing day. Idempotent per day.
+  - Disk: peak ~1 GB per job of the runner's 14 GB (one raw hour, the day's silver and
+    `repo_actor_day`, the job's output). RAM well under 16 GB (DuckDB peak 0.6 GB a day).
+- **What is kept where:**
+  - *Release assets (public):* monthly zstd Parquet of `repo_hour` and of the key-free
+    contributor table (per repository and day: human actors, their events, the largest
+    actor's events), one release per window and year. 34.6 + 16.7 GB in total, 50 assets per
+    window, the largest month ~1.1 GB (estimates; upper-side for E2 years, whose rollup ratio
+    comes from one holiday sample, and rollups grow far slower than volume). A month that would
+    pass 1.5 GiB is split in two files, keeping a margin under the 2 GiB limit.
+  - *Only on the runner, during a job:* `repo_actor_day`, silver with actor fields, raw files.
+    Metrics that need actor identity across days (new versus departed contributors) are
+    computed inside a job over the days it holds, or dropped; to settle in the metrics phase.
+  - *30-day silver window:* 7.1 GB as parsed, 6.3 GB without the actor fields (estimate).
+    Proposed: Release assets of silver without the actor fields, one per day, the oldest
+    deleted daily. The Actions cache is not used for it: pull-request runs (forks too) can
+    restore base-branch caches, and use above the 10 GB per repository is billed.
+  - *This machine:* nothing in bulk; a local copy of the months a phase needs.
+- **GitHub terms (checked 2026-10-21):** "About releases": each file "must be under 2 GiB",
+  "Up to 1000 release assets", and "There is no limit on the total size of a release, nor
+  bandwidth usage". Acceptable Use Policies section 9: bandwidth well above similar users may
+  be throttled or suspended; repositories placing "undue strain" may be deleted after notice.
+  Additional Product Terms (Actions): not for activity "unrelated to the production,
+  testing, deployment, or publication of the software project", nor "as a content delivery
+  network", nor a disproportionate burden. Runner reference: "free and unlimited on public
+  repositories" (standard runners: 4 CPUs, 16 GB RAM, 14 GB SSD); limits: 6 h per job, 35
+  days per workflow run, 256 matrix jobs, 20 concurrent jobs on Free. The backfill builds and
+  publishes this project's own data, which reads as within "publication of the software
+  project"; it is one sequential job at a time, not a CDN. Risk accepted with mitigations:
+  publish compact monthly files, never serve the site from release downloads at volume.
+- **Why:** $0; nothing bulk on this disk; every job fits the runner; privacy rules keep actor
+  keys on ephemeral runners only; the windows are what the backtests and the live score read.
+- **Open:** the 30-day window as public event-level rows without actor fields is a privacy
+  judgement (no person fields, GH Archive itself is public); confirm with the owner before
+  the first upload, else keep the window as `repo_hour` only. Runner throughput is to be
+  measured on the first job and this ADR's job plan resized.
 
 ## ADR-036 (2026-10-21) Lakekeeper terms of use accepted (owner)
 - The owner accepted Lakekeeper's terms of use for this non-commercial project on 2026-10-21.

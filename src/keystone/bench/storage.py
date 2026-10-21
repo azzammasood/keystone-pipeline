@@ -29,11 +29,26 @@ from pathlib import Path
 from typing import Any
 
 import duckdb
+import yaml
 
+from keystone.paths import CONFIG_DIR
 from keystone.rollup.contract import duckdb_projection
 from keystone.rollup.spec import duckdb_select, input_sql, rollups
 
 ARCHIVE_START = date(2011, 2, 12)
+INCIDENTS_PATH = CONFIG_DIR / "incidents.yml"
+ACTOR_FIELDS = ("actor_key", "actor_key_kind", "pr_author_key", "issue_author_key")
+SILVER_PUBLIC = "silver without actor fields"
+CONTRIBUTORS = "contributors per repo and day (key-free)"
+# Rates for sizing GitHub Actions jobs (estimates; measured on this machine, not on a runner):
+# download 232.7 MB in 46 s with 2 connections (Phase 2 gate, 2026-10-20); parse in one process
+# 4,071,556 events of 2026-08-01 in about 12 min (file times) and 166,432 events of
+# 2025-10-06 12h in 25.2 s (timed): the slower, about 5,600 events/s, is used.
+DOWNLOAD_BYTES_PER_S = 232.7e6 / 46
+PARSE_EVENTS_PER_S = 5_600
+JOB_BUDGET_S = 5 * 3600  # the 6 h job limit with an hour of margin
+RUNNER_DISK_BYTES = 14e9  # standard Linux runner SSD
+ASSET_LIMIT_BYTES = 2 * 2**30  # GitHub: each release asset under 2 GiB
 # Day-level era boundaries (docs/era-map.md; the boundary days themselves are split by hour there).
 ERA_STARTS = (("E0", date(2011, 2, 12)), ("E1", date(2012, 3, 10)),
               ("E2", date(2015, 1, 1)), ("E3", date(2025, 10, 8)))  # fmt: skip
@@ -149,8 +164,45 @@ def measure_rollups(root: Path, s: SampleDate, tmp: Path) -> None:
             s.candidate_rows[f"{r.name} summed to days"] = int(n[0]) if n else 0
             s.candidate_bytes[f"{r.name} summed to days"] = day.stat().st_size
             day.unlink()
+        if r.name == "repo_actor_day":
+            _key_free_contributors(con, s, target, tmp)
         target.unlink()
+    _silver_without_actors(con, s, files, tmp)
     con.close()
+
+
+def _measure(con: duckdb.DuckDBPyConnection, s: SampleDate, name: str, sql: str, out: Path) -> None:
+    con.execute(f"COPY ({sql}) TO '{out.as_posix()}' (FORMAT parquet, COMPRESSION zstd)")
+    n = con.execute(f"SELECT count(*) FROM read_parquet('{out.as_posix()}')").fetchone()
+    assert s.candidate_rows is not None and s.candidate_bytes is not None
+    s.candidate_rows[name] = int(n[0]) if n else 0
+    s.candidate_bytes[name] = out.stat().st_size
+    out.unlink()
+
+
+def _key_free_contributors(
+    con: duckdb.DuckDBPyConnection, s: SampleDate, actor_day: Path, tmp: Path
+) -> None:
+    """What may leave a runner from `repo_actor_day` (ADR-101): per repository and day, the
+    number of human actors and the largest one's events. No actor key."""
+    sql = (
+        "SELECT window_start, repo_id, era, count(*) AS human_actors, "
+        "CAST(sum(events) AS BIGINT) AS human_events, max(events) AS top_actor_events "
+        f"FROM read_parquet('{actor_day.as_posix()}') GROUP BY ALL"
+    )
+    _measure(con, s, CONTRIBUTORS, sql, tmp / f"{s.date}-contributors.parquet")
+
+
+def _silver_without_actors(
+    con: duckdb.DuckDBPyConnection, s: SampleDate, files: list[Path], tmp: Path
+) -> None:
+    """The day's silver with every actor field dropped (the publishable 30-day window)."""
+    cols = ", ".join(ACTOR_FIELDS)
+    sql = (
+        f"SELECT * EXCLUDE ({cols}) FROM read_parquet({_sql_list(files)}, "
+        "union_by_name = true, hive_partitioning = false)"
+    )
+    _measure(con, s, SILVER_PUBLIC, sql, tmp / f"{s.date}-silver-public.parquet")
 
 
 def raw_per_day_by_month(sweep_csv: Path) -> dict[str, float]:
@@ -192,11 +244,16 @@ def era_ratios(samples: list[SampleDate], value: str) -> dict[str, Ratio]:
 
 
 def _value(s: SampleDate, value: str) -> int | None:
+    """`silver`, `events`, `rollup` (all rollups), a rollup table or a candidate name."""
     if value == "silver":
         return s.silver_bytes
+    if value == "events":
+        return s.events
     if s.rollup_bytes is None or s.hours != 24:
         return None
-    return sum(s.rollup_bytes.values())
+    if value == "rollup":
+        return sum(s.rollup_bytes.values())
+    return s.rollup_bytes.get(value, (s.candidate_bytes or {}).get(value))
 
 
 def _days(start: date, end: date) -> list[date]:
@@ -255,6 +312,119 @@ def _ratios_json(r: dict[str, Ratio]) -> dict[str, Any]:
             for e, x in r.items()}  # fmt: skip
 
 
+def load_incidents(path: Path = INCIDENTS_PATH) -> dict[str, Any]:
+    cfg: dict[str, Any] = yaml.safe_load(path.read_text(encoding="utf-8"))
+    return cfg
+
+
+def _add_months(first: date, n: int) -> date:
+    m = first.year * 12 + first.month - 1 + n
+    return date(m // 12, m % 12 + 1, 1)
+
+
+def design_windows(cfg: dict[str, Any], end: date) -> dict[str, tuple[date, date]]:
+    """Half-open download windows of ADR-101 from `config/incidents.yml`."""
+    lookback = int(cfg["lookback_months"])
+    out = {}
+    for inc in cfg["incidents"]:
+        y, m = (int(x) for x in str(inc["month"]).split("-"))
+        first = date(y, m, 1)
+        out[str(inc["id"])] = (_add_months(first, -lookback), _add_months(first, 1))
+    trailing = int(cfg["live"]["trailing_months"])
+    out["live"] = (_add_months(date(end.year, end.month, 1), -trailing), end)
+    return out
+
+
+DESIGN_RATIOS = ("silver", "events", SILVER_PUBLIC, CONTRIBUTORS, "repo_hour", "repo_actor_day")
+_TOTALS = ("raw", "events", "silver", "repo_hour", CONTRIBUTORS, "repo_actor_day")
+
+
+def design(
+    samples: list[SampleDate],
+    raw_months: dict[str, float],
+    cfg: dict[str, Any],
+    end: date,
+    silver_window_days: int = 30,
+) -> dict[str, Any]:
+    """Size ADR-101 (estimates): what each window downloads, what it keeps where, and the
+    GitHub Actions jobs it needs. Published = `repo_hour` and the key-free contributor table
+    (monthly Release assets); `repo_actor_day` exists only inside a job."""
+    ratios = {k: era_ratios(samples, k) for k in DESIGN_RATIOS}
+
+    def day(d: date) -> dict[str, float]:
+        raw = _nearest(raw_months, d.isoformat()[:7])
+        era = era_of(d)
+        missing = [k for k in DESIGN_RATIOS if era not in ratios[k]]
+        if missing:
+            raise ValueError(f"no full sample day of era {era} for {missing}")
+        v = {k: raw * ratios[k][era].pooled for k in DESIGN_RATIOS}
+        v["raw"] = raw
+        v["seconds"] = raw / DOWNLOAD_BYTES_PER_S + v["events"] / PARSE_EVENTS_PER_S
+        return v
+
+    def published(v: dict[str, float]) -> float:
+        return v["repo_hour"] + v[CONTRIBUTORS]
+
+    wins: dict[str, Any] = {}
+    seen: set[date] = set()
+    windows_ = design_windows(cfg, end)
+    for name, (a, b) in windows_.items():
+        days = [d for d in _days(a, b) if d not in seen]  # an overlap is downloaded once
+        seen.update(days)
+        per = {d: day(d) for d in days}
+        jobs: list[list[date]] = []
+        for d in days:  # consecutive days per job while the job stays within budget
+            spent = sum(per[x]["seconds"] for x in jobs[-1]) if jobs else JOB_BUDGET_S
+            if spent + per[d]["seconds"] <= JOB_BUDGET_S:
+                jobs[-1].append(d)
+            else:
+                jobs.append([d])
+        months: dict[str, float] = {}
+        for d in days:
+            months[d.isoformat()[:7]] = months.get(d.isoformat()[:7], 0.0) + published(per[d])
+        # One raw hour streamed, the day's silver and actor rollup, the job's published output.
+        disk = max(
+            per[d]["raw"] / 24 + per[d]["silver"] + per[d]["repo_actor_day"]
+            + sum(published(per[x]) for x in job)
+            for job in jobs for d in job
+        )  # fmt: skip
+        wins[name] = {
+            "start": a.isoformat(),
+            "end": b.isoformat(),
+            "days": len(days),
+            "total": {k: sum(v[k] for v in per.values()) for k in _TOTALS},
+            "jobs": len(jobs),
+            "job_hours": sum(v["seconds"] for v in per.values()) / 3600,
+            "longest_job_hours": max(sum(per[x]["seconds"] for x in j) for j in jobs) / 3600,
+            "largest_monthly_asset": max(months.values()),
+            "release_assets": 2 * len(months),
+            "job_disk_peak": disk,
+            "max_day_raw": max(v["raw"] for v in per.values()),
+        }
+    live_end = windows_["live"][1]
+    window = [live_end - timedelta(n + 1) for n in range(silver_window_days)]
+    totals: dict[str, float] = {k: sum(w["total"][k] for w in wins.values()) for k in _TOTALS}
+    totals["jobs"] = sum(w["jobs"] for w in wins.values())
+    totals["job_hours"] = sum(w["job_hours"] for w in wins.values())
+    return {
+        "label": "estimate",
+        "config": cfg,
+        "rates": {
+            "download_bytes_per_s": DOWNLOAD_BYTES_PER_S,
+            "parse_events_per_s": PARSE_EVENTS_PER_S,
+            "job_budget_s": JOB_BUDGET_S,
+        },
+        "ratios": {k: _ratios_json(r) for k, r in ratios.items()},
+        "windows": wins,
+        "silver_window": {
+            "days": silver_window_days,
+            "silver": sum(day(d)["silver"] for d in window),
+            "published_without_actor_fields": sum(day(d)[SILVER_PUBLIC] for d in window),
+        },
+        "totals": totals,
+    }
+
+
 def build_report(
     root: Path, extra_roots: tuple[Path, ...] = (), end: date | None = None
 ) -> dict[str, Any]:
@@ -278,6 +448,7 @@ def build_report(
         "end": end.isoformat(),
         "samples": [s.__dict__ for s in samples],
         "projection": project(samples, raw_months, end),
+        "design": design(samples, raw_months, load_incidents(), end),
     }
 
 
@@ -310,8 +481,9 @@ def render_markdown(report: dict[str, Any]) -> str:
         )
     cands = [s for s in report["samples"] if s.get("candidate_bytes")]
     if cands:
-        out += ["", "### Measured candidate: hourly rollups summed to days (full sample days)", "",
-                "| date | table | rows | MB |", "|---|---|---:|---:|"]  # fmt: skip
+        out += ["",
+                "### Measured candidates (full sample days; storage options, not pipeline tables)",
+                "", "| date | table | rows | MB |", "|---|---|---:|---:|"]  # fmt: skip
         for s in cands:
             for name, b in s["candidate_bytes"].items():
                 out.append(f"| {s['date']} | {name} | {s['candidate_rows'][name]:,} | {_mb(b)} |")
@@ -344,4 +516,34 @@ def render_markdown(report: dict[str, Any]) -> str:
             f"{_gb(t['silver'])} ({_gb(t['silver_low'])}-{_gb(t['silver_high'])}) | "
             f"{_gb(t['rollup'])} ({_gb(t['rollup_low'])}-{_gb(t['rollup_high'])}) |"
         )
+    if "design" in report:
+        out += ["", render_design(report["design"])]
+    return "\n".join(out)
+
+
+def render_design(dz: dict[str, Any]) -> str:
+    out = ["### ADR-101 design: downloaded windows (estimate)", "",
+           "| window | from | to | days | raw downloaded GB | events (M) | silver made GB | "
+           "published repo_hour GB | published contributors GB | in-job repo_actor_day GB | "
+           "jobs | job-hours | longest job h | job disk peak GB | largest monthly asset MB |",
+           "|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]  # fmt: skip
+    for name, w in dz["windows"].items():
+        t = w["total"]
+        out.append(
+            f"| {name} | {w['start']} | {w['end']} | {w['days']} | {_gb(t['raw'])} | "
+            f"{t['events'] / 1e6:,.0f} | {_gb(t['silver'])} | {_gb(t['repo_hour'])} | "
+            f"{_gb(t[CONTRIBUTORS])} | {_gb(t['repo_actor_day'])} | {w['jobs']} | "
+            f"{w['job_hours']:,.0f} | {w['longest_job_hours']:.1f} | "
+            f"{_gb(w['job_disk_peak'])} | {_mb(w['largest_monthly_asset'])} |"
+        )
+    t = dz["totals"]
+    out.append(
+        f"| **total** | | | | {_gb(t['raw'])} | {t['events'] / 1e6:,.0f} | {_gb(t['silver'])} | "
+        f"{_gb(t['repo_hour'])} | {_gb(t[CONTRIBUTORS])} | {_gb(t['repo_actor_day'])} | "
+        f"{t['jobs']} | {t['job_hours']:,.0f} | | | |"
+    )
+    sw = dz["silver_window"]
+    out += ["", f"Rolling silver window ({sw['days']} days ending today): {_gb(sw['silver'])} GB "
+            f"as parsed; {_gb(sw['published_without_actor_fields'])} GB without actor fields "
+            "(estimate)."]  # fmt: skip
     return "\n".join(out)

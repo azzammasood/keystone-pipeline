@@ -72,7 +72,7 @@ is in this branch's `data/`, not the main checkout's).
 | date | era | hours | events | raw gz MB | silver MB | silver/raw | rollups MB (day) | rollup rows |
 |---|---|---:|---:|---:|---:|---:|---:|---:|
 | 2011-02-12 | E0 | 24 | 32,197 | 5.9 | 1.9 | 0.319 | 0.3 | 31,317 |
-| 2012-03-10 | E1+E0 | 3 | 3,534 | 0.9 | 0.2 | 0.216 | - | - |
+| 2012-03-10 | E0+E1 | 3 | 3,534 | 0.9 | 0.2 | 0.216 | - | - |
 | 2012-03-11 | E1 | 21 | 81,477 | 20.0 | 3.5 | 0.177 | - | - |
 | 2012-06-15 | E1 | 24 | 119,695 | 30.6 | 4.9 | 0.162 | 0.0 | 391 |
 | 2013-06-15 | E1 | 1 | 6,954 | 2.2 | 0.3 | 0.146 | - | - |
@@ -86,17 +86,28 @@ is in this branch's `data/`, not the main checkout's).
 | 2026-08-01 | E3 | 24 | 4,071,556 | 502.5 | 267.0 | 0.531 | 13.0 | 1,247,387 |
 | 2026-10-19 | E3 | 24 | 1,042,693 | 232.7 | 88.8 | 0.382 | 12.8 | 1,146,460 |
 
-
-#### Measured candidate: hourly rollups summed to days (full sample days)
+#### Measured candidates (full sample days; storage options, not pipeline tables)
 
 | date | table | rows | MB |
 |---|---|---:|---:|
+| 2011-02-12 | contributors per repo and day (key-free) | 9,514 | 0.0 |
 | 2011-02-12 | repo_hour summed to days | 12,549 | 0.1 |
+| 2011-02-12 | silver without actor fields | 32,197 | 0.9 |
+| 2012-06-15 | contributors per repo and day (key-free) | 0 | 0.0 |
 | 2012-06-15 | repo_hour summed to days | 32 | 0.0 |
+| 2012-06-15 | silver without actor fields | 119,695 | 2.7 |
+| 2014-12-31 | contributors per repo and day (key-free) | 64,354 | 0.3 |
 | 2014-12-31 | repo_hour summed to days | 90,747 | 0.5 |
+| 2014-12-31 | silver without actor fields | 265,730 | 7.6 |
+| 2015-01-01 | contributors per repo and day (key-free) | 66,304 | 0.3 |
 | 2015-01-01 | repo_hour summed to days | 92,421 | 0.5 |
+| 2015-01-01 | silver without actor fields | 218,939 | 10.0 |
+| 2026-08-01 | contributors per repo and day (key-free) | 356,075 | 1.9 |
 | 2026-08-01 | repo_hour summed to days | 534,057 | 3.2 |
+| 2026-08-01 | silver without actor fields | 4,071,556 | 247.2 |
+| 2026-10-19 | contributors per repo and day (key-free) | 359,021 | 1.8 |
 | 2026-10-19 | repo_hour summed to days | 535,063 | 3.1 |
+| 2026-10-19 | silver without actor fields | 1,042,693 | 69.1 |
 
 Rollup split on the full days (bytes): 2026-08-01 `repo_actor_day` 8,429,022 and `repo_hour`
 4,595,886; 2026-10-19 8,787,489 and 4,047,371; 2015-01-01 1,814,420 and 649,900. The salted
@@ -121,11 +132,10 @@ so the rollup projection for 2016-2025 is high.
 
 | era | silver/raw pooled (low-high) | rollups/raw pooled (low-high) |
 |---|---|---|
-| E0 | 0.319 (0.319-0.319) | 0.0530 (0.0530-0.0530) |
+| E0 | 0.319 (0.319-0.319) | 0.0532 (0.0532-0.0532) |
 | E1 | 0.103 (0.081-0.177) | 0.0137 (0.0002-0.0165) |
-| E2 | 0.138 (0.117-0.195) | 0.0334 (0.0334-0.0334) |
-| E3 | 0.484 (0.382-0.531) | 0.0352 (0.0259-0.0552) |
-
+| E2 | 0.138 (0.117-0.195) | 0.0333 (0.0333-0.0333) |
+| E3 | 0.484 (0.382-0.531) | 0.0352 (0.0260-0.0552) |
 
 #### Per year (estimate)
 
@@ -135,29 +145,28 @@ so the rollup projection for 2016-2025 is high.
 | 2012 | E0+E1 | 366 | 30.7 | 3.9 | 0.6 | 11.2 | 1.4 (1.2-2.2) | 0.2 |
 | 2013 | E1 | 365 | 73.8 | 7.6 | 1.0 | 26.9 | 2.8 (2.2-4.8) | 0.4 |
 | 2014 | E1 | 365 | 167.2 | 17.3 | 2.3 | 61.0 | 6.3 (4.9-10.8) | 0.8 |
-| 2015 | E2 | 365 | 202.4 | 28.0 | 6.8 | 73.9 | 10.2 (8.7-14.4) | 2.5 |
+| 2015 | E2 | 365 | 202.4 | 28.0 | 6.7 | 73.9 | 10.2 (8.7-14.4) | 2.5 |
 | 2016 | E2 | 366 | 324.7 | 44.9 | 10.8 | 118.9 | 16.4 (13.9-23.2) | 4.0 |
 | 2017 | E2 | 365 | 392.3 | 54.2 | 13.1 | 143.2 | 19.8 (16.8-27.9) | 4.8 |
-| 2018 | E2 | 365 | 469.0 | 64.8 | 15.7 | 171.2 | 23.7 (20.1-33.4) | 5.7 |
-| 2019 | E2 | 365 | 718.0 | 99.3 | 24.0 | 262.1 | 36.2 (30.7-51.1) | 8.8 |
-| 2020 | E2 | 366 | 1,180.4 | 163.2 | 39.4 | 432.0 | 59.7 (50.6-84.3) | 14.4 |
-| 2021 | E2 | 365 | 1,470.6 | 203.3 | 49.1 | 536.8 | 74.2 (62.9-104.8) | 17.9 |
-| 2022 | E2 | 365 | 1,807.3 | 249.9 | 60.4 | 659.7 | 91.2 (77.3-128.8) | 22.0 |
-| 2023 | E2 | 365 | 1,811.8 | 250.5 | 60.5 | 661.3 | 91.4 (77.5-129.1) | 22.1 |
-| 2024 | E2 | 366 | 2,224.0 | 307.5 | 74.3 | 814.0 | 112.6 (95.4-158.9) | 27.2 |
-| 2025 | E2+E3 | 365 | 1,760.4 | 308.0 | 59.1 | 642.5 | 112.4 (93.3-148.3) | 21.6 |
-| 2026 | E3 | 293 | 703.4 | 340.5 | 24.7 | 206.1 | 99.8 (78.7-109.5) | 7.2 |
-
+| 2018 | E2 | 365 | 469.0 | 64.8 | 15.6 | 171.2 | 23.7 (20.1-33.4) | 5.7 |
+| 2019 | E2 | 365 | 718.0 | 99.3 | 23.9 | 262.1 | 36.2 (30.7-51.1) | 8.7 |
+| 2020 | E2 | 366 | 1,180.4 | 163.2 | 39.3 | 432.0 | 59.7 (50.6-84.3) | 14.4 |
+| 2021 | E2 | 365 | 1,470.6 | 203.3 | 49.0 | 536.8 | 74.2 (62.9-104.8) | 17.9 |
+| 2022 | E2 | 365 | 1,807.3 | 249.9 | 60.2 | 659.7 | 91.2 (77.3-128.8) | 22.0 |
+| 2023 | E2 | 365 | 1,811.8 | 250.5 | 60.4 | 661.3 | 91.4 (77.5-129.1) | 22.0 |
+| 2024 | E2 | 366 | 2,224.0 | 307.5 | 74.1 | 814.0 | 112.6 (95.4-158.9) | 27.1 |
+| 2025 | E2+E3 | 365 | 1,760.4 | 308.0 | 59.0 | 642.5 | 112.4 (93.3-148.3) | 21.5 |
+| 2026 | E3 | 293 | 703.4 | 340.5 | 24.8 | 206.1 | 99.8 (78.7-109.5) | 7.3 |
 
 #### Windows (estimate)
 
 | window | from | to | days | raw GB | silver GB (low-high) | rollups GB (low-high) |
 |---|---|---|---:|---:|---:|---:|
-| full archive | 2011-02-12 | 2026-10-21 | 5730 | 4,824.6 | 759.5 (635.3-1,032.7) | 159.8 (156.0-165.6) |
+| full archive | 2011-02-12 | 2026-10-21 | 5730 | 4,824.6 | 759.5 (635.3-1,032.7) | 159.5 (155.6-165.2) |
 | 24 months before 2018-11 | 2016-11-01 | 2018-11-01 | 730 | 309.6 | 42.8 (36.3-60.4) | 10.3 (10.3-10.3) |
-| 24 months before 2022-01 | 2020-01-01 | 2022-01-01 | 731 | 968.8 | 134.0 (113.5-189.1) | 32.4 (32.4-32.4) |
-| 24 months before 2024-03 | 2022-03-01 | 2024-03-01 | 731 | 1,349.2 | 186.6 (158.1-263.3) | 45.1 (45.1-45.1) |
-| last 24 months | 2024-10-21 | 2026-10-21 | 730 | 1,006.6 | 234.0 (190.5-288.7) | 34.1 (31.6-39.6) |
+| 24 months before 2022-01 | 2020-01-01 | 2022-01-01 | 731 | 968.8 | 134.0 (113.5-189.1) | 32.3 (32.3-32.3) |
+| 24 months before 2024-03 | 2022-03-01 | 2024-03-01 | 731 | 1,349.2 | 186.6 (158.1-263.3) | 45.0 (45.0-45.0) |
+| last 24 months | 2024-10-21 | 2026-10-21 | 730 | 1,006.6 | 234.0 (190.5-288.7) | 34.1 (31.5-39.5) |
 
 **Conclusions** (inputs to ADR-101):
 - The earlier "~490 GB of silver (85 MB x days)" was not an upper bound: 2020-2024 hours are 3
@@ -165,7 +174,56 @@ so the rollup projection for 2016-2025 is high.
   635 GB to 1.03 TB).
 - No 24-month incident window fits the 17.9 GB budget as silver (43 to 234 GB, estimate), and
   neither do the rollups for all history at today's grains (~160 GB, upper-side estimate).
-- What fits is a stream-roll-delete backfill keeping a short silver window, actor-free history
-  at day grain off the machine, and actor-level history compacted (ADR-101).
-- Parse rate is the long pole: about 0.7 MB of gz per second in one process, so the raw
-  archive (4.8 TB, estimate) is about 80 process-days (estimate) without parallel parsing.
+- The owner therefore decided (2026-10-21): download only the incident windows and the live
+  window, keep 30 days of silver and the rollups for what is downloaded, compute on GitHub
+  Actions, store curated data as Release assets (section 4, ADR-101).
+- Parse is bound by events, not bytes: 166,432 events of 2025-10-06 12h (97.3 MB gz) in 25.2 s
+  (6,600 events/s, timed) and 4,071,556 events of 2026-08-01 (502.5 MB gz) in about 12 min
+  (about 5,600 events/s, file times), one process. E3's trimmed payloads pack about 3x the
+  events per gz byte of E2 (events/raw ratios in `storage.json`).
+
+## 4. The decided design, sized (all **estimates**)
+
+Owner decisions of 2026-10-21 (relayed by the Phase 4 kickoff session; ADR-101): a 30-day
+rolling silver window plus rollups for all downloaded history; download only about 24 months
+before each backtest incident plus the live score's trailing window; compute on GitHub Actions
+(the repo is public since 2026-10-21: standard runners free and unlimited); curated data as
+GitHub Release assets; never publish `repo_actor_day` or any actor key.
+
+Windows come from `config/incidents.yml`: from the first day of the incident month minus 24
+months to the end of the incident month (so any point-in-time cut in that month is covered),
+and the live window from the first day of the month 24 months back to today (the live score
+uses the backtest's lookback). Windows that overlap are downloaded once.
+
+What is published (monthly zstd Parquet Release assets): `repo_hour` and a key-free
+contributor table derived inside each job from `repo_actor_day`: per repository and day, the
+number of human actors, their events and the largest actor's events (measured above: 1.8 to
+1.9 MB per E3 day). `repo_actor_day` itself exists only on the runner's disk during a job.
+The 30-day silver window is sized with and without the actor fields.
+
+Job model: one job = consecutive days, each day = download its 24 hours at the measured
+5.06 MB/s (2 connections) then parse at 5,600 events/s (one process), within a 5 h budget
+(the 6 h limit less an hour). Jobs run one at a time so GH Archive never sees more than 2
+connections. Parallel parsing on the runner's 4 CPUs is not measured and not assumed; it would
+shorten the job-hours. Runner speeds are not measured either: these are this machine's rates.
+
+
+#### ADR-101 design: downloaded windows (estimate)
+
+| window | from | to | days | raw downloaded GB | events (M) | silver made GB | published repo_hour GB | published contributors GB | in-job repo_actor_day GB | jobs | job-hours | longest job h | job disk peak GB | largest monthly asset MB |
+|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| event-stream | 2016-11-01 | 2018-12-01 | 760 | 328.4 | 668 | 45.4 | 2.9 | 1.4 | 8.1 | 11 | 51 | 5.0 | 0.5 | 252.3 |
+| colors-faker | 2020-01-01 | 2022-02-01 | 762 | 1,028.0 | 2,092 | 142.1 | 9.1 | 4.4 | 25.2 | 33 | 160 | 5.0 | 0.8 | 775.9 |
+| xz | 2022-03-01 | 2024-04-01 | 762 | 1,424.0 | 2,898 | 196.9 | 12.5 | 6.1 | 34.9 | 46 | 222 | 5.0 | 0.9 | 996.5 |
+| live | 2024-10-01 | 2026-10-21 | 750 | 1,052.1 | 3,491 | 240.3 | 10.1 | 4.7 | 25.5 | 48 | 231 | 5.0 | 1.0 | 1,116.9 |
+| **total** | | | | 3,832.5 | 9,148 | 624.8 | 34.6 | 16.7 | 93.7 | 138 | 664 | | | |
+
+Rolling silver window (30 days ending today): 7.1 GB as parsed; 6.3 GB without actor fields (estimate).
+
+**Reading.** The decided design downloads 3.8 TB of gz (estimate) but keeps little: about
+51 GB published as Release assets (34.6 GB `repo_hour`, 16.7 GB key-free contributor
+aggregates; upper-side for the E2 years), 50 monthly assets per window, the largest about
+1.1 GB, under the 2 GiB limit. `repo_actor_day` (93.7 GB if it were kept) never leaves a
+runner. Each job stays within 5 h and about 1 GB of the runner's 14 GB disk; 138 jobs and
+664 job-hours run one at a time, about 28 days end to end at this machine's rates. The live
+window then grows by one day a day (one short job).

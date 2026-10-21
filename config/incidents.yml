@@ -1,0 +1,16 @@
+# Backtest incidents and the GH Archive history each needs (Phase 9, ADR-101).
+# Owner decision 2026-10-21: download only about `lookback_months` before each incident plus the
+# live score's trailing window; nothing else. A window runs from the first day of the incident
+# month minus `lookback_months` to the end of the incident month, so any point-in-time cut
+# inside that month is covered; the exact cut date belongs to the backtest (Phase 11).
+lookback_months: 24
+incidents:
+  - id: event-stream
+    month: 2018-11
+  - id: colors-faker
+    month: 2022-01
+  - id: xz
+    month: 2024-03
+live:
+  # The live score uses the same features as the backtest, so the same lookback.
+  trailing_months: 24

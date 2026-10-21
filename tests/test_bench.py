@@ -103,3 +103,45 @@ def test_storage_samples_join_raw_and_silver(parsed_fixtures: object) -> None:
     assert sum(s.hours for s in samples) == len(stems)
     assert all(s.raw_bytes == 1000 * s.hours and s.silver_bytes > 0 for s in samples)
     assert json.dumps([asdict(s) for s in samples])  # serialisable for storage.json
+
+
+def test_design_windows_follow_the_incident_config() -> None:
+    cfg = storage.load_incidents()
+    w = storage.design_windows(cfg, date(2026, 10, 21))
+    assert w["xz"] == (date(2022, 3, 1), date(2024, 4, 1))
+    assert w["event-stream"] == (date(2016, 11, 1), date(2018, 12, 1))
+    assert w["live"] == (date(2024, 10, 1), date(2026, 10, 21))
+
+
+def test_design_sizes_jobs_assets_and_never_publishes_actor_rollups() -> None:
+    eras = [e for e, _ in storage.ERA_STARTS]
+    cands = {storage.SILVER_PUBLIC: 80, storage.CONTRIBUTORS: 5}
+    samples = [
+        storage.SampleDate(
+            f"s{e}",
+            e,
+            24,
+            2000,
+            1000,
+            100,
+            {"repo_hour": 10, "repo_actor_day": 20},
+            {},
+            dict(cands),
+            {},
+        )  # fmt: skip
+        for e in eras
+    ]
+    cfg = {"lookback_months": 1, "incidents": [{"id": "x", "month": "2020-02"}],
+           "live": {"trailing_months": 1}}  # fmt: skip
+    raw_per_day = 10e9  # 10 GB a day: download + parse exceed a 5 h job alone
+    dz = storage.design(samples, {"2020-01": raw_per_day}, cfg, date(2020, 3, 3), 2)
+    x = dz["windows"]["x"]
+    assert (x["start"], x["end"], x["days"]) == ("2020-01-01", "2020-03-01", 60)
+    assert dz["windows"]["live"]["days"] == 2  # 2020-03-01 and -02 (overlap with x removed)
+    assert x["total"]["repo_hour"] == pytest.approx(60 * raw_per_day * 0.01)
+    assert x["total"]["events"] == pytest.approx(60 * raw_per_day * 2)
+    assert x["jobs"] == 60 and x["longest_job_hours"] > 5  # a day per job at most
+    assert x["release_assets"] == 4  # two published tables x two months
+    assert x["largest_monthly_asset"] == pytest.approx(31 * raw_per_day * 0.015)
+    assert dz["silver_window"]["published_without_actor_fields"] == pytest.approx(2 * 0.8e9)
+    assert dz["label"] == "estimate"
