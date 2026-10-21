@@ -56,6 +56,16 @@ Next phase: **Phase 7**.
   skipped (no token). CI green on e4fadda: ci, parity (lakehouse step: 10 tables x 4 engines,
   40/40 match; whole run 4.8 min) and scorecard (runs 39538664988, 39538664991, 39538664965;
   checked with gh as azzammasood).
+- 2026-10-21 Phase 6 metadata, lineage and observability: OpenLineage from the CLI, dbt
+  (dbt-ol), Flink (openlineage-flink) and Spark (ran, no datasets for reads) into Marquez 0.51.1;
+  DataHub v1.7.0.1 (dbt, Iceberg, Kafka sources; domains, owner group, glossary, tags,
+  57 assertions, column lineage); static export `metadata/` (catalog, glossary, lineage,
+  25 generated + 3 hand-written ODCS contracts); OTel collector, Prometheus, Grafana;
+  `pipeline_metrics.json` with JSON Schema (ADR-031 to 035). Airflow lineage deferred to
+  Phase 10, Databricks skipped (no token). Review: `docs/reviews/phase-6.md` (2 major, 10
+  minor, 6 nit; all fixed). CI green on e4c627a: ci incl. the new metadata job, parity (Flink
+  lineage collected, fixture gate path complete) and scorecard (runs 39557999916,
+  39557999733, 39557999772; checked with gh as azzammasood).
 
 ## Next
 1. **Phase 7** (next in the brief). Phase 6 leftovers: Airflow lineage when the DAGs exist
