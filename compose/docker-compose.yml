@@ -85,7 +85,9 @@ services:
     environment:
       AWS_ACCESS_KEY_ID: ${KEYSTONE_S3_ACCESS_KEY:-keystone-local}
       AWS_SECRET_ACCESS_KEY: ${KEYSTONE_S3_SECRET_KEY:-keystone-local-only}
-    volumes: [./trino/catalog/ice.properties:/etc/trino/catalog/ice.properties:ro]
+    volumes:
+      - ./trino/config.properties:/etc/trino/config.properties:ro
+      - ./trino/catalog/ice.properties:/etc/trino/catalog/ice.properties:ro
     ports: [127.0.0.1:8090:8080]
     mem_limit: 1536m
     healthcheck:
