@@ -49,7 +49,7 @@ schema:
     logicalType: string
     physicalType: VARCHAR
     description: Package name as the registry or OSV spells it.
-  - name: scope
+  - name: package_scope
     logicalType: string
     physicalType: VARCHAR
     description: critical, osv, osv_malware_only or registry_only (int_package_universe).

@@ -73,7 +73,7 @@ WITH best AS (
 )
 SELECT
     u.ecosystem,
-    u.scope,
+    u.package_scope AS scope,
     COUNT(*) AS packages,
     COUNT(b.package_key) AS with_candidate,
     SUM(COALESCE(b.auto_exact, 0)) AS auto_exact,
@@ -87,8 +87,8 @@ SELECT
     SUM(COALESCE(b.seen, 0)) AS decided_seen_in_gharchive
 FROM intermediate.int_package_universe AS u
 LEFT JOIN best AS b ON u.package_key = b.package_key
-GROUP BY u.ecosystem, u.scope
-ORDER BY u.scope, u.ecosystem
+GROUP BY u.ecosystem, u.package_scope
+ORDER BY u.package_scope, u.ecosystem
 """
 
 CROSSCHECK_SQL = """
@@ -204,11 +204,11 @@ def write_review(warehouse_db: Path, paths: ReportPaths) -> tuple[int, int]:
         packages = _rows(
             con,
             "SELECT 'package_repo' AS subject, package_key AS subject_key, repo_key AS candidate, "
-            "'' AS decision, '' AS decided_on, '' AS note, ecosystem, package_name, scope, "
+            "'' AS decision, '' AS decided_on, '' AS note, ecosystem, package_name, package_scope, "
             "repo_full_name, repo_id, rule, candidates, independent_sources, by_ecosystems, "
             "by_npm_registry, by_osv_git_range, by_osv_fix_sole, by_osv_fix_shared, in_subpath "
             "FROM marts.map_package_repo WHERE status = 'suggested' "
-            "ORDER BY scope, package_key, repo_key",
+            "ORDER BY package_scope, package_key, repo_key",
         )
         names = _rows(
             con,

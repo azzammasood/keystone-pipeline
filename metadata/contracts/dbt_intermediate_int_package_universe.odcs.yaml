@@ -57,7 +57,7 @@ schema:
     logicalType: boolean
     physicalType: BOOLEAN
     description: ecosyste.ms flags the package critical.
-  - name: scope
+  - name: package_scope
     logicalType: string
     physicalType: VARCHAR
     description: critical, osv (has a non-malware advisory), osv_malware_only or registry_only.

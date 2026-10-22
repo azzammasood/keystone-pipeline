@@ -214,3 +214,69 @@ def test_fingerprint_sql_and_output_parsing(tmp_path: Path) -> None:
     assert lake._rows(flink, {"q000"}, "|") == want
     with pytest.raises(ValueError):
         lake.fingerprint_sql(con, lake.Table("ns", "t; DROP"), "q001")
+
+
+# Flink SQL (Calcite) reserved words a column name could plausibly take; the cross-engine
+# fingerprint query does not quote identifiers, so such a column breaks the Flink read.
+FLINK_RESERVED = frozenset(
+    {
+        "scope",
+        "value",
+        "year",
+        "month",
+        "day",
+        "hour",
+        "minute",
+        "second",
+        "user",
+        "current",
+        "rank",
+        "position",
+        "language",
+        "result",
+        "timestamp",
+        "date",
+        "time",
+        "interval",
+        "partition",
+        "range",
+        "rows",
+        "window",
+        "order",
+        "group",
+        "system",
+        "path",
+        "start",
+        "end",
+        "count",
+        "sum",
+        "min",
+        "max",
+        "first",
+        "last",
+        "level",
+        "size",
+        "source",
+        "table",
+        "column",
+        "row",
+        "type",
+    }
+)
+
+
+def test_published_columns_avoid_flink_reserved_words() -> None:
+    import yaml
+
+    from keystone.paths import REPO_ROOT
+
+    bad = []
+    for spec in ("dbt/models/marts/_marts.yml", "dbt/models/metrics/_metrics.yml"):
+        doc = yaml.safe_load((REPO_ROOT / spec).read_text("utf-8"))
+        for model in doc["models"]:
+            bad += [
+                f"{model['name']}.{c['name']}"
+                for c in model.get("columns", [])
+                if c["name"].lower() in FLINK_RESERVED
+            ]
+    assert bad == []

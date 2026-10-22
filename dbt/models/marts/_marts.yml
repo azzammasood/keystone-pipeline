@@ -262,7 +262,7 @@ models:
         description: Ecosystem in OSV spelling.
       - name: package_name
         description: Package name as the registry or OSV spells it.
-      - name: scope
+      - name: package_scope
         description: critical, osv, osv_malware_only or registry_only (int_package_universe).
       - name: repo_key
         description: Candidate key, github.com#<id> when the GitHub id is known, else host/owner/name.

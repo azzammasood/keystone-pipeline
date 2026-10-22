@@ -35,6 +35,6 @@ SELECT
         WHEN o.has_advisory = 1 THEN 'osv'
         WHEN o.package_key IS NOT NULL THEN 'osv_malware_only'
         ELSE 'registry_only'
-    END AS scope
+    END AS package_scope
 FROM osv AS o
 FULL OUTER JOIN registry AS r ON o.package_key = r.package_key

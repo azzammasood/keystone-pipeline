@@ -117,18 +117,18 @@ unit_tests:
           - {package_key: PyPI/k, repo_key: github.com/o/k1, confidence: 0.95, outcome: chosen, model: m, candidates: "github.com/o/k1|github.com#102"}
       - input: ref('int_package_universe')
         rows:
-          - {package_key: npm/a, ecosystem: npm, package_name: a, scope: critical}
-          - {package_key: PyPI/b, ecosystem: PyPI, package_name: b, scope: critical}
-          - {package_key: PyPI/c, ecosystem: PyPI, package_name: c, scope: osv}
-          - {package_key: PyPI/d, ecosystem: PyPI, package_name: d, scope: osv}
-          - {package_key: PyPI/e, ecosystem: PyPI, package_name: e, scope: osv}
-          - {package_key: PyPI/f, ecosystem: PyPI, package_name: f, scope: osv}
-          - {package_key: npm/g, ecosystem: npm, package_name: g, scope: osv}
-          - {package_key: PyPI/h, ecosystem: PyPI, package_name: h, scope: osv}
-          - {package_key: PyPI/i, ecosystem: PyPI, package_name: i, scope: critical}
-          - {package_key: PyPI/j, ecosystem: PyPI, package_name: j, scope: osv}
-          - {package_key: PyPI/k, ecosystem: PyPI, package_name: k, scope: osv}
-          - {package_key: PyPI/m, ecosystem: PyPI, package_name: m, scope: osv}
+          - {package_key: npm/a, ecosystem: npm, package_name: a, package_scope: critical}
+          - {package_key: PyPI/b, ecosystem: PyPI, package_name: b, package_scope: critical}
+          - {package_key: PyPI/c, ecosystem: PyPI, package_name: c, package_scope: osv}
+          - {package_key: PyPI/d, ecosystem: PyPI, package_name: d, package_scope: osv}
+          - {package_key: PyPI/e, ecosystem: PyPI, package_name: e, package_scope: osv}
+          - {package_key: PyPI/f, ecosystem: PyPI, package_name: f, package_scope: osv}
+          - {package_key: npm/g, ecosystem: npm, package_name: g, package_scope: osv}
+          - {package_key: PyPI/h, ecosystem: PyPI, package_name: h, package_scope: osv}
+          - {package_key: PyPI/i, ecosystem: PyPI, package_name: i, package_scope: critical}
+          - {package_key: PyPI/j, ecosystem: PyPI, package_name: j, package_scope: osv}
+          - {package_key: PyPI/k, ecosystem: PyPI, package_name: k, package_scope: osv}
+          - {package_key: PyPI/m, ecosystem: PyPI, package_name: m, package_scope: osv}
     expect:
       rows:
         - {package_key: npm/a, repo_key: "github.com#10", repo_full_name: o/a, claimed_names: 2, status: accepted, rule: single_source, confidence: medium}

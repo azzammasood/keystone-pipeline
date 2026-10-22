@@ -155,7 +155,7 @@ SELECT
     d.package_key,
     u.ecosystem,
     u.package_name,
-    u.scope,
+    u.package_scope,
     d.repo_key,
     d.repo_host,
     d.repo_full_name,

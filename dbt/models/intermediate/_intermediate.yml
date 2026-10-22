@@ -59,7 +59,7 @@ models:
         description: OSV spellings that normalise to this key (dim_package rows).
       - name: critical
         description: ecosyste.ms flags the package critical.
-      - name: scope
+      - name: package_scope
         description: critical, osv (has a non-malware advisory), osv_malware_only or registry_only.
         data_tests:
           - accepted_values:

@@ -1,5 +1,5 @@
 {
- "generated_at": "2026-10-21T18:05:34.101106+00:00",
+ "generated_at": "2026-10-22T03:30:44.932729+00:00",
  "generator": "keystone metadata export",
  "completeness": {
   "models": 29,
@@ -1825,7 +1825,7 @@
      "description": "ecosyste.ms flags the package critical."
     },
     {
-     "name": "scope",
+     "name": "package_scope",
      "type": "VARCHAR",
      "description": "critical, osv (has a non-malware advisory), osv_malware_only or registry_only."
     }
@@ -2510,7 +2510,7 @@
      "description": "Package name as the registry or OSV spells it."
     },
     {
-     "name": "scope",
+     "name": "package_scope",
      "type": "VARCHAR",
      "description": "critical, osv, osv_malware_only or registry_only (int_package_universe)."
     },
@@ -4160,7 +4160,7 @@
      "description": "Package name as the registry or OSV spells it."
     },
     {
-     "name": "scope",
+     "name": "package_scope",
      "type": "VARCHAR",
      "description": "critical, osv, osv_malware_only or registry_only (int_package_universe)."
     },
