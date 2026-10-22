@@ -1,5 +1,9 @@
 """Phase 8: score_v1 components, point-in-time backtests, leakage and sensitivity checks."""
 
+import os
+import shutil
+import subprocess
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -9,6 +13,7 @@ import pytest
 from typer.testing import CliRunner
 
 from keystone.cli import app
+from keystone.paths import REPO_ROOT
 from keystone.score import backtest as bt
 from keystone.score import model, signals
 from keystone.score.signals import Window
@@ -380,3 +385,25 @@ def test_e3_window_uses_pr_closes_not_merges(tmp_path: Path) -> None:
         inp.close()
     assert "prs_merged" not in signals.MAINT_SQL["maint_v2"]
     assert "prs_merged" not in signals.MAINT_SQL["maint_v0"]
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32" or not shutil.which("openssl"), reason="needs bash and openssl"
+)
+def test_actor_data_roundtrip(data: dict[str, Path], tmp_path: Path) -> None:
+    """The backtest workflow decrypts what the backfill encrypts (actor-data.sh, ADR-045)."""
+    script = str(REPO_ROOT / ".github" / "scripts" / "actor-data.sh")
+    env = {**os.environ, "KEYSTONE_ACTOR_DATA_KEY": "test-key-not-a-secret"}
+    (tmp_path / "enc").mkdir()
+    plain = tmp_path / "m.parquet"
+    con = duckdb.connect(str(data["clean"]), read_only=True)
+    con.execute(f"COPY (SELECT 1 AS x) TO '{plain.as_posix()}' (FORMAT parquet)")
+    con.close()
+    cipher = tmp_path / "enc" / "repo_actor_month-1.parquet.enc"
+    subprocess.run(["bash", script, "encrypt", str(plain), str(cipher)], env=env, check=True)
+    assert b"PAR1" not in cipher.read_bytes()[:16]
+    out = tmp_path / "out"
+    subprocess.run(
+        ["bash", script, "decrypt", str(tmp_path / "enc"), str(out)], env=env, check=True
+    )
+    assert (out / "repo_actor_month-1.parquet").read_bytes() == plain.read_bytes()

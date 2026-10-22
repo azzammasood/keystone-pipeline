@@ -9,7 +9,10 @@ live|explain|backtest`, score_v1 (ADR-044), leakage and sensitivity checks; revi
 data** (`docs/backtest.md`): no incident window is in the local rollup yet. Rerun after the
 Phase 9 backfill lands: `uv run keystone score backtest --rollup <rollup.duckdb or Parquet dir>
 --warehouse data/warehouse/keystone.duckdb` (needs `repo_actor_month` for concentration and
-churn; spec in ADR-044, sent to the Phase 9 session). Phase 7 is complete (CI green on 2ff59b1).
+churn; spec in ADR-044). On Actions: `gh workflow run backtest.yml` downloads the `data-<window>`
+assets and decrypts `repo_actor_month` on the runner (ADR-045; owner approved the
+encrypted asset 2026-10-22; secret `KEYSTONE_ACTOR_DATA_KEY`). **Phase 8 complete**: CI green on 3729988 (ci, parity, scorecard: runs
+39769357851, 39769357770, 39769357745; checked with gh as azzammasood).
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),

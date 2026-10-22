@@ -53,6 +53,29 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   parallel parsing uses the runner's 4 CPUs while the network stays at the policy's 2
   connections; per-chunk resumability needs no state beyond the release itself.
 
+## ADR-045 (2026-10-22) Encrypted `repo_actor_month` assets; decrypt only on the backtest runner
+- **Context:** concentration and churn need per-actor monthly counts over 12 months (ADR-044);
+  the backfill jobs hold only a chunk of days, and actor keys are never published. Owner
+  (2026-10-22, relayed by the kickoff session): store `repo_actor_month` as an AES-256-encrypted
+  release asset under its own secret `KEYSTONE_ACTOR_DATA_KEY`; do not stop for decisions, take
+  the recommended option and log it.
+- **Choice:** one shared form for both sides, `.github/scripts/actor-data.sh`:
+  `openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt` (the data-cache.sh form) with the
+  passphrase `KEYSTONE_ACTOR_DATA_KEY`. The backfill (Phase 9) uploads
+  `repo_actor_month-<chunk>.parquet.enc` to `data-<window>` with `actor-data.sh encrypt`. The
+  manual workflow `backtest.yml` downloads each incident window's `repo_hour-*.parquet` and the
+  `.enc` assets, decrypts them on the runner into `data/backtest/repo_actor_month/`, runs
+  `keystone score backtest --rollup data/backtest`, and uploads only `backtest.json` and
+  `backtest.md` (counts and shares, no actor keys). A window without assets is pending data;
+  without the encrypted table, concentration and churn are unavailable for that window.
+- **Options rejected:** a Python cipher dependency (openssl is on every runner and matches the
+  existing cache form); reusing `KEYSTONE_ACTOR_SALT` as the passphrase (one leak would expose
+  both the keys' salt and the table; the owner chose a separate secret); uploading the
+  decrypted table as an artifact (artifacts of a public repository are downloadable).
+- **Limits:** the workflow has no warehouse, so OSV advisories and the name history (faker.js
+  has no API id) are unavailable there; a local run with the warehouse fills both. The round
+  trip is tested on Linux CI (`test_actor_data_roundtrip`).
+
 ## ADR-044 (2026-10-22) score_v1: rule-based fragility x criticality, point-in-time backtests
 - **Context:** brief section 8 (candidate signals, risk = criticality x fragility, no learned
   score in v1, backtests on `config/incidents.yml`, misses published, never claim prediction).
