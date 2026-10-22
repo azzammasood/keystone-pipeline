@@ -1,1 +1,127 @@
 subject,subject_key,candidate,decision,decided_on,note
+package_repo,PyPI/future,github.com#11403699,accepted,2026-10-22,registry-declared package repo; rival is CPython (an upstream fix)
+package_repo,PyPI/opencv-python,github.com#55781523,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
+package_repo,PyPI/opencv-contrib-python,github.com#55781523,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
+package_repo,PyPI/opencv-contrib-python-headless,github.com#55781523,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
+package_repo,PyPI/opencv-python-headless,github.com#55781523,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
+package_repo,PyPI/avif,github.com#328416227,accepted,2026-10-22,registry-declared binding repo; rival is the upstream C library
+package_repo,PyPI/bentoml,github.com#178976529,accepted,2026-10-22,registry-declared repo named after the package; rival is a sibling project
+package_repo,PyPI/briefcase,github.com#39841700,accepted,2026-10-22,registry and advisory name it; rivals are template repos
+package_repo,PyPI/casdoor,github.com#395005937,accepted,2026-10-22,the PyPI package is the Python SDK the registry declares; rival is the server
+package_repo,PyPI/late,github.com#717493413,accepted,2026-10-22,registry-declared repo named after the package; rival is an unrelated project
+package_repo,PyPI/libusb,github.com#100568234,accepted,2026-10-22,registry-declared Python binding; rival is the upstream C library
+package_repo,PyPI/numexpr,github.com#14829536,accepted,2026-10-22,registry and advisory name it; rival is a downstream user
+package_repo,PyPI/omero-figure,github.com#13200965,accepted,2026-10-22,registry-declared repo named after the package; rival is a sibling component
+package_repo,PyPI/pcre2,github.com#495927350,accepted,2026-10-22,registry-declared Python binding; rival is the upstream C library
+package_repo,PyPI/pyassimp,github.com#648332,accepted,2026-10-22,registry and advisory name it (bindings live in the main repo); rival is a fork
+package_repo,PyPI/signify,github.com#124762756,accepted,2026-10-22,registry and advisory name it; rival is a different tool
+package_repo,PyPI/sleekxmpp,github.com#463405,accepted,2026-10-22,registry-declared original; rival is its successor fork
+package_repo,PyPI/wabt,github.com#938076544,accepted,2026-10-22,registry-declared Python wrapper; rival is the upstream toolkit
+package_repo,PyPI/xgrammar,github.com#821257066,accepted,2026-10-22,registry and advisory name it; rival is a downstream user
+package_repo,PyPI/zstd,github.com#32665798,accepted,2026-10-22,registry-declared Python binding; rival is the upstream C library
+package_repo,PyPI/chuanhuchatgpt,github.com/gaizhenbiao/chuanhuchatgpt,accepted,2026-10-22,advisory GIT range and FIX name the original; rival is a fork
+package_repo,PyPI/agixt,github.com#629177820,accepted,2026-10-22,sole-package advisory names the repo named after the package
+package_repo,PyPI/glance-store,github.com#21909965,accepted,2026-10-22,sole-package advisory names the repo named after the package
+package_repo,PyPI/subiquity,github.com#37095216,accepted,2026-10-22,sole-package advisory names the repo named after the package
+package_repo,PyPI/mercurial,github.com#901662,rejected,2026-10-22,FIX link points at a different project (libgit2)
+package_repo,PyPI/torch-npu,github.com#65600975,rejected,2026-10-22,FIX link points at upstream PyTorch; the package is a separate vendor port
+package_repo,PyPI/uff,github.com/nvidia/product-security,rejected,2026-10-22,FIX link points at a security-bulletin repo
+package_repo,npm/kiota-typescript,github.com/npm/security-holder,rejected,2026-10-22,npm's placeholder for removed packages; not a source repo
+package_repo,PyPI/jeepney,gitlab.com/takluyver/jeepney,accepted,2026-10-22,registry-declared GitLab repo named after the package
+package_repo,PyPI/duplicity,gitlab.com/duplicity/duplicity,accepted,2026-10-22,registry-declared GitLab repo named after the package
+package_repo,PyPI/hyperkitty,gitlab.com/mailman/hyperkitty,accepted,2026-10-22,registry-declared GitLab repo named after the package
+package_repo,PyPI/postorius,gitlab.com/mailman/postorius,accepted,2026-10-22,registry-declared GitLab repo named after the package
+package_repo,PyPI/mayan-edms-ng,gitlab.com/mayan-edms-ng/mayan-edms-ng,accepted,2026-10-22,registry-declared GitLab repo named after the package
+package_repo,PyPI/taguette,gitlab.com/remram44/taguette,accepted,2026-10-22,registry-declared GitLab repo named after the package
+package_repo,PyPI/spam,gitlab.com/spam-project/spam,accepted,2026-10-22,registry-declared GitLab repo named after the package
+package_repo,PyPI/pyd3tn,gitlab.com/d3tn/ud3tn,accepted,2026-10-22,registry-declared GitLab repo that ships the Python bindings
+package_repo,npm/libphonenumber-js,gitlab.com/catamphetamine/libphonenumber-js,accepted,2026-10-22,npm field and ecosyste.ms declare this GitLab repo
+package_repo,PyPI/cloudtoken,bitbucket.org/atlassian/cloudtoken,accepted,2026-10-22,registry-declared Bitbucket repo named after the package
+package_repo,PyPI/django-piston,bitbucket.org/jespern/django-piston,accepted,2026-10-22,registry-declared Bitbucket repo named after the package
+package_repo,PyPI/ladon,bitbucket.org/jakobsg/ladon,accepted,2026-10-22,registry-declared Bitbucket repo named after the package
+package_repo,PyPI/django-ucamlookup,github.com/uisautomation/django-ucamlookup,accepted,2026-10-22,advisory GIT range and FIX name the repo named after the package
+package_repo,PyPI/moin,github.com/moinwiki/moin-1.9,accepted,2026-10-22,advisory GIT range and FIX name the 1.9 line repo
+package_repo,PyPI/nova-lxd,github.com/openstack/nova-lxd,accepted,2026-10-22,advisory GIT range and FIX name the repo named after the package
+package_repo,PyPI/pyro,github.com/irmen/pyro3,accepted,2026-10-22,advisory GIT range and FIX name the Pyro 3 repo
+package_repo,PyPI/sickrage,github.com/sickrage/sickrage,accepted,2026-10-22,advisory GIT range and FIX name the repo named after the package
+package_repo,PyPI/slixmpp,github.com/poezio/slixmpp,accepted,2026-10-22,advisory GIT range and FIX name the repo named after the package
+package_repo,PyPI/tlslite,github.com/trevp/tlslite,accepted,2026-10-22,advisory GIT range and FIX name the repo named after the package
+package_repo,PyPI/db-contrib-tool,github.com/10gen/db-contrib-tool,accepted,2026-10-22,registry-declared repo named after the package
+repo_name_id,alex/django-filter,117741,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,aljosa/django-tinymce,907262,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,apache/libcloud,419555,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,apache/thrift,310611,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,arturadib/shelljs,3604157,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,assimp/assimp,648332,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,astropy/astropy,2081289,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,buildbot/buildbot,760165,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,byvoid/opencc,776621,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,celery/celery,184460,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,chaijs/chai,2931111,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,chjj/marked,2096579,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,chrisglass/xhtml2pdf,1755413,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,chriso/node-validator,965782,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,cloudhead/less.js,527644,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,cobbler/cobbler,2734482,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,defnull/bottle,239940,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,diracgrid/dirac,1576831,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,djblets/djblets,279531,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,dmwm/wmcore,2370458,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,documentcloud/underscore,349241,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,einaros/ws,2744972,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,fabric/fabric,189840,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,facebook/tornado,301742,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,felixge/node-formidable,655209,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,flatiron/winston,1206546,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,fritzy/sleekxmpp,463405,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,ghantoos/lshell,1071899,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,gitpython-developers/gitpython,1126087,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,harthur/color,1939300,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,indico/indico,2113067,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,indutny/node-spdy,1588997,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,isaacs/rimraf,1341324,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,isaacs/sax-js,508894,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,jelmer/dulwich,156187,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,jubatus/jubatus,2645030,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,kozea/weasyprint,2179572,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,kpdecker/jsdiff,1542219,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,liris/websocket-client,1202362,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,marak/colors.js,715168,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,materialsproject/pymatgen,2629302,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,matplotlib/matplotlib,1385122,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,mitsuhiko/itsdangerous,1945034,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,mongodb/mongo-python-driver,108051,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,mongodb/node-mongodb-native,462292,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,moxie0/convergence,2109948,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,naparuba/shinken,1105519,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,nltk/nltk,299862,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,nodejitsu/node-http-proxy,795421,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,openstack/swift,790019,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,osrg/ryu,2945007,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,paramiko/paramiko,119609,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,plone/products.cmfplone,2452759,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,progrium/pyjwt,1408162,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,pydata/pandas,858127,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,pyinstaller/pyinstaller,2835111,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,pypa/pip,1446467,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,pypa/virtualenv,1446474,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,reviewboard/reviewboard,285304,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,saltstack/salt,1390248,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,scipy/scipy,1460385,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,scrapy/scrapy,529502,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,sehmaschine/django-grappelli,580566,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,shazow/urllib3,2410676,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,simplegeo/python-oauth2,345048,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,sockjs/sockjs-node,2088982,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,statsmodels/statsmodels,1885237,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,stuk/jszip,292525,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,tahoe-lafs/tahoe-lafs,3007569,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,tavendo/autobahnpython,2113510,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,tim-kos/node-retry,1738798,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,tomchristie/django-rest-framework,1431547,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,tootallnate/node-gyp,3342055,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,trentm/python-markdown2,1310572,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,visionmedia/express,237159,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,visionmedia/superagent,1607357,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,warner/python-ecdsa,617112,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
+repo_name_id,waylan/python-markdown,692146,accepted,2026-10-22,id existed at the hour and ecosyste.ms lists this name for the id
