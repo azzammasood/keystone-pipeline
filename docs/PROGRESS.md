@@ -3,19 +3,13 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
-Phase 7 (entity resolution) gate checks pass locally (2026-10-21): match-rate report
-`docs/match-rate.md` measured on the local data: 4,736 packages in scope, 4,383 decided
-(92.5%), 276 auto_exact (registry and OSV GIT range agree); renames from GH Archive (3,088)
-and ecosyste.ms (1,207); names without ids: 6,694 of 194,416 events decided, 35,997
-suggested (sample hours only). Review and CI (green on 00e32fd): see Done. Language-model
-rung ran on 2026-10-22 (free OpenRouter model, $0): all 32 ties answered, 29 decided at
-confidence >= 0.8 (3 below stay suggested); match rate 93.2% (4,412 of 4,736). Review CSVs
-reviewed (owner asked Claude, 2026-10-22): 48 package and 78 name decisions in the seed,
-match rate **94.1% (4,456)**; 25 candidates and 3,976 names stay suggested for lack of
-evidence (docs/reviews/phase-7.md). **Phase 7 complete**: CI green on 2ff59b1 (ci, parity,
-scorecard: runs 39742783444, 39742783454, 39742783568; checked with gh as azzammasood).
-CI green on 71b8043 (ci, parity, scorecard: runs 39740257893, 39740257969, 39740257966;
-checked with gh as azzammasood). Next phase: **Phase 8**.
+Phase 8 (scoring and backtest) gate checks pass locally (2026-10-22): `keystone score
+live|explain|backtest`, score_v1 (ADR-044), leakage and sensitivity checks; review
+`docs/reviews/phase-8.md` (2 major, 6 minor, 3 nit; fixed or documented). **Backtest: pending
+data** (`docs/backtest.md`): no incident window is in the local rollup yet. Rerun after the
+Phase 9 backfill lands: `uv run keystone score backtest --rollup <rollup.duckdb or Parquet dir>
+--warehouse data/warehouse/keystone.duckdb` (needs `repo_actor_month` for concentration and
+churn; spec in ADR-044, sent to the Phase 9 session). Phase 7 is complete (CI green on 2ff59b1).
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -84,8 +78,21 @@ checked with gh as azzammasood). Next phase: **Phase 8**.
   engines, registry fixtures replayed) and scorecard (runs 39718514239, 39718514258,
   39718514491; checked with gh as azzammasood).
 
+- 2026-10-22 Phase 8 scoring and backtest (ADR-044): `src/keystone/score/` with seven
+  explained components (concentration, churn, trend, responsiveness proxy, release recency,
+  collaborators added, OSV), fragility withheld below 50% weight coverage, criticality from
+  ecosyste.ms dependents (live only), risk = criticality x fragility; backtest cut = first instant
+  of the incident month, scored only with >= 90% of the window's hours (and of its last 3
+  months); runtime leakage check (exit 1 on any difference), poisoned-data tests, 22 weight
+  variants for sensitivity; misses reported as misses. Incidents carry repositories (GitHub API
+  ids) and source links. Measured: the local rollup holds 0.1% of the live window's hours and
+  none of any incident window, so the live score is withheld ("partial data") and every
+  backtest is "pending data".
+
 ## Next
-1. **Phase 8** (next in the brief). Phase 7 leftovers: re-run
+1. **Phase 8 rerun on backfilled data** (one command, see Now); then Phase 10 site exports.
+   Phase 8 leftovers: first-response time and OSV time to fix need inputs the rollups lack;
+   bot-free opens and closes in `repo_hour` would be a new metric version. Phase 7 leftovers: re-run
    the 3,976 names still suggested may resolve once Phase 9 loads the missing hours (re-run
    `warehouse build` and `resolve report` then);
    fold resolved E1/E0 events into activity metrics as a new metric version (Phase 8).
