@@ -1,16 +1,45 @@
-# Backtest incidents and the GH Archive history each needs (Phase 9, ADR-039, ADR-050).
-# Owner decision 2026-10-22 (minimum data): download only `lookback_months` before each incident
-# plus the live score's trailing window; nothing else. A window runs from the first day of the
-# incident month minus `lookback_months` to the end of the incident month, so any point-in-time
-# cut inside that month has a full year behind it; the exact cut date belongs to the backtest.
+# Backtest incidents and the GH Archive history each needs (Phase 9, ADR-039, ADR-050;
+# backtest: ADR-044). Owner decision 2026-10-22 (minimum data): download only `lookback_months`
+# before each incident plus the live score's trailing window; nothing else. A window runs from
+# the first day of the incident month minus `lookback_months` to the end of the incident month.
+# The backtest cut is the first instant of the incident month (UTC), so nothing from the
+# incident month itself is read (`keystone score backtest`).
+# Every incident needs a source link. Repository ids come from the GitHub REST API
+# (`gh api repos/OWNER/NAME --jq .id`, 2026-10-22); without one, the name is resolved from the
+# name history before the cut.
 lookback_months: 12
 incidents:
   - id: event-stream
     month: 2018-11
+    summary: >-
+      A new maintainer, given publish rights, added the dependency flatmap-stream with code
+      that targeted a cryptocurrency wallet.
+    repos:
+      - {name: dominictarr/event-stream, id: 2242185}
+    sources:
+      - https://github.com/dominictarr/event-stream/issues/116
+      - https://blog.npmjs.org/post/180565383195/details-about-the-event-stream-incident
   - id: colors-faker
     month: 2022-01
+    summary: >-
+      The maintainer of colors and faker published versions that broke dependants on purpose.
+    repos:
+      - {name: Marak/colors.js, id: 715168}
+      - {name: Marak/faker.js}  # removed from GitHub; resolved from the name history
+    sources:
+      - https://github.com/Marak/colors.js/issues/285
+      - https://github.com/advisories/GHSA-5rqg-jm4f-cqx7
+      - https://snyk.io/blog/open-source-npm-packages-colors-faker/
   - id: xz
     month: 2024-03
+    summary: >-
+      A backdoor in the xz release tarballs (CVE-2024-3094), added by a contributor who had
+      become a maintainer over about two years.
+    repos:
+      - {name: tukaani-project/xz, id: 553665726}
+    sources:
+      - https://www.openwall.com/lists/oss-security/2024/03/29/4
+      - https://nvd.nist.gov/vuln/detail/CVE-2024-3094
 live:
   # The live score uses the same features as the backtest, so the same lookback: from the first
   # day of the month 12 months back to today.

@@ -1381,3 +1381,7 @@ def resolve_report(
 from keystone.profile.cli import profile_app  # noqa: E402
 
 app.add_typer(profile_app, name="profile")
+
+from keystone.score.cli import score_app  # noqa: E402
+
+app.add_typer(score_app, name="score")  # Phase 8 score and backtest (keystone/score)
