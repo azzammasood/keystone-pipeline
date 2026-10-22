@@ -9,6 +9,7 @@ from typing import cast
 import typer
 
 from keystone import __version__
+from keystone.backfill.cli import app as backfill_app
 from keystone.bench.cli import app as bench_app
 from keystone.fetch.client import DiskBudgetExceeded, DiskGuard, PoliteClient
 from keystone.fetch.manifest import FileRecord, Manifest
@@ -31,6 +32,7 @@ from keystone.warehouse import lake as whlake
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 app.add_typer(bench_app, name="bench")  # Phase 9 scale ladder (keystone/bench)
+app.add_typer(backfill_app, name="backfill")  # Phase 9 history backfill (keystone/backfill)
 ingest_app = typer.Typer(no_args_is_help=True, help="Polite, resumable ingestion (Phase 2).")
 app.add_typer(ingest_app, name="ingest")
 parse_app = typer.Typer(no_args_is_help=True, help="Era-aware parsing to Parquet (Phase 3).")

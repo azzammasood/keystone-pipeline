@@ -1,0 +1,126 @@
+name: backfill
+
+# History backfill (Phase 9, ADR-050): the incident and live windows of config/incidents.yml,
+# one chunk (a calendar month by default) per job, jobs strictly one at a time so GH Archive
+# never sees more than the policy's 2 connections. Each job fetches, parses with the
+# production salt, rolls up and publishes only key-free aggregates (repo_hour, contributors)
+# plus its JSON record to the Release `data-<window>`; actor keys never leave the runner.
+# Resumable: the plan skips chunks whose record is already published, so re-dispatching
+# continues where a cancelled or failed run stopped. Manual dispatch only. Logs are public:
+# steps print counts and file names, never secrets or actor keys.
+on:
+  workflow_dispatch:
+    inputs:
+      windows:
+        description: Windows to plan, space-separated (empty = all in config/incidents.yml).
+        default: ""
+      chunk_days:
+        description: Split months into parts of at most N days (0 = whole months).
+        default: "0"
+      max_chunks:
+        description: Plan at most N pending chunks (0 = all).
+        default: "0"
+      redo_incomplete:
+        description: Retry chunks published as incomplete.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keystone-backfill
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      count: ${{ steps.plan.outputs.count }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      WINDOWS: ${{ inputs.windows }}
+      CHUNK_DAYS: ${{ inputs.chunk_days }}
+      MAX_CHUNKS: ${{ inputs.max_chunks }}
+      REDO: ${{ inputs.redo_incomplete }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --frozen
+      - id: plan
+        run: |
+          : > published.txt
+          for tag in $(gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName \
+                         --jq '.[].tagName | select(startswith("data-"))'); do
+            gh release view "$tag" --repo "$GITHUB_REPOSITORY" --json assets \
+              --jq '.assets[].name' >> published.txt
+          done
+          args=(--published published.txt --chunk-days "$CHUNK_DAYS" --max-chunks "$MAX_CHUNKS")
+          for w in $WINDOWS; do args+=(--window "$w"); done
+          if [ "$REDO" = "true" ]; then args+=(--redo-incomplete); fi
+          uv run keystone backfill plan "${args[@]}"
+          matrix=$(uv run keystone backfill plan "${args[@]}" --json)
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          echo "count=$(jq '.include | length' <<< "$matrix")" >> "$GITHUB_OUTPUT"
+
+  chunk:
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    strategy:
+      max-parallel: 1  # polite: one chunk (2 connections) at a time
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    name: chunk ${{ matrix.window }} ${{ matrix.name }}
+    permissions:
+      contents: write  # Release assets of data-<window> only
+      issues: write  # failure issue only
+    env:
+      KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}
+      GH_TOKEN: ${{ github.token }}
+      WINDOW: ${{ matrix.window }}
+      START: ${{ matrix.start }}
+      END: ${{ matrix.end }}
+      TAG: ${{ matrix.tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Production salt is set
+        run: |
+          if [ -z "$KEYSTONE_ACTOR_SALT" ]; then
+            echo "::error::secret KEYSTONE_ACTOR_SALT is not set (owner)"
+            exit 1
+          fi
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --frozen
+      - run: uv run keystone machine
+      - name: Fetch, parse, roll up
+        run: |
+          uv run keystone backfill chunk --window "$WINDOW" --start "$START" --end "$END" \
+            --out out --work "$RUNNER_TEMP/work"
+          rm -rf "$RUNNER_TEMP/work"  # partials with salted keys never leave the runner
+          ls -l out
+      - name: Publish key-free assets
+        run: |
+          if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --prerelease --latest=false --title "Keystone data: $WINDOW window" \
+              --notes "Key-free GH Archive aggregates for the $WINDOW window (ADR-050): repo_hour and contributors per chunk, zstd Parquet, with each chunk's JSON record (exact counts, fetch manifest). No actor keys or person data."
+          fi
+          # Data files first; the JSON record marks the chunk done, so it goes last.
+          gh release upload "$TAG" out/*.parquet --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$TAG" out/chunk-*.json --repo "$GITHUB_REPOSITORY" --clobber
+      - if: failure()
+        run: bash .github/scripts/failure-issue.sh
