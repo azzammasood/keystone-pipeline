@@ -1,0 +1,71 @@
+name: backtest
+
+# Phase 8 point-in-time backtest on the backfilled windows (ADR-044, ADR-045). Manual only.
+# Downloads each window's `repo_hour` assets and the encrypted `repo_actor_month` assets from the
+# `data-<window>` releases, decrypts the latter on the runner (actor-data.sh), runs
+# `keystone score backtest`, and uploads only the report and its JSON (no actor keys). A window
+# without assets is reported as pending data; without `repo_actor_month`, concentration and
+# churn are reported as unavailable for that window. No warehouse here: OSV advisories and the
+# name history (faker.js) are unavailable in this run and the report says so.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keystone-backtest
+  cancel-in-progress: false
+
+jobs:
+  backtest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    env:
+      KEYSTONE_ACTOR_DATA_KEY: ${{ secrets.KEYSTONE_ACTOR_DATA_KEY }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --frozen
+      - name: Download window assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          mkdir -p data/backtest/repo_hour data/backtest/enc
+          for w in event-stream colors-faker xz; do
+            gh release download "data-$w" -R "$REPO" -p 'repo_hour-*.parquet' \
+              -D data/backtest/repo_hour --skip-existing \
+              || echo "::warning::no repo_hour assets for $w (pending data)"
+            gh release download "data-$w" -R "$REPO" -p 'repo_actor_month-*.parquet.enc' \
+              -D data/backtest/enc --skip-existing \
+              || echo "::warning::no repo_actor_month assets for $w (unavailable)"
+          done
+      - name: Decrypt repo_actor_month on the runner
+        run: |
+          if compgen -G 'data/backtest/enc/*.parquet.enc' > /dev/null; then
+            bash .github/scripts/actor-data.sh decrypt data/backtest/enc data/backtest/repo_actor_month
+          fi
+          rm -rf data/backtest/enc
+      - name: Backtest
+        run: |
+          if ! compgen -G 'data/backtest/repo_hour/*.parquet' > /dev/null; then
+            echo "::error::no repo_hour assets in any window: backtest is pending data"
+            exit 1
+          fi
+          uv run keystone score backtest --rollup data/backtest --warehouse /nonexistent \
+            --out data/score/backtest.json --report data/score/backtest.md
+          cat data/score/backtest.md >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: backtest-report
+          path: |
+            data/score/backtest.json
+            data/score/backtest.md
