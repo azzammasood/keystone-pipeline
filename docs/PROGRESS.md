@@ -8,8 +8,8 @@ Phase 7 (entity resolution) gate checks pass locally (2026-10-21): match-rate re
 (92.5%), 276 auto_exact (registry and OSV GIT range agree); renames from GH Archive (3,088)
 and ecosyste.ms (1,207); names without ids: 6,694 of 194,416 events decided, 35,997
 suggested (sample hours only). Review and CI (green on 00e32fd): see Done. Language-model
-rung ran on 2026-10-22 (free OpenRouter model): 18 of 32 ties decided, match rate 92.9%
-(4,401); the other 14 hit the free daily cap of 50 requests and are asked on the next run.
+rung ran on 2026-10-22 (free OpenRouter model, $0): all 32 ties answered, 29 decided at
+confidence >= 0.8 (3 below stay suggested); match rate 93.2% (4,412 of 4,736).
 CI green on 71b8043 (ci, parity, scorecard: runs 39740257893, 39740257969, 39740257966;
 checked with gh as azzammasood). Next phase: **Phase 8**.
 
@@ -82,9 +82,8 @@ checked with gh as azzammasood). Next phase: **Phase 8**.
 
 ## Next
 1. **Phase 8** (next in the brief). Phase 7 leftovers: re-run
-   `uv run --env-file .env keystone resolve choose` after 2026-10-23 00:00 UTC (free daily cap
-   reset) for the 14 ties left, then `warehouse build` and `resolve report`; review the CSVs in
-   `data/resolve/` (118 package candidates, 4,054 names) into `dbt/seeds/resolve_decisions.csv`;
+   review the CSVs in `data/resolve/` (95 package candidates, 4,054 names) into
+   `dbt/seeds/resolve_decisions.csv`;
    fold resolved E1/E0 events into activity metrics as a new metric version (Phase 8).
    Earlier leftovers: Phase 6 leftovers: Airflow lineage when the DAGs exist
    (Phase 10); push of the compressed OpenLineage log to a data branch with the live refresh
@@ -183,3 +182,4 @@ checked with gh as azzammasood). Next phase: **Phase 8**.
 | 2026-10-21 | npm field vs ecosyste.ms | same 2,311; same id after rename 2; differ 1; no repository 20 |
 | 2026-10-21 | Names without ids (E0/E1) | 194,416 events: 6,684 auto_exact, 10 accepted, 35,997 suggested, 151,725 no candidate in the sample |
 | 2026-10-22 | Language-model rung (OpenRouter, free model) | 32 ties asked: 18 chosen (confidence 0.85 to 0.99), 14 cut off (token cap, fixed) then free daily cap 50 reached; cost $0; match rate 92.9% (4,401 of 4,736) |
+| 2026-10-22 | Language-model rung, second run (new free-tier account) | 14 asked, 14 chosen; overall 29 of 32 ties decided (confidence 0.80 to 0.99); cost $0; match rate 93.2% (4,412) |

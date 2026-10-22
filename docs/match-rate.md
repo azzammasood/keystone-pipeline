@@ -1,10 +1,10 @@
 # Phase 7 match-rate report
 
-Generated 2026-10-22T07:18:16+00:00 from the warehouse marts (measured counts).
+Generated 2026-10-22T07:37:56+00:00 from the warehouse marts (measured counts).
 
 ## Packages to repositories
 
-In scope (critical or with a non-malware OSV advisory): **4,736** packages; decided (auto_exact or accepted): **4,401** (**92.9%**), of which auto_exact 276. Decided with a GitHub id: 4,396; that id seen in the loaded GH Archive data: 1,761.
+In scope (critical or with a non-malware OSV advisory): **4,736** packages; decided (auto_exact or accepted): **4,412** (**93.2%**), of which auto_exact 276. Decided with a GitHub id: 4,406; that id seen in the loaded GH Archive data: 1,765.
 
 | Scope | Ecosystem | Packages | Candidate | auto_exact | accepted | suggested only | rejected only | none | match rate |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -15,14 +15,14 @@ In scope (critical or with a non-malware OSV advisory): **4,736** packages; deci
 | critical | PyPI | 522 | 497 | 53 | 440 | 4 | 0 | 25 | 94.4% |
 | critical | RubyGems | 2 | 2 | 0 | 2 | 0 | 0 | 0 | 100.0% |
 | critical | crates.io | 1 | 1 | 0 | 1 | 0 | 0 | 0 | 100.0% |
-| critical | npm | 2,295 | 2,278 | 0 | 2,273 | 5 | 0 | 17 | 99.0% |
+| critical | npm | 2,295 | 2,278 | 0 | 2,274 | 4 | 0 | 17 | 99.1% |
 | osv | Go | 17 | 17 | 0 | 17 | 0 | 0 | 0 | 100.0% |
 | osv | Hex | 1 | 1 | 0 | 1 | 0 | 0 | 0 | 100.0% |
 | osv | Maven | 49 | 45 | 0 | 44 | 1 | 0 | 4 | 89.8% |
 | osv | NuGet | 141 | 134 | 0 | 134 | 0 | 0 | 7 | 95.0% |
 | osv | Packagist | 4 | 4 | 0 | 4 | 0 | 0 | 0 | 100.0% |
 | osv | Pub | 1 | 1 | 0 | 1 | 0 | 0 | 0 | 100.0% |
-| osv | PyPI | 1,613 | 1,417 | 223 | 1,126 | 68 | 0 | 196 | 83.6% |
+| osv | PyPI | 1,613 | 1,417 | 223 | 1,136 | 58 | 0 | 196 | 84.3% |
 | osv | RubyGems | 7 | 4 | 0 | 4 | 0 | 0 | 3 | 57.1% |
 | osv | SwiftURL | 4 | 4 | 0 | 4 | 0 | 0 | 0 | 100.0% |
 | osv | crates.io | 24 | 24 | 0 | 24 | 0 | 0 | 0 | 100.0% |
@@ -33,16 +33,16 @@ Candidates by rule:
 
 | Status | Rule | Candidates |
 | --- | --- | ---: |
-| accepted | llm | 18 |
+| accepted | llm | 29 |
 | accepted | most_sources | 12 |
 | accepted | single_source | 4,095 |
 | auto_exact | sources_agree | 276 |
-| rejected | llm | 19 |
+| rejected | llm | 31 |
 | rejected | outvoted | 27 |
 | suggested | contested | 45 |
 | suggested | fix_reference_only | 7 |
 | suggested | single_source_unverified | 36 |
-| suggested | tie | 30 |
+| suggested | tie | 7 |
 
 npm cross-check (npm registry `repository` vs ecosyste.ms):
 
@@ -85,4 +85,4 @@ Repository ids of claimed names:
 
 ## Review and the language-model rung
 
-Review CSVs: 118 package candidates, 4,054 names (suggested rows). Ties waiting for the language-model rung: 14 packages.
+Review CSVs: 95 package candidates, 4,054 names (suggested rows). Ties waiting for the language-model rung: 3 packages.
