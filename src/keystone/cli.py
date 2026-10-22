@@ -1292,25 +1292,49 @@ def resolve_choose(
     except chooser.NotConfigured as exc:
         typer.echo(f"skipped: {exc}")
         return
+    except chooser.WouldCost as exc:
+        typer.echo(f"stopped ($0 only): {exc}", err=True)
+        raise typer.Exit(1) from exc
     db = whdbt.WarehousePaths(root).warehouse_db
     con = duckdb.connect(str(db), read_only=True)
     try:
         rows = con.execute(
-            "SELECT package_key, repo_key, by_ecosystems, by_npm_registry, by_osv_git_range "
-            "FROM marts.map_package_repo WHERE rule = 'tie' ORDER BY package_key, repo_key"
+            "SELECT package_key, repo_key, repo_full_name, by_ecosystems, by_npm_registry, "
+            "by_osv_git_range FROM marts.map_package_repo WHERE rule = 'tie' "
+            "ORDER BY package_key, repo_key"
         ).fetchall()
     finally:
         con.close()
-    questions = chooser.questions(rows)
+    asked = chooser.questions(rows)
+    answered: set[tuple[str, str]] = set()
+    files = sorted(chooser.choices_dir(root).glob("*.parquet"))
+    if files:
+        answered = {
+            (str(p), str(c))
+            for p, c in duckdb.execute(
+                "SELECT package_key, candidates FROM read_parquet(?) WHERE outcome = 'chosen'",
+                [[str(f) for f in files]],
+            ).fetchall()
+        }
+    questions = chooser.unanswered(asked, answered)
     with Stage(root, "resolve-choose", "keystone-llm", backend.model) as stage:
         answers = chooser.decide(backend, questions)
         stamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
-        chooser.write_choices(answers, chooser.choices_dir(root) / f"{stamp}.parquet")
+        if answers:
+            chooser.write_choices(answers, chooser.choices_dir(root) / f"{stamp}.parquet")
         stage.records_out = len(answers)
         outcomes = {
             o: sum(a.outcome == o for a in answers) for o in ("chosen", "declined", "refused")
         }
-        stage.detail.update(questions=len(questions), **outcomes)
+        stage.detail.update(
+            ties=len(asked), questions=len(questions), requests=backend.requests, **outcomes
+        )
+        if len(answers) < len(questions):
+            typer.echo(
+                f"stopped at the free daily quota: {len(questions) - len(answers)} questions "
+                "left for a later run",
+                err=True,
+            )
         typer.echo(
             f"questions={len(questions)} " + " ".join(f"{k}={v}" for k, v in outcomes.items())
         )

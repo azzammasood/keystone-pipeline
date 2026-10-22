@@ -22,3 +22,8 @@ hosts:
   registry.npmjs.org:
     max_concurrent: 1
     requests_per_second: 1.0
+  # OpenRouter (language-model rung, ADR-037): free models only, 20 requests/minute on the
+  # free tier; robots `Allow: /`. Keystone stays well under it.
+  openrouter.ai:
+    max_concurrent: 1
+    requests_per_second: 0.25

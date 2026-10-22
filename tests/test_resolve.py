@@ -215,14 +215,14 @@ class Fake:
 def test_llm_rung_refuses_candidates_it_was_not_shown(tmp_path: Path) -> None:
     qs = chooser.questions(
         [
-            ("PyPI/a", "github.com#1", True, False, False),
-            ("PyPI/a", "github.com#2", False, False, True),
-            ("PyPI/b", "github.com#3", True, False, False),
-            ("PyPI/b", "gitlab.com/o/b", False, False, True),
-            ("PyPI/c", "github.com#5", True, False, False),
-            ("PyPI/c", "github.com#6", False, False, True),
-            ("PyPI/d", "github.com#7", True, False, False),
-            ("PyPI/d", "github.com#8", False, False, True),
+            ("PyPI/a", "github.com#1", "o/x", True, False, False),
+            ("PyPI/a", "github.com#2", "o/x", False, False, True),
+            ("PyPI/b", "github.com#3", "o/x", True, False, False),
+            ("PyPI/b", "gitlab.com/o/b", "o/x", False, False, True),
+            ("PyPI/c", "github.com#5", "o/x", True, False, False),
+            ("PyPI/c", "github.com#6", "o/x", False, False, True),
+            ("PyPI/d", "github.com#7", "o/x", True, False, False),
+            ("PyPI/d", "github.com#8", "o/x", False, False, True),
         ]
     )
     assert qs[0].candidates == ("github.com#1", "github.com#2")
@@ -244,6 +244,39 @@ def test_llm_rung_refuses_candidates_it_was_not_shown(tmp_path: Path) -> None:
     }
     dest = tmp_path / "c.parquet"
     assert chooser.write_choices(rows, dest) == 4
+
+
+def _openrouter(price: str = "0", cost: float = 0.0, answer: str = "") -> httpx.Client:
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/models"):
+            models = [
+                {"id": chooser.DEFAULT_MODEL, "pricing": {"prompt": price, "completion": "0"}}
+            ]
+            return httpx.Response(200, json={"data": models})
+        body = json.loads(request.content)
+        assert body["model"] == chooser.DEFAULT_MODEL and body["temperature"] == 0
+        content = answer or '{"candidate": "github.com#2", "confidence": 0.9, "rationale": "r"}'
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": content}}], "usage": {"cost": cost}},
+        )
+
+    return httpx.Client(transport=httpx.MockTransport(handle))
+
+
+def test_openrouter_backend_is_free_by_construction() -> None:
+    q = chooser.Question("PyPI/a", ("github.com#1", "github.com#2"), "facts")
+    ok = chooser.OpenRouterChooser("k", client=_openrouter(), min_interval=0)
+    ok.check_free()
+    assert ok.ask(q) == chooser.Answer("github.com#2", 0.9, "r")
+    with pytest.raises(chooser.WouldCost):
+        chooser.OpenRouterChooser("k", model="vendor/paid-model")
+    with pytest.raises(chooser.WouldCost):
+        chooser.OpenRouterChooser("k", client=_openrouter(price="0.000001")).check_free()
+    with pytest.raises(chooser.WouldCost):
+        chooser.OpenRouterChooser("k", client=_openrouter(cost=0.01), min_interval=0).ask(q)
+    garbled = chooser.OpenRouterChooser("k", client=_openrouter(answer="no json"), min_interval=0)
+    assert chooser.validate(q, garbled.ask(q)) == "refused"
 
 
 def test_llm_rung_is_skipped_without_a_key(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -289,3 +322,22 @@ def test_an_unattributable_record_is_not_turned_into_absences(tmp_path: Path) ->
     )
     eco = [r for r in _silver(tmp_path, "packages") if r["source"] == "ecosystems"]
     assert eco and all(r["found"] for r in eco)  # no `found = false` from a keyless record
+
+
+def test_daily_quota_keeps_answers_and_resume_skips_them() -> None:
+    qs = [chooser.Question(f"PyPI/{n}", ("github.com#1", "github.com#2"), "f") for n in "abc"]
+
+    class Capped:
+        model = "fake"
+        calls = 0
+
+        def ask(self, question: chooser.Question) -> chooser.Answer:
+            self.calls += 1
+            if self.calls > 2:
+                raise chooser.DailyQuota("used up")
+            return chooser.Answer("github.com#1", 0.9)
+
+    rows = chooser.decide(Capped(), qs)
+    assert [r.package_key for r in rows] == ["PyPI/a", "PyPI/b"]
+    answered = {(r.package_key, r.candidates) for r in rows if r.outcome == "chosen"}
+    assert [q.package_key for q in chooser.unanswered(qs, answered)] == ["PyPI/c"]
