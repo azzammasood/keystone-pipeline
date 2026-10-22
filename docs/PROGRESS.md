@@ -9,7 +9,10 @@ Phase 7 (entity resolution) gate checks pass locally (2026-10-21): match-rate re
 and ecosyste.ms (1,207); names without ids: 6,694 of 194,416 events decided, 35,997
 suggested (sample hours only). Review and CI (green on 00e32fd): see Done. Language-model
 rung ran on 2026-10-22 (free OpenRouter model, $0): all 32 ties answered, 29 decided at
-confidence >= 0.8 (3 below stay suggested); match rate 93.2% (4,412 of 4,736).
+confidence >= 0.8 (3 below stay suggested); match rate 93.2% (4,412 of 4,736). Review CSVs
+reviewed (owner asked Claude, 2026-10-22): 48 package and 78 name decisions in the seed,
+match rate **94.1% (4,456)**; 25 candidates and 3,976 names stay suggested for lack of
+evidence (docs/reviews/phase-7.md). **Phase 7 complete.**
 CI green on 71b8043 (ci, parity, scorecard: runs 39740257893, 39740257969, 39740257966;
 checked with gh as azzammasood). Next phase: **Phase 8**.
 
@@ -82,8 +85,8 @@ checked with gh as azzammasood). Next phase: **Phase 8**.
 
 ## Next
 1. **Phase 8** (next in the brief). Phase 7 leftovers: re-run
-   review the CSVs in `data/resolve/` (95 package candidates, 4,054 names) into
-   `dbt/seeds/resolve_decisions.csv`;
+   the 3,976 names still suggested may resolve once Phase 9 loads the missing hours (re-run
+   `warehouse build` and `resolve report` then);
    fold resolved E1/E0 events into activity metrics as a new metric version (Phase 8).
    Earlier leftovers: Phase 6 leftovers: Airflow lineage when the DAGs exist
    (Phase 10); push of the compressed OpenLineage log to a data branch with the live refresh
@@ -183,3 +186,4 @@ checked with gh as azzammasood). Next phase: **Phase 8**.
 | 2026-10-21 | Names without ids (E0/E1) | 194,416 events: 6,684 auto_exact, 10 accepted, 35,997 suggested, 151,725 no candidate in the sample |
 | 2026-10-22 | Language-model rung (OpenRouter, free model) | 32 ties asked: 18 chosen (confidence 0.85 to 0.99), 14 cut off (token cap, fixed) then free daily cap 50 reached; cost $0; match rate 92.9% (4,401 of 4,736) |
 | 2026-10-22 | Language-model rung, second run (new free-tier account) | 14 asked, 14 chosen; overall 29 of 32 ties decided (confidence 0.80 to 0.99); cost $0; match rate 93.2% (4,412) |
+| 2026-10-22 | Review of the CSVs (seed decisions) | packages: 44 accepted + 4 rejected decisions, match rate 94.1% (4,456 of 4,736), 25 candidates left; names: 78 accepted (396 name-hours, 763 events), 3,976 left |

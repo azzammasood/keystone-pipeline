@@ -89,8 +89,9 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   (PyPI 522 + npm 2,295 critical, 1,919 more with an advisory); first fetch 2,388 requests,
   664 MB (ecosyste.ms bulk responses are large), 2,697 s; 4,383 decided (92.5%): 276
   auto_exact, 4,107 accepted (before the language-model rung; with it, 2026-10-22: 4,412
-  decided, 93.2%, 29 of 32 ties chosen by the model at confidence >= 0.8); 155 suggested
-  candidates in the review CSV (95 after the rung); the npm field and
+  decided, 93.2%, 29 of 32 ties chosen by the model at confidence >= 0.8; after the
+  owner-delegated review of the CSVs, 48 package decisions and 78 name decisions in the seed:
+  4,456 decided, 94.1%); 155 suggested candidates in the review CSV (25 after the review); the npm field and
   ecosyste.ms name the same repository for 2,311 packages, the same id after a rename for 2,
   differ for 1. Renames: 3,088 from GH Archive, 1,207 more from ecosyste.ms. Names without ids:
   of 194,416 events (101,786 name-hours) 6,694 are decided, 35,997 suggested, 151,725 have no

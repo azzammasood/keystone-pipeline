@@ -40,3 +40,36 @@ read `map_package_repo` because its column `scope` is a reserved word in Flink S
 cross-engine fingerprint query does not quote identifiers; the script stopped there, so every
 later table failed too (DuckDB, Spark and Trino matched). Fixed: the column is
 `package_scope`, and a test fails on any published column named like a Flink reserved word.
+
+## Review of the suggested rows (2026-10-22)
+
+The owner asked Claude to review the two review CSVs. Decisions are rows of
+`dbt/seeds/resolve_decisions.csv`, each with the evidence in its note; a decision is made
+only where the evidence settles it.
+
+- Packages: 68 packages, 95 candidates. 48 decisions:
+  - **20 contested packages accepted** for the registry-declared repository. In each, the
+    rival is named only by an advisory's FIX link that points at an upstream library, a
+    downstream user, a sibling project or a fork (for example `opencv-python` keeps
+    `opencv/opencv-python` over `opencv/opencv`).
+  - **1 tie and 3 FIX-only packages accepted** where the advisory names the original
+    repository named after the package.
+  - **4 rejections:** `mercurial` → libgit2, `torch-npu` → upstream PyTorch, `uff` → a
+    security-bulletin repo, `kiota-typescript` → npm's placeholder for removed packages.
+  - **20 accepted where the source is not GitHub or has no GitHub id:** 12 registry-declared
+    GitLab or Bitbucket repositories named after the package, 7 GitHub repositories named by
+    an advisory's GIT range and FIX link, and 1 registry-declared GitHub repository.
+
+  Left `suggested` (25 candidates):
+  - GitHub repositories ecosyste.ms could not find (possibly deleted or private);
+  - `wasmtime-bin` and the `dash-*` components, where the packaging and source repositories
+    genuinely differ;
+  - `micropython-io` and `tenable-jira-cloud`.
+
+  Match rate after the review: 4,456 of 4,736 (94.1%).
+- Names without ids: 4,054 names. 78 accepted: the candidate id provably existed at the hour,
+  and ecosyste.ms independently lists the name for that id (396 name-hours, 763 events). The
+  other 3,976 stay `suggested`. The median gap between the event and the candidate's sighting
+  under that name is about 2.5 years. Only the sparse sample hours are loaded, and no
+  independent source confirms the name, so deciding them would invent matches. The Phase 9
+  backfill loads the missing hours, and covering spells will then resolve many by rule.

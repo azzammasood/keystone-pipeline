@@ -1,10 +1,10 @@
 # Phase 7 match-rate report
 
-Generated 2026-10-22T07:37:56+00:00 from the warehouse marts (measured counts).
+Generated 2026-10-22T07:42:17+00:00 from the warehouse marts (measured counts).
 
 ## Packages to repositories
 
-In scope (critical or with a non-malware OSV advisory): **4,736** packages; decided (auto_exact or accepted): **4,412** (**93.2%**), of which auto_exact 276. Decided with a GitHub id: 4,406; that id seen in the loaded GH Archive data: 1,765.
+In scope (critical or with a non-malware OSV advisory): **4,736** packages; decided (auto_exact or accepted): **4,456** (**94.1%**), of which auto_exact 276. Decided with a GitHub id: 4,429; that id seen in the loaded GH Archive data: 1,775.
 
 | Scope | Ecosystem | Packages | Candidate | auto_exact | accepted | suggested only | rejected only | none | match rate |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -12,21 +12,21 @@ In scope (critical or with a non-malware OSV advisory): **4,736** packages; deci
 | critical | Maven | 6 | 5 | 0 | 5 | 0 | 0 | 1 | 83.3% |
 | critical | NuGet | 4 | 4 | 0 | 4 | 0 | 0 | 0 | 100.0% |
 | critical | Packagist | 3 | 3 | 0 | 3 | 0 | 0 | 0 | 100.0% |
-| critical | PyPI | 522 | 497 | 53 | 440 | 4 | 0 | 25 | 94.4% |
+| critical | PyPI | 522 | 497 | 53 | 444 | 0 | 0 | 25 | 95.2% |
 | critical | RubyGems | 2 | 2 | 0 | 2 | 0 | 0 | 0 | 100.0% |
 | critical | crates.io | 1 | 1 | 0 | 1 | 0 | 0 | 0 | 100.0% |
-| critical | npm | 2,295 | 2,278 | 0 | 2,274 | 4 | 0 | 17 | 99.1% |
+| critical | npm | 2,295 | 2,278 | 0 | 2,275 | 3 | 0 | 17 | 99.1% |
 | osv | Go | 17 | 17 | 0 | 17 | 0 | 0 | 0 | 100.0% |
 | osv | Hex | 1 | 1 | 0 | 1 | 0 | 0 | 0 | 100.0% |
 | osv | Maven | 49 | 45 | 0 | 44 | 1 | 0 | 4 | 89.8% |
 | osv | NuGet | 141 | 134 | 0 | 134 | 0 | 0 | 7 | 95.0% |
 | osv | Packagist | 4 | 4 | 0 | 4 | 0 | 0 | 0 | 100.0% |
 | osv | Pub | 1 | 1 | 0 | 1 | 0 | 0 | 0 | 100.0% |
-| osv | PyPI | 1,613 | 1,417 | 223 | 1,136 | 58 | 0 | 196 | 84.3% |
+| osv | PyPI | 1,613 | 1,417 | 223 | 1,175 | 16 | 3 | 196 | 86.7% |
 | osv | RubyGems | 7 | 4 | 0 | 4 | 0 | 0 | 3 | 57.1% |
 | osv | SwiftURL | 4 | 4 | 0 | 4 | 0 | 0 | 0 | 100.0% |
 | osv | crates.io | 24 | 24 | 0 | 24 | 0 | 0 | 0 | 100.0% |
-| osv | npm | 39 | 37 | 0 | 36 | 1 | 0 | 2 | 92.3% |
+| osv | npm | 39 | 37 | 0 | 36 | 0 | 1 | 2 | 92.3% |
 | osv_malware_only | PyPI | 11,799 | 0 | 0 | 0 | 0 | 0 | 11,799 | 0.0% |
 
 Candidates by rule:
@@ -35,14 +35,16 @@ Candidates by rule:
 | --- | --- | ---: |
 | accepted | llm | 29 |
 | accepted | most_sources | 12 |
+| accepted | review | 44 |
 | accepted | single_source | 4,095 |
 | auto_exact | sources_agree | 276 |
 | rejected | llm | 31 |
 | rejected | outvoted | 27 |
-| suggested | contested | 45 |
-| suggested | fix_reference_only | 7 |
-| suggested | single_source_unverified | 36 |
-| suggested | tie | 7 |
+| rejected | review | 26 |
+| suggested | contested | 4 |
+| suggested | fix_reference_only | 1 |
+| suggested | single_source_unverified | 15 |
+| suggested | tie | 5 |
 
 npm cross-check (npm registry `repository` vs ecosyste.ms):
 
@@ -77,12 +79,13 @@ Repository ids of claimed names:
 
 | Status | Rule | Name-hours | Events |
 | --- | --- | ---: | ---: |
+| accepted | review | 396 | 763 |
 | accepted | unique_name_near | 5 | 10 |
 | auto_exact | spell_covers | 3,356 | 6,684 |
 | suggested | several_ids | 99 | 211 |
 | suggested | unique_name_far | 1,427 | 2,640 |
-| suggested | unique_name_id_existed | 11,549 | 33,146 |
+| suggested | unique_name_id_existed | 11,153 | 32,383 |
 
 ## Review and the language-model rung
 
-Review CSVs: 95 package candidates, 4,054 names (suggested rows). Ties waiting for the language-model rung: 3 packages.
+Review CSVs: 25 package candidates, 3,976 names (suggested rows). Ties waiting for the language-model rung: 2 packages.
