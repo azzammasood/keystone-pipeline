@@ -7,7 +7,7 @@ Phase 7 (entity resolution) gate checks pass locally (2026-10-21): match-rate re
 `docs/match-rate.md` measured on the local data: 4,736 packages in scope, 4,383 decided
 (92.5%), 276 auto_exact (registry and OSV GIT range agree); renames from GH Archive (3,088)
 and ecosyste.ms (1,207); names without ids: 6,694 of 194,416 events decided, 35,997
-suggested (sample hours only). Review and CI: see Done. Next phase: **Phase 8**.
+suggested (sample hours only). Review and CI (green on 00e32fd): see Done. Next phase: **Phase 8**.
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -72,7 +72,9 @@ suggested (sample hours only). Review and CI: see Done. Next phase: **Phase 8**.
   per RFC 9309 (pypi.org disallows its JSON API: no PyPI registry cross-check).
   Review: `docs/reviews/phase-7.md` (3 major, 6 minor, 4 nit; all fixed; npm registry and
   ecosyste.ms now count as one source family). First parity run failed on Flink (a
-  reserved column name, fixed).
+  reserved column name, fixed). CI green on 00e32fd: ci, parity (13 published tables x 4
+  engines, registry fixtures replayed) and scorecard (runs 39718514239, 39718514258,
+  39718514491; checked with gh as azzammasood).
 
 ## Next
 1. **Phase 8** (next in the brief). Phase 7 leftovers: the language-model rung when the
