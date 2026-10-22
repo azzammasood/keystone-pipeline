@@ -29,7 +29,7 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   compare them: PEP 503 for PyPI, lower case for NuGet (ecosyste.ms answers NuGet in lower
   case); the warehouse recomputes the key, so a changed rule never splits a package.
 - Universe: OSV packages with at least one non-malware advisory, plus the critical sets.
-  Packages known only from malware reports stay in `int_package_universe` with scope
+  Packages known only from malware reports stay in `int_package_universe` with package_scope
   `osv_malware_only` and are out of the match rate (their registry entries are removed).
 - Package to repository (`map_package_repo`, one row per package and candidate). A candidate
   is a GitHub id when known (claims under an old and a new name merge: a rename), else

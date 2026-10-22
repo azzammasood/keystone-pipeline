@@ -70,6 +70,9 @@ suggested (sample hours only). Review and CI: see Done. Next phase: **Phase 8**.
   `map_package_repo`, `dim_repo_rename`, `map_repo_name_id` with status, rule and confidence,
   reviewed decisions as the seed `resolve_decisions`. The polite client now matches robots.txt
   per RFC 9309 (pypi.org disallows its JSON API: no PyPI registry cross-check).
+  Review: `docs/reviews/phase-7.md` (3 major, 6 minor, 4 nit; all fixed; npm registry and
+  ecosyste.ms now count as one source family). First parity run failed on Flink (a
+  reserved column name, fixed).
 
 ## Next
 1. **Phase 8** (next in the brief). Phase 7 leftovers: the language-model rung when the
@@ -87,7 +90,11 @@ suggested (sample hours only). Review and CI: see Done. Next phase: **Phase 8**.
    local one in `.env` is for samples only; changing it changes every actor key). Owner
    2026-10-21: deferred to Phase 9; ask then and give the one-line command.
 3. Backfill (Phase 9) still waits on the owner (disk below 50 GB; owner 2026-10-21: continue
-   with Phases 7-8, decide storage before Phase 9). Silver for the whole archive is an
+   with Phases 7-8, decide storage before Phase 9). **Owner decisions 2026-10-21:** keep a
+   30-day silver window plus aggregates for all downloaded history; download only the
+   minimum history (about 24 months before each backtest incident, plus the live trailing
+   window); the backfill runs on GitHub Actions; the owner makes the repo public
+   themselves; curated data is stored as GitHub Release assets. Silver for the whole archive is an
    estimated ~490 GB (estimate: 85 MB for 2026-10-19 x ~5,700 days; earlier years are smaller,
    so it is an upper-side figure). Measure silver per year from the sample hours first, then
    design for the space there is: the owner cannot attach another drive (2026-10-21) and

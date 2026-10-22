@@ -34,3 +34,9 @@ matches ADR-020; the PEP 503 macro equals Python.
 After the fixes (local data, 2026-10-21): 123 dbt nodes pass, docs coverage 100%; 4,383 of
 4,736 packages decided (92.5%), 276 `auto_exact`; 155 package candidates and 4,054 names in
 the review CSVs (docs/match-rate.md).
+
+Found after the review, in the first parity run on GitHub (run 39651514424): Flink could not
+read `map_package_repo` because its column `scope` is a reserved word in Flink SQL and the
+cross-engine fingerprint query does not quote identifiers; the script stopped there, so every
+later table failed too (DuckDB, Spark and Trino matched). Fixed: the column is
+`package_scope`, and a test fails on any published column named like a Flink reserved word.
