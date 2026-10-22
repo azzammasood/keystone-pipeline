@@ -7,7 +7,9 @@ Phase 7 (entity resolution) gate checks pass locally (2026-10-21): match-rate re
 `docs/match-rate.md` measured on the local data: 4,736 packages in scope, 4,383 decided
 (92.5%), 276 auto_exact (registry and OSV GIT range agree); renames from GH Archive (3,088)
 and ecosyste.ms (1,207); names without ids: 6,694 of 194,416 events decided, 35,997
-suggested (sample hours only). Review and CI (green on 00e32fd): see Done. Next phase: **Phase 8**.
+suggested (sample hours only). Review and CI (green on 00e32fd): see Done. Language-model
+rung ran on 2026-10-22 (free OpenRouter model): 18 of 32 ties decided, match rate 92.9%
+(4,401); the other 14 hit the free daily cap of 50 requests and are asked on the next run. Next phase: **Phase 8**.
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
@@ -77,9 +79,10 @@ suggested (sample hours only). Review and CI (green on 00e32fd): see Done. Next 
   39718514491; checked with gh as azzammasood).
 
 ## Next
-1. **Phase 8** (next in the brief). Phase 7 leftovers: the language-model rung when the
-   owner provides `OPENROUTER_API_KEY` (32 tied packages wait); review the CSVs in
-   `data/resolve/` (155 package candidates, 4,054 names) into `dbt/seeds/resolve_decisions.csv`;
+1. **Phase 8** (next in the brief). Phase 7 leftovers: re-run
+   `uv run --env-file .env keystone resolve choose` after 2026-10-23 00:00 UTC (free daily cap
+   reset) for the 14 ties left, then `warehouse build` and `resolve report`; review the CSVs in
+   `data/resolve/` (118 package candidates, 4,054 names) into `dbt/seeds/resolve_decisions.csv`;
    fold resolved E1/E0 events into activity metrics as a new metric version (Phase 8).
    Earlier leftovers: Phase 6 leftovers: Airflow lineage when the DAGs exist
    (Phase 10); push of the compressed OpenLineage log to a data branch with the live refresh
@@ -116,8 +119,7 @@ suggested (sample hours only). Review and CI (green on 00e32fd): see Done. Next 
   Compose profile at a time.
 - Owner 2026-10-21: will provide a Databricks Free Edition token, a BigQuery sandbox project
   and an OpenRouter key (values go in `.env` only, never in chat or git). Until they appear:
-- Optional rungs skipped until tokens exist: OpenRouter (Phase 7 language-model rung,
-  logged 2026-10-21, ADR-037), Databricks (Phase 5 rung: dbt-databricks, Unity
+- Optional rungs skipped until tokens exist: Databricks (Phase 5 rung: dbt-databricks, Unity
   Catalog, Lakeflow pipeline; logged 2026-10-20, ADR-030), BigQuery sandbox, OpenRouter.
 - **Disk: 17.8 GB free on C: (2026-10-21, after cleanup and compaction).** Removed (owner
   asked): the DataHub images, containers and volumes (re-created from the pinned digests by
@@ -178,3 +180,4 @@ suggested (sample hours only). Review and CI (green on 00e32fd): see Done. Next 
 | 2026-10-21 | Phase 7 match rate | 4,383 of 4,736 in scope (92.5%); auto_exact 276; accepted 4,107; suggested candidates 155 |
 | 2026-10-21 | npm field vs ecosyste.ms | same 2,311; same id after rename 2; differ 1; no repository 20 |
 | 2026-10-21 | Names without ids (E0/E1) | 194,416 events: 6,684 auto_exact, 10 accepted, 35,997 suggested, 151,725 no candidate in the sample |
+| 2026-10-22 | Language-model rung (OpenRouter, free model) | 32 ties asked: 18 chosen (confidence 0.85 to 0.99), 14 cut off (token cap, fixed) then free daily cap 50 reached; cost $0; match rate 92.9% (4,401 of 4,736) |

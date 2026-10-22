@@ -70,17 +70,27 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - Review without blocking: `keystone resolve report` writes the match-rate report and two
   CSVs of suggested rows (`data/resolve/`); a reviewer copies a row with `decision` filled to
   `dbt/seeds/resolve_decisions.csv`. This is also the corrections path for maintainers.
-- Language-model rung: `keystone resolve choose` asks only about ties, lists the candidates,
-  and `chooser.validate` refuses any answer outside the list or with a confidence outside
-  [0, 1] (stored as `refused`, never used). OpenRouter needs `OPENROUTER_API_KEY`; there is
-  none, so the rung is skipped (PROGRESS.md) and ties stay `suggested`.
+- Language-model rung: `keystone resolve choose` asks only about ties, lists the candidates
+  (repository keys with names and the sources naming them), and `chooser.validate` refuses any
+  answer outside the list or with a confidence outside [0, 1] (stored as `refused`, never
+  used); an unreadable answer is refused too. OpenRouter (`OPENROUTER_API_KEY` in `.env`, run
+  with `uv run --env-file .env`) on `nvidia/nemotron-3-ultra-550b-a55b:free` (2026-10-22; the
+  first choice, nemotron-3-super, returned provider 404s). $0 by construction: only `:free`
+  model ids, listed prices checked to be zero before the first request, every response's
+  reported cost checked to be zero, 402 a hard stop. The account has never bought credits, so
+  the free tier allows 50 free-model requests per day: a 429 for the daily cap stops the run,
+  keeps the answers so far, and the next run asks only ties without a valid choice for the
+  same candidates. Paced at 0.25 req/s (policy.yml). Reasoning models think before the JSON,
+  so the cap is 4,000 tokens (the first run used 400 and 14 of 32 answers were cut off).
 - CI has no network for registries: `resolve fetch --replay tests/fixtures/registry` serves
   recorded, synthetic responses through the same projection (refused on the default data
   root). Order in a pipeline run: warehouse build, resolve fetch, warehouse build, report.
 - Measured on the local data (2026-10-21, after the review fixes): 4,736 packages in scope
   (PyPI 522 + npm 2,295 critical, 1,919 more with an advisory); first fetch 2,388 requests,
   664 MB (ecosyste.ms bulk responses are large), 2,697 s; 4,383 decided (92.5%): 276
-  auto_exact, 4,107 accepted; 155 suggested candidates in the review CSV; the npm field and
+  auto_exact, 4,107 accepted (before the language-model rung; with it, 2026-10-22: 4,401
+  decided, 92.9%, 18 ties chosen by the model at confidence >= 0.85); 155 suggested
+  candidates in the review CSV (118 after the rung); the npm field and
   ecosyste.ms name the same repository for 2,311 packages, the same id after a rename for 2,
   differ for 1. Renames: 3,088 from GH Archive, 1,207 more from ecosyste.ms. Names without ids:
   of 194,416 events (101,786 name-hours) 6,694 are decided, 35,997 suggested, 151,725 have no
