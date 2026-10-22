@@ -108,9 +108,9 @@ def test_storage_samples_join_raw_and_silver(parsed_fixtures: object) -> None:
 def test_design_windows_follow_the_incident_config() -> None:
     cfg = storage.load_incidents()
     w = storage.design_windows(cfg, date(2026, 10, 21))
-    assert w["xz"] == (date(2022, 3, 1), date(2024, 4, 1))
-    assert w["event-stream"] == (date(2016, 11, 1), date(2018, 12, 1))
-    assert w["live"] == (date(2024, 10, 1), date(2026, 10, 21))
+    assert w["xz"] == (date(2023, 3, 1), date(2024, 4, 1))
+    assert w["event-stream"] == (date(2017, 11, 1), date(2018, 12, 1))
+    assert w["live"] == (date(2025, 10, 1), date(2026, 10, 21))
 
 
 def test_design_sizes_jobs_assets_and_never_publishes_actor_rollups() -> None:

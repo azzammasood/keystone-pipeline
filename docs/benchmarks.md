@@ -227,3 +227,11 @@ aggregates; upper-side for the E2 years), 50 monthly assets per window, the larg
 runner. Each job stays within 5 h and about 1 GB of the runner's 14 GB disk; 138 jobs and
 664 job-hours run one at a time, about 28 days end to end at this machine's rates. The live
 window then grows by one day a day (one short job).
+
+## 5. Backfill rungs on GitHub Actions (ADR-050), pending
+
+The month rung (one chunk) and the year rung (one window's 13 chunks) come from the published
+chunk records (`chunk-*.json`: rows, bytes, wall time, peak RSS, cost $0), summed by
+`keystone backfill totals`. As of 2026-10-22 none has run (the owner still has to set the salt
+secret and merge the workflow), so this section has no numbers yet. The sizes in section 4 are
+for the superseded 24-month design.

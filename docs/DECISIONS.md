@@ -2,6 +2,57 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-050 (2026-10-22) Backfill: 12-month windows, monthly chunks on Actions, aggregates only (supersedes parts of ADR-039)
+- **Owner decisions (2026-10-22, relayed by the Phase 4 kickoff session):** minimum data. Each
+  incident window is the 12 months before the incident month plus that month (event-stream
+  2017-11 to 2018-11, colors-faker 2021-01 to 2022-01, xz 2023-03 to 2024-03); the live window
+  is the month 12 months back to today (2025-10-01 onward). No 30-day silver window: a
+  correction re-downloads the hour from GH Archive. Publish only the rollup aggregates. The
+  backfill runs on GitHub Actions (public repo, standard runners free), chunked, resumable,
+  inside the 6 h job limit and the runner disk, chunks one at a time (polite limits). Curated
+  output is Release assets, each under 2 GiB; never `repo_actor_day` or an actor key.
+- **Superseded in ADR-039:** the 24-month lookback, the 30-day silver window (and its open
+  privacy question: moot), the day-by-day job model and its sizing.
+- **Windows:** `config/incidents.yml` (`lookback_months: 12`, `trailing_months: 12`), read by
+  the same `design_windows` as `keystone bench storage`. 1,574 days on 2026-10-22 (395 + 396 +
+  397 + 386), 52 monthly chunks. The windows are disjoint; the planner refuses overlaps.
+- **Workflow** `backfill.yml` (manual dispatch only; concurrency group `keystone-backfill`):
+  a `plan` job lists the assets of the `data-*` releases and runs `keystone backfill plan`,
+  which emits the pending chunks as a matrix; the `chunk` job runs them with `max-parallel: 1`
+  and `fail-fast: false`, timeout 350 min. Inputs: windows, `chunk_days` (split months when a
+  month does not fit a job), `max_chunks`, `redo_incomplete`.
+- **A chunk** (`keystone backfill chunk`, `src/keystone/backfill/chunk.py`): the polite client
+  fetches the chunk's hours plus `overlap_hours` (2) past its end with a fresh manifest; each
+  verified hour goes to a process pool (one per CPU) that parses it with the production salt,
+  runs the two `rollup/sql` queries over that hour alone into partial Parquet (with the file
+  hour), and deletes the raw file and the silver at once. A semaphore holds at most 2 hours per
+  worker in flight (disk). Measures are sums and maxima, so merging partials by key is exact.
+  The merge keeps windows inside `[start, end)`; events outside are counted, not guessed:
+  `before_start_in_previous_overlap` (kept by the previous chunk), `after_end_next_chunk`
+  (kept by the next), and `*_lost` (filed beyond the overlap; reported per chunk).
+- **Published per chunk** in the release `data-<window>` (prerelease, never "latest"):
+  `repo_hour-<start>-<end>.parquet` (zstd, sorted), `contributors-<start>-<end>.parquet` (per
+  repository, day and era: `human_actors`, `human_events`, `top_actor_events`; no key) and
+  `chunk-<start>-<end>.json`: exact counts (hours by status, missing hours, failed hours and
+  their errors, bytes downloaded, events parsed and quarantined, edge counts, rows and bytes
+  out, eras), wall times, peak RSS, cost $0 and the repository-level fetch manifest (URL,
+  status, bytes, MD5, SHA-256, ETag, Last-Modified). The JSON is uploaded last and marks the
+  chunk done; a chunk with failed or unpublished hours is published as
+  `chunk-<name>.incomplete.json` and retried only with `redo_incomplete`. An asset over 1.5 GiB
+  fails the chunk (rerun with `chunk_days`). `repo_actor_day` partials stay in the runner's
+  temp directory, deleted at the end of the step; the runner is discarded.
+- **Totals:** `keystone backfill totals --records DIR` sums the chunk records (download them
+  with `gh release download data-<window> -p 'chunk-*.json'`); these feed PROGRESS.md and
+  `docs/benchmarks.md`.
+- **Known limits:** the live window's last chunk is named by its end day, so a later dispatch
+  re-runs that month; after the backfill the scheduled ingest (ADR-041) takes over the live
+  edge. Metrics that need actor identity across chunks (new versus departed contributors over
+  more than a month) cannot be computed from the published files; the metrics phase uses the
+  per-day counts or derives such signals inside a chunk.
+- **Why:** $0; nothing bulk on this disk; minimal download (about 40% of ADR-039's days);
+  parallel parsing uses the runner's 4 CPUs while the network stays at the policy's 2
+  connections; per-chunk resumability needs no state beyond the release itself.
+
 ## ADR-045 (2026-10-22) Encrypted `repo_actor_month` assets; decrypt only on the backtest runner
 - **Context:** concentration and churn need per-actor monthly counts over 12 months (ADR-044);
   the backfill jobs hold only a chunk of days, and actor keys are never published. Owner
@@ -165,6 +216,8 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   records `free`.
 
 ## ADR-039 (2026-10-21) Phase 9 storage and compute: incident windows on Actions, history as Release assets
+- **Partly superseded by ADR-050 (2026-10-22):** 12-month windows, no 30-day silver window,
+  monthly chunks with parallel parsing. The sizing below is the 24-month design's.
 Numbers: `docs/benchmarks.md` (sections 2 to 4; every projection
 is an estimate, sized with `keystone bench storage`).
 - **Owner decisions (2026-10-21, relayed by the Phase 4 kickoff session; not re-asked):**

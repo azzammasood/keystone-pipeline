@@ -1,13 +1,13 @@
-# Backtest incidents and the GH Archive history each needs (Phase 9, ADR-039; backtest: ADR-044).
-# Owner decision 2026-10-21: download only about `lookback_months` before each incident plus the
-# live score's trailing window; nothing else. A window runs from the first day of the incident
-# month minus `lookback_months` to the end of the incident month, so any point-in-time cut
-# inside that month is covered. The backtest cut is the first instant of the incident month
-# (UTC), so nothing from the incident month itself is read (`keystone score backtest`).
+# Backtest incidents and the GH Archive history each needs (Phase 9, ADR-039, ADR-050;
+# backtest: ADR-044). Owner decision 2026-10-22 (minimum data): download only `lookback_months`
+# before each incident plus the live score's trailing window; nothing else. A window runs from
+# the first day of the incident month minus `lookback_months` to the end of the incident month.
+# The backtest cut is the first instant of the incident month (UTC), so nothing from the
+# incident month itself is read (`keystone score backtest`).
 # Every incident needs a source link. Repository ids come from the GitHub REST API
 # (`gh api repos/OWNER/NAME --jq .id`, 2026-10-22); without one, the name is resolved from the
 # name history before the cut.
-lookback_months: 24
+lookback_months: 12
 incidents:
   - id: event-stream
     month: 2018-11
@@ -41,5 +41,6 @@ incidents:
       - https://www.openwall.com/lists/oss-security/2024/03/29/4
       - https://nvd.nist.gov/vuln/detail/CVE-2024-3094
 live:
-  # The live score uses the same features as the backtest, so the same lookback.
-  trailing_months: 24
+  # The live score uses the same features as the backtest, so the same lookback: from the first
+  # day of the month 12 months back to today.
+  trailing_months: 12
