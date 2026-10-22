@@ -12,7 +12,8 @@ rung ran on 2026-10-22 (free OpenRouter model, $0): all 32 ties answered, 29 dec
 confidence >= 0.8 (3 below stay suggested); match rate 93.2% (4,412 of 4,736). Review CSVs
 reviewed (owner asked Claude, 2026-10-22): 48 package and 78 name decisions in the seed,
 match rate **94.1% (4,456)**; 25 candidates and 3,976 names stay suggested for lack of
-evidence (docs/reviews/phase-7.md). **Phase 7 complete.**
+evidence (docs/reviews/phase-7.md). **Phase 7 complete**: CI green on 2ff59b1 (ci, parity,
+scorecard: runs 39742783444, 39742783454, 39742783568; checked with gh as azzammasood).
 CI green on 71b8043 (ci, parity, scorecard: runs 39740257893, 39740257969, 39740257966;
 checked with gh as azzammasood). Next phase: **Phase 8**.
 
