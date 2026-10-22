@@ -191,6 +191,24 @@ def _latest(records: list[StageRecord], stage: str) -> StageRecord | None:
     return max(found, key=lambda r: r.ended_at) if found else None
 
 
+def produced_by(records: list[StageRecord]) -> dict[str, Any] | None:
+    """Which profile produced the newest output: the latest `profile` stage that ran a job
+    (ADR-040). None when no job ran through the profile check (not measured)."""
+    runs = [r for r in records if r.stage == "profile" and r.detail.get("produced_by")]
+    if not runs:
+        return None
+    r = max(runs, key=lambda x: x.ended_at)
+    return {
+        "profile": r.detail["produced_by"],
+        "fallback": bool(r.detail.get("fallback")),
+        "reason": str(r.detail.get("reason", "")),
+        "run_id": r.run_id,
+        "decided_at": r.ended_at,
+        "status": r.status,
+        "probes": [{"name": p["name"], "ok": p["ok"]} for p in r.detail.get("probes", [])],
+    }
+
+
 def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[str, Any]:
     now = now or datetime.now(UTC)
     records = read(root)
@@ -241,9 +259,14 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
     fraction = load_policy().disk_budget_fraction
     budget = disk.free * fraction
     data_bytes = sum(p.stat().st_size for p in root.rglob("*") if p.is_file())
+    produced = produced_by(records)
     return {
         "generated_at": now.isoformat(),
-        "profile": "full" if services & FULL_SERVICES else "free",
+        # The recorded decision when there is one; else inferred from the services that ran.
+        "profile": produced["profile"]
+        if produced
+        else ("full" if services & FULL_SERVICES else "free"),
+        "produced_by": produced,
         "engines": engines(records, last_id),
         "totals": {
             "events_processed": sum(r.records_out or 0 for r in event_stages),

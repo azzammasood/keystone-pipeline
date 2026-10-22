@@ -76,6 +76,8 @@ uv run keystone metrics emit ; uv run keystone metrics check-grafana   # pipelin
 # Phase 6 profiles: lineage (Marquez), obs (collector, Prometheus, Grafana), datahub (stop Flink first)
 # Env: OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318, OPENLINEAGE_URL=http://127.0.0.1:5000,
 #      KEYSTONE_RUN_ID=<uuid> groups stages into one pipeline run
+uv run keystone profile check [--run] [--want free] [--root DIR]  # probe full; run rollup, fall back to free
+uv run python -m keystone.export.schemas  # JSON Schemas + examples (CI)
 uv run pytest                             # network tests skip unless KEYSTONE_NETWORK_TESTS=1
 KEYSTONE_STACK_TESTS=1 uv run pytest tests/parity  # engine parity on the running stack
 uv run ruff check . ; uv run ruff format . ; uv run sqlfluff lint src/keystone/rollup/sql
@@ -91,9 +93,11 @@ src/keystone/            cli.py (Typer), paths.py, policy.py, machine.py
   rollup/                sql/ (the logic, once), duck (free), stream + flink (full), compare (Phase 4)
   warehouse/             dbt runner, docs coverage, Iceberg publish + engine reads (Phase 5)
   lineage/ telemetry/    OpenLineage, graph, DataHub; stage run log, OTel, pipeline_metrics (Phase 6)
-  export/                catalog metadata, generated contracts, static metadata export (Phase 6)
+  export/                catalog metadata, generated contracts, static metadata export (Phase 6);
+                         export envelope + schema check (Phase 10)
+  profile/               full health probes, fallback to free, produced_by (Phase 10)
   planned subpackages:   eras resolve metrics score backtest bench
-                         profile narrate (created when a phase needs them)
+                         narrate (created when a phase needs them)
 config/                  policy.yml (UA, limits, disk budget), sources.yml, metadata.yml (catalog)
 contracts/               ODCS contracts (*.odcs.yaml), drift/gharchive.yml, avro/ (event topic schema)
 compose/                 docker-compose.yml (profiles), flink/ + spark/ Dockerfiles (pinned jars),

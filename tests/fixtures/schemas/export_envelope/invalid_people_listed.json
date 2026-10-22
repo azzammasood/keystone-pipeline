@@ -1,0 +1,30 @@
+{
+ "envelope_version": "1.0",
+ "dataset": "radar",
+ "dataset_version": "v1",
+ "generated_at": "2026-10-21T00:00:00+00:00",
+ "produced_by": {
+  "profile": "free",
+  "fallback": true,
+  "run_id": "01a15f79-6a10-7760-b46d-c392e74d8015",
+  "keystone_version": "0.1.0"
+ },
+ "window": {
+  "start": null,
+  "end": null,
+  "periods": []
+ },
+ "sources": [
+  {
+   "name": "GH Archive",
+   "url": "https://www.gharchive.org/"
+  }
+ ],
+ "privacy": {
+  "level": "repository",
+  "people": "listed"
+ },
+ "corrections": "https://github.com/azzammasood/keystone-pipeline/issues",
+ "row_count": 0,
+ "rows": []
+}

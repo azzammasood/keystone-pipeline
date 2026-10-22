@@ -2,6 +2,89 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-043 (2026-10-21) Versioned export envelope; every JSON Schema checked in CI
+- Every published dataset is one JSON document in an envelope
+  (`contracts/export_envelope.schema.json`, JSON Schema 2020-12): `envelope_version` (MAJOR.MINOR,
+  readers accept any MINOR of a MAJOR they know), `dataset` + `dataset_version` (v1, v2: a row
+  shape or metric definition changes at an era break get a new version, never mixed),
+  `generated_at`, `produced_by` (profile, fallback, run id, Keystone version), the event-time
+  `window` and its completeness periods, `sources`, `privacy` (`repository` or `package` level;
+  people only as `aggregate-only`), the `corrections` URL, `row_count` and `rows`.
+- `export/envelope.py` takes `produced_by` from the run log only (the latest successful
+  `profile` stage); with none recorded it refuses to wrap (an export never guesses its profile).
+- `python -m keystone.export.schemas` checks every `contracts/*.schema.json` against the 2020-12
+  meta-schema and runs its examples (`tests/fixtures/schemas/<schema>/valid_*|invalid_*.json`).
+  The pipeline_metrics example is a real emit from the committed fixture hours. CI runs it in the
+  metadata job, after a real emit.
+- Not yet: the row schemas of the site datasets (radar, project page) come with their exports
+  after Phase 8.
+
+## ADR-042 (2026-10-21) Release hardening: Syft SBOM, checksums, attestations when public
+- `release.yml` (a `v*` tag; manual dispatch is a dry run): `uv build`, a Syft SBOM in SPDX JSON
+  (anchore/sbom-action, which scans `uv.lock`), `SHA256SUMS`, a **draft** GitHub release for the
+  owner to review. Every action is pinned by SHA (ADR-004); `tests/test_workflows.py` fails on
+  an unpinned `uses:`, a default token above read, or an ungated schedule.
+- Options for signing: GitHub artifact attestations (Sigstore-backed provenance and SBOM
+  attestations); cosign keyless `sign-blob`. Choice: attestations
+  (`actions/attest-build-provenance`, `actions/attest-sbom`), switched on by the go-public
+  variable `KEYSTONE_PUBLIC` (ADR-006). Why: on GitHub's free plan, attestations in a private
+  repository are not available (GitHub Enterprise Cloud only), and any public-good Sigstore
+  signature (cosign included) writes the repository name and workflow identity to the public
+  Rekor log, which would reveal a private repository. One switch at go-public, as for Scorecard.
+  The repository is public since 2026-10-21; the attestation steps run once the owner sets
+  `KEYSTONE_PUBLIC=true` (repository settings are the owner's; not changed from here).
+
+## ADR-041 (2026-10-21) Scheduled ingest and daily publish: CLI only, off by default
+- `ingest.yml` every 6 hours (minute 23): the last 6 completed hours (`ingest gharchive`, parse on,
+  then `ingest gaps`). `publish.yml` daily (03:41 UTC): `profile check --run`, OSV ingest and
+  parse, `warehouse build`, `quality contracts`, `metadata export`, `metrics emit`, the schema
+  check, then pipeline_metrics.json as a 7-day artifact. Steps call only the CLI. A failure opens
+  an issue titled `[keystone] <workflow> workflow failing`, or comments on it while it is open
+  (`.github/scripts/failure-issue.sh`, `issues: write` on that job only).
+- Minutes: the repository became public on 2026-10-21 (verified with gh by the Phase 4 session),
+  so standard-runner minutes are free. The schedules still run only when the repository
+  variable `KEYSTONE_SCHEDULES` is `true`; it does not exist, so they are off until the owner
+  sets it. Manual dispatch always runs. Estimate, not measured (measure on the first dispatch
+  and record it here): ingest about 2 to 3 minutes per run x 120 runs a month, publish about 5
+  minutes x 30.
+- Logs are public: steps print counts and file names only; no secret, actor key or login is
+  ever printed (the parser never emits logins; actor keys stay inside Parquet).
+- Ingest needs the production `KEYSTONE_ACTOR_SALT` secret (owner, deferred to Phase 9); the
+  workflow fails fast with that message while it is missing.
+- Interim store: the `data/` directory travels between runs in the Actions cache (one entry per
+  run, newest restored; GitHub evicts beyond 10 GB per repository), **encrypted**
+  (`.github/scripts/data-cache.sh`: tar + gzip, OpenSSL AES-256-CBC, PBKDF2 600,000 rounds,
+  passphrase `KEYSTONE_ACTOR_SALT`). Why: in a public repository, workflows of pull requests
+  from forks can restore caches of the base branch, and `data/` holds salted actor keys (silver,
+  `repo_actor_day`); forks never get the secret, so they only see ciphertext. Both workflows
+  need the salt secret. Silver grows about 85 MB a day (measured 2026-10-19), so this holds for
+  weeks, not for the backfill. The Phase 9 storage decision (rolling silver window, Release
+  assets) replaces it; nothing is published from it.
+- Concurrency group `keystone-data`: ingest and publish never run at once on the same cache.
+
+## ADR-040 (2026-10-21) Profile check: probe `full`, fall back to `free`, record `produced_by`
+- `keystone profile check` probes the `full` services from the host, in parallel with a 2 s
+  timeout: Redpanda Kafka (TCP 19092), its schema registry (`/subjects`), Flink REST
+  (`/overview`), Lakekeeper (`/health`) and RustFS (any HTTP answer below 500: an anonymous S3
+  request gets 403 from a live server). `--run` runs the rollup: in `full` (replay to Redpanda,
+  Flink batch job and fold into a fresh namespace) when every probe passes; else, or when the
+  full job fails, in `free` (the DuckDB rollup, the production path). A free failure fails the
+  run (nothing to fall back to).
+- The decision is one `profile` stage in the run log; its detail carries `produced_by`,
+  `fallback`, `reason` and each probe. `pipeline_metrics.json` gains `produced_by` (null when no
+  job ran through the check) and its `profile` follows the recorded decision when there is one
+  (else, as before, the services that ran). The export envelope (ADR-043) copies it, so every
+  published dataset says which profile produced it.
+- Measured 2026-10-21 on the fixture hours, no stack running: 5 of 5 probes down, free rollup
+  ran (225 repo_hour + 183 repo_actor_day rows, 303 events), pipeline_metrics.json valid with
+  `produced_by.profile = free`, `fallback = true`. The test (`tests/test_profile.py`) points the
+  probes at closed ports and checks the fallback's rollup equals a reference free run row for
+  row.
+- Limit: dbt reads the free rollup (ADR-028). A `full` run writes Iceberg tables in its own
+  namespace and is checked by `rollup parity`; making the warehouse read the full output when
+  `produced_by = full` is a Phase 10 item. On GitHub runners the stack never runs, so production
+  records `free`.
+
 ## ADR-039 (2026-10-21) Phase 9 storage and compute: incident windows on Actions, history as Release assets
 Numbers: `docs/benchmarks.md` (sections 2 to 4; every projection
 is an estimate, sized with `keystone bench storage`).

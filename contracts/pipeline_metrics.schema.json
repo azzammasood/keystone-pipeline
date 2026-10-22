@@ -8,6 +8,7 @@
   "required": [
     "generated_at",
     "profile",
+    "produced_by",
     "engines",
     "totals",
     "last_run",
@@ -26,6 +27,74 @@
       "enum": [
         "free",
         "full"
+      ]
+    },
+    "produced_by": {
+      "description": "The profile that produced the newest output, from the latest `keystone profile check --run` (ADR-040). Null when no job ran through the profile check.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "profile",
+            "fallback",
+            "reason",
+            "run_id",
+            "decided_at",
+            "status",
+            "probes"
+          ],
+          "properties": {
+            "profile": {
+              "enum": [
+                "free",
+                "full"
+              ]
+            },
+            "fallback": {
+              "type": "boolean",
+              "description": "True when full was wanted but free ran (full unhealthy or its job failed)."
+            },
+            "reason": {
+              "type": "string"
+            },
+            "run_id": {
+              "type": "string"
+            },
+            "decided_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "status": {
+              "enum": [
+                "ok",
+                "failed"
+              ]
+            },
+            "probes": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "ok"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "ok": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        }
       ]
     },
     "engines": {

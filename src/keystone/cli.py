@@ -1373,3 +1373,9 @@ def resolve_report(
         if require_registry and not found:
             typer.echo("no registry claims fetched: run `keystone resolve fetch`", err=True)
             raise typer.Exit(1)
+
+
+# Phase 10 sub-apps live in their own modules (cli.py is shared with parallel work).
+from keystone.profile.cli import profile_app  # noqa: E402
+
+app.add_typer(profile_app, name="profile")

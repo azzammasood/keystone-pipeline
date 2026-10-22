@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/export_envelope.schema.json",
+  "title": "Keystone export envelope",
+  "description": "Every published dataset is one JSON document in this envelope (ADR-043): a versioned header that says what the data is, which window and sources it covers, which profile produced it and under which privacy level, around the rows. Repository and package level only; no person appears in any export. A breaking change to the envelope bumps envelope_version's major part; a breaking change to a dataset's rows bumps its dataset_version.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "envelope_version",
+    "dataset",
+    "dataset_version",
+    "generated_at",
+    "produced_by",
+    "window",
+    "sources",
+    "privacy",
+    "corrections",
+    "row_count",
+    "rows"
+  ],
+  "properties": {
+    "envelope_version": {
+      "description": "Version of this envelope, MAJOR.MINOR. Readers accept any MINOR of the MAJOR they know.",
+      "type": "string",
+      "pattern": "^1\\.[0-9]+$"
+    },
+    "dataset": {
+      "description": "Dataset name, snake_case (e.g. radar, project_page).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,63}$"
+    },
+    "dataset_version": {
+      "description": "Version of the dataset's row shape and metric definitions (v1, v2, ...). Versioned at an era break, never silently mixed.",
+      "type": "string",
+      "pattern": "^v[1-9][0-9]*$"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "produced_by": {
+      "description": "Which profile produced the data (ADR-040) and the pipeline run it belongs to.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile",
+        "fallback",
+        "run_id",
+        "keystone_version"
+      ],
+      "properties": {
+        "profile": {
+          "enum": [
+            "free",
+            "full"
+          ]
+        },
+        "fallback": {
+          "description": "True when full was wanted but free produced the data.",
+          "type": "boolean"
+        },
+        "run_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "keystone_version": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "window": {
+      "description": "Event-time window the rows cover (UTC) and the completeness periods inside it (docs/era-map.md). Null bounds mean the dataset has no event-time window.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "start",
+        "end",
+        "periods"
+      ],
+      "properties": {
+        "start": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "end": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "date-time"
+        },
+        "periods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "sources": {
+      "description": "Upstream sources of the rows, with where they were read.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "url"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "terms": {
+            "description": "Terms or license the source publishes, as the source states it.",
+            "type": "string"
+          }
+        }
+      }
+    },
+    "privacy": {
+      "description": "Repository and package level only (CLAUDE.md privacy rule).",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "level",
+        "people"
+      ],
+      "properties": {
+        "level": {
+          "enum": [
+            "repository",
+            "package"
+          ]
+        },
+        "people": {
+          "description": "Contributor activity appears only as aggregate shares.",
+          "const": "aggregate-only"
+        }
+      }
+    },
+    "corrections": {
+      "description": "Where a maintainer asks for a correction.",
+      "type": "string",
+      "format": "uri"
+    },
+    "row_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "rows": {
+      "description": "The dataset's rows; their shape is the dataset's own schema, named by dataset and dataset_version.",
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  }
+}

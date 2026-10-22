@@ -1,0 +1,65 @@
+name: release
+
+# Self-hardening (Phase 10, ADR-042): build the package, a Syft SBOM (SPDX JSON) of the locked
+# dependency set and SHA-256 sums; on a `v*` tag, a draft GitHub release with them as assets for
+# the owner to review. Build provenance and SBOM attestations (Sigstore, via GitHub) need a public
+# repository on GitHub's free plan and write the repository name to the public transparency log,
+# so they switch on with the go-public variable KEYSTONE_PUBLIC (ADR-006). A manual dispatch is a
+# dry run: build and SBOM as a workflow artifact, no release.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write  # the draft release (tag pushes only)
+      id-token: write  # Sigstore signing of the attestations
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      - run: uv build --out-dir dist
+      - uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          path: .
+          format: spdx-json
+          output-file: dist/keystone.spdx.json
+          upload-artifact: false
+          upload-release-assets: false
+      - name: SBOM lists the locked packages
+        run: |
+          n=$(jq '.packages | length' dist/keystone.spdx.json)
+          echo "SBOM packages: $n"
+          test "$n" -gt 1
+      - run: cd dist && sha256sum keystone-* keystone.spdx.json > SHA256SUMS
+      - if: vars.KEYSTONE_PUBLIC == 'true'
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/keystone-*
+      - if: vars.KEYSTONE_PUBLIC == 'true'
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4.1.0
+        with:
+          subject-path: dist/keystone-*.whl
+          sbom-path: dist/keystone.spdx.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-dist
+          path: dist/
+          retention-days: 7
+      - if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        run: >-
+          gh release create "$GITHUB_REF_NAME" dist/* --draft --verify-tag
+          --title "$GITHUB_REF_NAME"
+          --notes "Package, Syft SBOM (SPDX JSON) and SHA-256 sums. Verify with sha256sum -c SHA256SUMS."
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}

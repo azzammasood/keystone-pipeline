@@ -195,3 +195,24 @@ checked with gh as azzammasood). Next phase: **Phase 8**.
 | 2026-10-22 | Language-model rung (OpenRouter, free model) | 32 ties asked: 18 chosen (confidence 0.85 to 0.99), 14 cut off (token cap, fixed) then free daily cap 50 reached; cost $0; match rate 92.9% (4,401 of 4,736) |
 | 2026-10-22 | Language-model rung, second run (new free-tier account) | 14 asked, 14 chosen; overall 29 of 32 ties decided (confidence 0.80 to 0.99); cost $0; match rate 93.2% (4,412) |
 | 2026-10-22 | Review of the CSVs (seed decisions) | packages: 44 accepted + 4 rejected decisions, match rate 94.1% (4,456 of 4,736), 25 candidates left; names: 78 accepted (396 name-hours, 763 events), 3,976 left |
+
+## Phase 10 prep (branch `claude/quirky-satoshi-cb4d8c`, written in parallel with Phase 7)
+Score-independent half of Phase 10, merged 2026-10-22 (ADR-040 to ADR-043).
+- Done: `keystone profile check [--run]` (probes Redpanda, its registry, Flink, Lakekeeper,
+  RustFS; runs the rollup in `full` or falls back to `free`; `produced_by` in the run log and
+  `pipeline_metrics.json`, ADR-040); `ingest.yml` (6-hourly) and `publish.yml` (daily skeleton),
+  CLI only, failure issue, off until repo variable `KEYSTONE_SCHEDULES=true` (ADR-041);
+  `release.yml` (Syft SBOM, SHA256SUMS, draft release; attestations when `KEYSTONE_PUBLIC=true`,
+  ADR-042); zizmor in CI; `contracts/export_envelope.schema.json` and the schema check in CI
+  (ADR-043). Measured: fixture hours with no stack, 5/5 probes down, free rollup 303 events,
+  `produced_by=free, fallback=true`.
+- Remaining for Phase 10 after Phase 8: site exports (radar, project pages) in the envelope with
+  their row schemas, and their push from `publish.yml`; narration; the warehouse reading the
+  `full` rollup when `produced_by=full`; atomic Iceberg publish (ADR-029); Airflow DAGs calling
+  the CLI and their lineage; push of the compressed OpenLineage log with the live refresh;
+  Actions-minutes reading for `cost.free_quota`; replace the cache-as-store with the Phase 9
+  storage decision; measure workflow minutes on the first dispatch (ADR-041 has estimates).
+- Owner, when ready: secret `KEYSTONE_ACTOR_SALT` (Phase 9; the workflows also use it to
+  encrypt the data cache, since the repo is public), variable `KEYSTONE_SCHEDULES=true` to start
+  the schedules, variable `KEYSTONE_PUBLIC=true` to switch on release attestations, a `v*` tag
+  to cut a draft release.
