@@ -115,6 +115,13 @@ checked with gh as azzammasood). Next phase: **Phase 8**.
    size limits). Credentials: the owner provides them when a phase needs them; ask then.
    Do not start it. Before it:
    learn drift from a stratified sample, measure late pushes (ADR-022), parallelise parsing.
+   *2026-10-21 (Phase 9 prep branch):* measured. `keystone bench run|storage`,
+   `docs/benchmarks.md`, proposal ADR-039. Silver for
+   the full archive is an estimated ~760 GB (635 GB to 1.03 TB), so the 490 GB figure above
+   was low; no 24-month window fits the disk either. Owner decided 2026-10-21 (incident
+   windows + live window only, 30-day silver, Actions, Release assets); ADR-039 sizes it:
+   3.8 TB downloaded, ~51 GB published, 138 jobs of at most 5 h (estimates). Open: the
+   30-day silver window as public rows without actor fields (privacy check with the owner).
 
 ## Blockers (hard stops)
 - GH Archive completeness after 2025-05-23 (ADR-012): the owner should know activity signals end there.

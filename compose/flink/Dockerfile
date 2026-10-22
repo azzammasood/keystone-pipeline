@@ -15,6 +15,12 @@ RUN set -eu; cd /opt/flink/lib; \
 # openlineage-flink (Phase 6): native Flink 2 lineage through a job-status listener (FLIP-314);
 # its .sha1 cross-checked against Maven Central on 2026-10-21.
 
+# Parquet format for the Phase 9 scale-ladder bench (`keystone bench run`: files in, files out).
+# Its own layer so the jars above stay cached; .sha1 cross-checked on Maven Central 2026-10-21.
+RUN set -eu; cd /opt/flink/lib; \
+    curl -fsSL -A "keystone-pipeline/0.1 (+https://github.com/azzammasood/keystone-pipeline)" -o flink-sql-parquet-2.2.1.jar "$MAVEN/org/apache/flink/flink-sql-parquet/2.2.1/flink-sql-parquet-2.2.1.jar"; \
+    echo "fb8a342e7f2a4a3d7b24ab0bfb3e776a4ec426e9e1de4efa6e433fe69b9400eb  flink-sql-parquet-2.2.1.jar" | sha256sum -c -
+
 # Checkpoints and savepoints (a named volume shared by the jobmanager and taskmanager); the
 # volume takes this ownership when it is first created.
 USER root
