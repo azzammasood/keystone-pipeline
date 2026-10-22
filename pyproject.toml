@@ -76,6 +76,7 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "PTH"]
 "src/keystone/cli.py" = ["B008"]
 "src/keystone/bench/cli.py" = ["B008"]
 "src/keystone/profile/cli.py" = ["B008"]  # Typer options as defaults
+"src/keystone/score/cli.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"
