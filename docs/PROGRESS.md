@@ -9,7 +9,9 @@ Phase 7 (entity resolution) gate checks pass locally (2026-10-21): match-rate re
 and ecosyste.ms (1,207); names without ids: 6,694 of 194,416 events decided, 35,997
 suggested (sample hours only). Review and CI (green on 00e32fd): see Done. Language-model
 rung ran on 2026-10-22 (free OpenRouter model): 18 of 32 ties decided, match rate 92.9%
-(4,401); the other 14 hit the free daily cap of 50 requests and are asked on the next run. Next phase: **Phase 8**.
+(4,401); the other 14 hit the free daily cap of 50 requests and are asked on the next run.
+CI green on 71b8043 (ci, parity, scorecard: runs 39740257893, 39740257969, 39740257966;
+checked with gh as azzammasood). Next phase: **Phase 8**.
 
 ## Done
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
