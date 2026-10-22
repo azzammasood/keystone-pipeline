@@ -216,3 +216,23 @@ Score-independent half of Phase 10, merged 2026-10-22 (ADR-040 to ADR-043).
   encrypt the data cache, since the repo is public), variable `KEYSTONE_SCHEDULES=true` to start
   the schedules, variable `KEYSTONE_PUBLIC=true` to switch on release attestations, a `v*` tag
   to cut a draft release.
+
+## Phase 9 (branch `claude/peaceful-sanderson-c1e824`, PR #1): backfill, interim 2026-10-22
+- Done: `keystone backfill plan|chunk|totals` and `backfill.yml` (ADR-050): 12-month incident
+  windows and a 12-month live window (owner, 2026-10-22), 1,574 days in 52 monthly chunks run one
+  at a time on Actions. Each chunk fetches politely, parses in parallel with per-hour partial
+  rollups (merged exactly) and publishes key-free `repo_hour`, `contributors` and a JSON record
+  to the release `data-<window>`. Tests: 199 pass locally; PR CI 5 of 5 green.
+- Blocked on the owner (nothing has run yet, so there are no processed totals):
+  1. Repo secret `KEYSTONE_ACTOR_SALT` is not set (gh as azzammasood, 2026-10-22). Git Bash:
+     `gh secret set KEYSTONE_ACTOR_SALT -R azzammasood/keystone-pipeline --body "$(openssl rand -hex 32)"`
+  2. Merging PR #1 into main (workflow_dispatch needs the workflow on main); the agent's
+     merge was refused by the session's permission check.
+- Next, once both are done: `gh workflow run backfill.yml -R azzammasood/keystone-pipeline -f max_chunks=1`
+  to measure one chunk, then resize `chunk_days` if needed and dispatch the rest. Record the
+  first chunk's rates in ADR-050 and `docs/benchmarks.md` (month rung), and the totals here from
+  `keystone backfill totals`. `KEYSTONE_SCHEDULES` stays unset until the backfill is done.
+- Bench rungs: 1 hour and 1 day on DuckDB, Spark and Flink are measured (benchmarks.md section 1).
+  The month and year rungs will come from chunk records (DuckDB, end to end on the runner).
+  Skipped: Databricks (no token), Snowflake (owner has not said yes), Spark and Flink beyond 1 day
+  (laptop RAM; DuckDB is the production engine).
