@@ -2,6 +2,59 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-044 (2026-10-22) score_v1: rule-based fragility x criticality, point-in-time backtests
+- **Context:** brief section 8 (candidate signals, risk = criticality x fragility, no learned
+  score in v1, backtests on `config/incidents.yml`, misses published, never claim prediction).
+  Era rules (era-map.md), completeness periods (ADR-012), privacy (no actor keys published) and
+  the owner's 12-month windows (2026-10-22) constrain what each signal can be.
+- **Choice (`src/keystone/score/`, `keystone score live|explain|backtest`):**
+  - *Cut and window.* A cut is the first instant of a UTC month; the window is the 12 months
+    before it, half-open. Per-actor input is monthly, so a month counts only when it ends by the
+    cut. Backtest cut = first instant of the incident month: nothing from that month is read,
+    whatever the disclosure day (incident months only are recorded, no invented days).
+  - *Components* (sub-score 0..1, 1 = most fragile; weight): maintenance-actor concentration,
+    top-1 share (top 3 shown) of maintenance actions (0.30); contributor churn, share of months
+    1-6 contributors not seen in months 7-12, new ones shown (0.15); activity trend, last 3
+    months' monthly human events against months 1-9 (0.15); responsiveness proxy, issue + PR
+    closes per open (0.10); release recency, days since the last GitHub release / 365 (0.10);
+    collaborators added in the last 6 months (0.05); OSV advisories published before the cut
+    and not withdrawn by it, high/critical 1 and others 0.5, saturating at 5 (0.15).
+    Fragility = 100 x weighted mean of the available components; withheld below 50% of the
+    weight. Every component carries its raw inputs and a one-line reason (or why unavailable).
+  - *Eras:* maintenance actions are `maint_v1` (push, merged PR, release, issue close) in E1-E2
+    windows, `maint_v2` (PR close in place of merged PR) in E3 windows, and `maint_v0` (push,
+    release, issue close) in windows that mix eras or touch E0. The version is in every
+    explanation. The activity trend is unavailable when the window crosses a completeness
+    period (the live window does: GAP, C3 to C5), so raw counts are never compared across them.
+  - *Not in v1 (no point-in-time input):* issue and PR first-response time (rollups keep no
+    per-issue timing; the closes-per-open proxy stands in, named as a proxy); OSV time to fix
+    (no fix timestamps; `has_fixed` is today's state, so it is not used at all).
+  - *Criticality* = log10(1 + dependent repositories) / 6, capped at 1, from ecosyste.ms via
+    the accepted/auto_exact package mapping. It is today's snapshot, so it is used in the live
+    score only: **backtests report fragility, not risk.** Risk = criticality x fragility (0-100).
+  - *Backtest:* a point is scored only when the rollup holds >= 90% of the window's hours, else
+    "pending data" (none) or "partial data". The incident repository is *flagged* when its
+    fragility is at or above the 90th percentile of active repositories (>= 100 human events)
+    at the same cut; otherwise the outcome is a **miss**, published as such. Repository ids
+    come from the GitHub API (recorded in the config) or, for a removed repository, from the
+    name history before the cut.
+  - *Leakage:* every query bounds event time by the cut; the run itself rescores the incident
+    repositories on inputs truncated at the cut and fails (exit 1) on any difference. Tests
+    poison the data with rows at and after the cut (activity, actors, advisories,
+    withdrawals) and show the scores unchanged, and that the check catches a leaky signal.
+  - *Sensitivity:* 22 weight variants (each component x0.5, x1.5, dropped), reported as the
+    incident repository's percentile range and the number of variants that flag it.
+  - *Inputs:* `repo_hour` (published) and `repo_actor_month` (internal, salted keys: per-actor
+    maintenance counts per month; built from `repo_actor_day` when only that exists). Phase 9
+    decides how the backfill provides `repo_actor_month` without publishing actor keys; without
+    it, concentration and churn are unavailable for that window (reported, not guessed).
+- **Options rejected:** a learned score (brief: none in v1); mixing E2 and E3 maintenance
+  definitions in one window (era rule); using today's dependents or fix status in backtests
+  (leakage); daily "largest actor" aggregates for concentration (do not compose across days).
+- **Why:** transparent rules a reader can check, honest about missing inputs, and no number
+  that depends on data from after the cut. Weights are judgement, not fit; the sensitivity
+  check shows how much each outcome depends on them.
+
 ## ADR-043 (2026-10-21) Versioned export envelope; every JSON Schema checked in CI
 - Every published dataset is one JSON document in an envelope
   (`contracts/export_envelope.schema.json`, JSON Schema 2020-12): `envelope_version` (MAJOR.MINOR,
