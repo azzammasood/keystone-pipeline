@@ -5,7 +5,14 @@ a high score before an incident does not mean the incident was foreseeable, and 
 is reported as a miss. Criticality is left out of every backtest: the dependents counts
 are a current snapshot, not point-in-time (ADR-044), so risk is not backtested.
 
-A repository is *flagged* at a cut when its fragility is at or above the 90th percentile of active repositories (>= 100 human events in the window) at the same cut. A point is scored only when the rollup holds >= 90% of the window's hours.
+A repository is *flagged* at a cut when its fragility is at or above the 90th percentile of active repositories (>= 100 human events in the window) at the same cut. A point is scored only when the rollup holds >= 90% of the window's hours and of its last 3 months.
+
+Read with care: the cut is the first day of the disclosure month, which can fall after
+the compromise began (the event-stream handover, the xz 5.6.0 release), so a flag can
+reflect the incident's own activity rather than an earlier signal. The package mapping,
+OSV severity labels and alias sets are today's snapshot (ADR-044); OSV aliases of one
+flaw can count twice, and malicious-package records are left out. Repositories without
+a mapped package or per-actor data are ranked on fewer components.
 
 Inputs: per-actor data yes, OSV yes.
 

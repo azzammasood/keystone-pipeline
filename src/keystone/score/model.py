@@ -74,7 +74,14 @@ def components(s: dict[str, Any], rules: Rules = RULES) -> list[Component]:
     if not s.get("actor_data"):
         out.append(_na("concentration", rules, raw, "no per-actor data for this window"))
     elif (s.get("maint_actions") or 0) < rules.min_maint_actions:
-        out.append(_na("concentration", rules, raw, "fewer than 10 maintenance actions"))
+        out.append(
+            _na(
+                "concentration",
+                rules,
+                raw,
+                f"fewer than {rules.min_maint_actions} maintenance actions",
+            )
+        )
     else:
         out.append(
             _ok(
@@ -87,12 +94,20 @@ def components(s: dict[str, Any], rules: Rules = RULES) -> list[Component]:
             )
         )
 
-    # New versus departed contributors: share of first-half contributors absent in the second.
+    # New versus departed contributors: share of the actors with maintenance actions in months 1-6
+    # that have none in months 7-12 (stars, forks and comments do not make a contributor).
     raw = {k: s.get(k) for k in ("first_half_actors", "departed", "new_actors")}
     if not s.get("actor_data"):
         out.append(_na("contributor_churn", rules, raw, "no per-actor data for this window"))
     elif (s.get("first_half_actors") or 0) < rules.min_first_half_actors:
-        out.append(_na("contributor_churn", rules, raw, "fewer than 3 contributors in months 1-6"))
+        out.append(
+            _na(
+                "contributor_churn",
+                rules,
+                raw,
+                f"fewer than {rules.min_first_half_actors} maintainers in months 1-6",
+            )
+        )
     else:
         share = s["departed"] / s["first_half_actors"]
         out.append(
@@ -101,8 +116,8 @@ def components(s: dict[str, Any], rules: Rules = RULES) -> list[Component]:
                 rules,
                 raw,
                 share,
-                f"{s['departed']} of {s['first_half_actors']} contributors of months 1-6 not seen "
-                f"in months 7-12; {s['new_actors']} new",
+                f"{s['departed']} of {s['first_half_actors']} maintainers of months 1-6 made no "
+                f"maintenance action in months 7-12; {s['new_actors']} new",
             )
         )
 
@@ -113,7 +128,14 @@ def components(s: dict[str, Any], rules: Rules = RULES) -> list[Component]:
             _na("activity_trend", rules, raw, "window crosses a completeness period (ADR-012)")
         )
     elif (s.get("prior_events") or 0) < rules.min_prior_events:
-        out.append(_na("activity_trend", rules, raw, "fewer than 30 human events in months 1-9"))
+        out.append(
+            _na(
+                "activity_trend",
+                rules,
+                raw,
+                f"fewer than {rules.min_prior_events} human events in months 1-9",
+            )
+        )
     else:
         ratio = (s["recent_events"] / 3) / (s["prior_events"] / 9)
         out.append(
@@ -130,7 +152,11 @@ def components(s: dict[str, Any], rules: Rules = RULES) -> list[Component]:
     raw = {k: s.get(k) for k in ("opened", "closed")}
     opened = s.get("opened") or 0
     if opened < rules.min_opened:
-        out.append(_na("responsiveness", rules, raw, "fewer than 3 issues and PRs opened"))
+        out.append(
+            _na(
+                "responsiveness", rules, raw, f"fewer than {rules.min_opened} issues and PRs opened"
+            )
+        )
     else:
         ratio = (s.get("closed") or 0) / opened
         out.append(
@@ -139,7 +165,7 @@ def components(s: dict[str, Any], rules: Rules = RULES) -> list[Component]:
                 rules,
                 raw,
                 1 - ratio,
-                f"{s.get('closed') or 0} issue and PR closes for {opened} opened",
+                f"{s.get('closed') or 0} issue and PR closes for {opened} opened (bots included)",
             )
         )
 
@@ -162,15 +188,18 @@ def components(s: dict[str, Any], rules: Rules = RULES) -> list[Component]:
     # Collaborators added (MemberEvent) in the last 6 months: a change-of-control signal.
     raw = {k: s.get(k) for k in ("members_added_6m", "members_added_12m")}
     added = s.get("members_added_6m") or 0
-    out.append(
-        _ok(
-            "members_added",
-            rules,
-            raw,
-            1.0 if added > 0 else 0.0,
-            f"{added} collaborators added in the last 6 months",
+    if "E0" in (s.get("eras") or []):
+        out.append(_na("members_added", rules, raw, "MemberEvent has no member in E0"))
+    else:
+        out.append(
+            _ok(
+                "members_added",
+                rules,
+                raw,
+                1.0 if added > 0 else 0.0,
+                f"{added} collaborators added in the last 6 months",
+            )
         )
-    )
 
     # OSV advisories published before the cut and not withdrawn by it, severity-weighted.
     raw = {k: s.get(k) for k in ("vulns", "vulns_high", "mapped_packages")}
@@ -187,7 +216,8 @@ def components(s: dict[str, Any], rules: Rules = RULES) -> list[Component]:
                 rules,
                 raw,
                 weighted / rules.vuln_saturation,
-                f"{s.get('vulns') or 0} advisories before the cut ({high} high or critical)",
+                f"{s.get('vulns') or 0} advisories before the cut ({high} high or critical; "
+                "severity as recorded today)",
             )
         )
     return out

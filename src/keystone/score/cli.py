@@ -131,7 +131,7 @@ def score_backtest(
         res = bt.run(inp, incs, months_before)
     finally:
         inp.close()
-    bt.write(res, out, report)
+    bt.write(res, out, None if incident else report)  # a subset never overwrites it
     for i in res["incidents"]:
         typer.echo(f"{i['id']:<14} cut {i['cut'][:10]}  {i['outcome']}")
     leaks = [

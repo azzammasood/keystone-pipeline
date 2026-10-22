@@ -63,11 +63,16 @@ def percentile(value: float, population: list[float]) -> float:
     return round(100 * sum(1 for p in population if p <= value) / len(population), 2)
 
 
-def _reference(sig: dict[int, dict[str, Any]], rules: model.Rules) -> dict[int, float]:
-    """Fragility of every active repository in the window that has enough data."""
+def _reference(
+    sig: dict[int, dict[str, Any]],
+    rules: model.Rules,
+    targets: tuple[int, ...] | list[int] = (),
+) -> dict[int, float]:
+    """Fragility of every active repository in the window that has enough data, plus the
+    targets themselves, so a target is always ranked within the population it is compared to."""
     out = {}
     for repo, s in sig.items():
-        if s.get("human_events", 0) >= ACTIVE_EVENTS:
+        if s.get("human_events", 0) >= ACTIVE_EVENTS or repo in targets:
             f = model.score(repo, s["cut"], s, None, rules).fragility
             if f is not None:
                 out[repo] = f
@@ -91,7 +96,7 @@ def sensitivity(
     """Target percentiles and flags under every weight variant (the signals are reused)."""
     rows: list[dict[str, Any]] = []
     for label, r in variants(rules):
-        ref = _reference(sig, r)
+        ref = _reference(sig, r, targets)
         pop = list(ref.values())
         for t in targets:
             f = model.score(t, "", sig[t], None, r).fragility if t in sig else None
@@ -169,7 +174,7 @@ def run_incident(
     sens: dict[str, Any] | None = None
     for k in range(months_before, -1, -1):
         w = Window(signals.add_months(inc.cut, -k))
-        cov = signals.hour_coverage(inp, w)
+        cov = min(signals.hour_coverage(inp, w), signals.hour_coverage(inp, w, recent=True))
         if cov == 0:
             points.append(Point(w.cut.isoformat(), cov, "pending data"))
             continue
@@ -181,7 +186,7 @@ def run_incident(
             ids[r["name"]] = r.get("id") or signals.resolve_name(inp, r["name"], w)
         found = [i for i in ids.values() if i is not None]
         sig = signals.compute(inp, w)
-        ref = _reference(sig, rules)
+        ref = _reference(sig, rules, found)
         pop = list(ref.values())
         pt = Point(w.cut.isoformat(), cov, "scored", reference_size=len(pop))
         for name, rid in ids.items():
@@ -264,7 +269,14 @@ def report_md(res: dict[str, Any]) -> str:
         f"{res['rules']['flag_percentile']:.0f}th percentile of active repositories "
         f"(>= {res['rules']['active_events']} human events in the window) at the same cut. "
         f"A point is scored only when the rollup holds >= "
-        f"{res['rules']['min_hour_coverage']:.0%} of the window's hours.",
+        f"{res['rules']['min_hour_coverage']:.0%} of the window's hours and of its last 3 months.",
+        "",
+        "Read with care: the cut is the first day of the disclosure month, which can fall after",
+        "the compromise began (the event-stream handover, the xz 5.6.0 release), so a flag can",
+        "reflect the incident's own activity rather than an earlier signal. The package mapping,",
+        "OSV severity labels and alias sets are today's snapshot (ADR-044); OSV aliases of one",
+        "flaw can count twice, and malicious-package records are left out. Repositories without",
+        "a mapped package or per-actor data are ranked on fewer components.",
         "",
         f"Inputs: per-actor data {'yes' if res['inputs']['actor_data'] else 'no'}, "
         f"OSV {'yes' if res['inputs']['vuln_data'] else 'no'}.",
@@ -312,6 +324,7 @@ def report_md(res: dict[str, Any]) -> str:
 
 def write(res: dict[str, Any], json_path: Path, md_path: Path | None) -> None:
     json_path.parent.mkdir(parents=True, exist_ok=True)
-    json_path.write_text(json.dumps(res, indent=2, default=str) + "\n", encoding="utf-8")
+    text = json.dumps(res, indent=2, default=str) + "\n"
+    json_path.write_text(text, encoding="utf-8", newline="\n")
     if md_path is not None:
-        md_path.write_text(report_md(res), encoding="utf-8")
+        md_path.write_text(report_md(res), encoding="utf-8", newline="\n")

@@ -177,7 +177,7 @@ def open_inputs(rollup: Path, warehouse: Path | None = None) -> Inputs:
                 con.execute(
                     "CREATE VIEW vulns AS SELECT m.repo_id, v.vuln_id, v.published_at, "
                     "v.withdrawn_at, v.severity_label FROM w.marts.fct_vuln v "
-                    "JOIN mapped m USING (package_key)"
+                    "JOIN mapped m USING (package_key) WHERE NOT COALESCE(v.is_malicious, false)"
                 )
                 vuln = True
             if "staging.stg_registry__packages" in t:
@@ -192,14 +192,15 @@ def open_inputs(rollup: Path, warehouse: Path | None = None) -> Inputs:
     return Inputs(con, actor, vuln, crit, names)
 
 
-def hour_coverage(inp: Inputs, w: Window) -> float:
-    """Share of the window's hours with any rollup row (any repository)."""
+def hour_coverage(inp: Inputs, w: Window, recent: bool = False) -> float:
+    """Share of the window's hours (or of its last 3 months) with any rollup row."""
+    start = w.recent if recent else w.start
     (n,) = inp.con.execute(
         "SELECT COUNT(DISTINCT date_trunc('hour', window_start)) FROM repo_hour "
         "WHERE window_start >= ? AND window_start < ?",
-        [w.start, w.cut],
+        [start, w.cut],
     ).fetchone() or (0,)
-    return round(int(n) / w.hours, 4)
+    return round(int(n) / ((w.cut - start).total_seconds() // 3600), 4)
 
 
 def resolve_name(inp: Inputs, name: str, w: Window) -> int | None:
@@ -218,6 +219,8 @@ def _scope(inp: Inputs, repo_ids: list[int] | None) -> str:
     inp.con.execute("CREATE OR REPLACE TEMP TABLE scope (repo_id BIGINT)")
     if repo_ids is None:
         return ""
+    if not repo_ids:
+        return "AND false"
     inp.con.executemany("INSERT INTO scope VALUES (?)", [[r] for r in repo_ids])
     return "AND repo_id IN (SELECT repo_id FROM scope)"
 
@@ -282,8 +285,8 @@ def compute(inp: Inputs, w: Window, repo_ids: list[int] | None = None) -> dict[i
                 AND month + INTERVAL 1 MONTH <= CAST($cut AS DATE) {scope}
             ), per AS (
               SELECT repo_id, actor_key, SUM({MAINT_SQL[mv]}) AS m,
-                SUM(events) FILTER (WHERE month < CAST($half AS DATE)) AS e1,
-                SUM(events) FILTER (WHERE month >= CAST($half AS DATE)) AS e2
+                SUM({MAINT_SQL[mv]}) FILTER (WHERE month < CAST($half AS DATE)) AS e1,
+                SUM({MAINT_SQL[mv]}) FILTER (WHERE month >= CAST($half AS DATE)) AS e2
               FROM am GROUP BY repo_id, actor_key
             ), ranked AS (
               SELECT *, row_number() OVER (PARTITION BY repo_id ORDER BY m DESC, actor_key) AS rn

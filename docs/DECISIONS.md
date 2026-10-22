@@ -13,12 +13,12 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
     cut. Backtest cut = first instant of the incident month: nothing from that month is read,
     whatever the disclosure day (incident months only are recorded, no invented days).
   - *Components* (sub-score 0..1, 1 = most fragile; weight): maintenance-actor concentration,
-    top-1 share (top 3 shown) of maintenance actions (0.30); contributor churn, share of months
-    1-6 contributors not seen in months 7-12, new ones shown (0.15); activity trend, last 3
+    top-1 share (top 3 shown) of maintenance actions (0.30); contributor churn, share of the actors
+    with maintenance actions in months 1-6 that have none in months 7-12, new ones shown (0.15); activity trend, last 3
     months' monthly human events against months 1-9 (0.15); responsiveness proxy, issue + PR
-    closes per open (0.10); release recency, days since the last GitHub release / 365 (0.10);
-    collaborators added in the last 6 months (0.05); OSV advisories published before the cut
-    and not withdrawn by it, high/critical 1 and others 0.5, saturating at 5 (0.15).
+    closes per open, bots included (0.10); release recency, days since the last GitHub release / 365 (0.10);
+    collaborators added in the last 6 months, unavailable in E0 (0.05); OSV advisories published
+    before the cut and not withdrawn by it, malicious-package records left out, high/critical 1 and others 0.5, saturating at 5 (0.15).
     Fragility = 100 x weighted mean of the available components; withheld below 50% of the
     weight. Every component carries its raw inputs and a one-line reason (or why unavailable).
   - *Eras:* maintenance actions are `maint_v1` (push, merged PR, release, issue close) in E1-E2
@@ -33,13 +33,16 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
     the accepted/auto_exact package mapping. It is today's snapshot, so it is used in the live
     score only: **backtests report fragility, not risk.** Risk = criticality x fragility (0-100).
   - *Backtest:* a point is scored only when the rollup holds >= 90% of the window's hours, else
-    "pending data" (none) or "partial data". The incident repository is *flagged* when its
+    and of its last 3 months, else "pending data" (none) or "partial data". The incident repository is *flagged* when its
     fragility is at or above the 90th percentile of active repositories (>= 100 human events)
-    at the same cut; otherwise the outcome is a **miss**, published as such. Repository ids
+    at the same cut (the targets always join that population); otherwise the outcome is a **miss**, published as such. Repository ids
     come from the GitHub API (recorded in the config) or, for a removed repository, from the
     name history before the cut.
   - *Leakage:* every query bounds event time by the cut; the run itself rescores the incident
-    repositories on inputs truncated at the cut and fails (exit 1) on any difference. Tests
+    repositories on inputs truncated at the cut and fails (exit 1) on any difference (a check
+    of the time filters). Known snapshot inputs, not point-in-time: the package mapping, OSV
+    severity labels and alias sets (aliases of one flaw can count twice). The cut is the
+    disclosure month, which can follow the start of a compromise; the report says so. Tests
     poison the data with rows at and after the cut (activity, actors, advisories,
     withdrawals) and show the scores unchanged, and that the check catches a leaky signal.
   - *Sensitivity:* 22 weight variants (each component x0.5, x1.5, dropped), reported as the
@@ -51,8 +54,8 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - **Options rejected:** a learned score (brief: none in v1); mixing E2 and E3 maintenance
   definitions in one window (era rule); using today's dependents or fix status in backtests
   (leakage); daily "largest actor" aggregates for concentration (do not compose across days).
-- **Why:** transparent rules a reader can check, honest about missing inputs, and no number
-  that depends on data from after the cut. Weights are judgement, not fit; the sensitivity
+- **Why:** transparent rules a reader can check, honest about missing inputs, and no event
+  or advisory from after the cut (snapshot inputs are named, not hidden). Weights are judgement, not fit; the sensitivity
   check shows how much each outcome depends on them.
 
 ## ADR-043 (2026-10-21) Versioned export envelope; every JSON Schema checked in CI

@@ -75,7 +75,7 @@ def _rollup(path: Path, poison: bool) -> None:
         SELECT ts, {FRAGILE}, 'solo', 'id', 'E2', 3, 3, 0, 0, 0, 0 FROM days
         WHERE ts < TIMESTAMPTZ '2021-10-01' OR day(ts) = 10
         UNION ALL
-        SELECT ts, {FRAGILE}, 'gone' || (month(ts) % 3), 'id', 'E2', 1, 0, 0, 0, 0, 0 FROM days
+        SELECT ts, {FRAGILE}, 'gone' || (month(ts) % 3), 'id', 'E2', 1, 1, 0, 0, 0, 0 FROM days
         WHERE month(ts) <= 3 AND day(ts) = 5
         """
     )
@@ -118,15 +118,18 @@ def _warehouse(path: Path, poison: bool) -> None:
         ("V1", "npm/p1", "2021-06-01", None, "HIGH"),
         ("V2", "npm/p1", "2021-03-01", "2022-02-01", "LOW"),  # withdrawn after the cut
         ("V3", "npm/p2", "2021-04-01", "2021-05-01", "LOW"),  # withdrawn before the cut
+        ("MAL-1", "npm/p1", "2021-07-01", None, "CRITICAL"),  # malicious record: left out
     ]
     if poison:
         rows += [("V4", "npm/p1", "2022-01-01", None, "CRITICAL")]
         rows += [("V5", "npm/p1", "2022-02-10", None, "CRITICAL")]
     con.execute(
         "CREATE TABLE marts.fct_vuln (vuln_id VARCHAR, package_key VARCHAR, "
-        "published_at TIMESTAMPTZ, withdrawn_at TIMESTAMPTZ, severity_label VARCHAR)"
+        "published_at TIMESTAMPTZ, withdrawn_at TIMESTAMPTZ, severity_label VARCHAR, "
+        "is_malicious BOOLEAN)"
     )
-    con.executemany("INSERT INTO marts.fct_vuln VALUES (?, ?, ?, ?, ?)", rows)
+    rows = [(*r, r[0].startswith("MAL")) for r in rows]
+    con.executemany("INSERT INTO marts.fct_vuln VALUES (?, ?, ?, ?, ?, ?)", rows)
     con.execute(
         "CREATE TABLE staging.stg_registry__packages AS SELECT * FROM (VALUES "
         "('npm/p1', true, 120000::BIGINT, TIMESTAMPTZ '2026-10-21'), "
@@ -193,14 +196,14 @@ def test_signals_and_explained_components(data: dict[str, Path]) -> None:
         inp.close()
     f = s[FRAGILE]
     assert f["maint_version"] == "maint_v1" and f["one_completeness_period"]
-    assert f["top1"] == 1.0 and f["maint_actors"] == 1  # 'gone*' actors made no maintenance action
+    assert 0.99 < f["top1"] < 1 and f["maint_actors"] == 4 and f["top3"] == round(830 / 831, 4)
     assert (f["first_half_actors"], f["departed"], f["new_actors"]) == (4, 3, 0)
     assert (f["vulns"], f["vulns_high"], f["mapped_packages"]) == (2, 1, 1)
     assert (f["members_added_6m"], f["releases"]) == (1, 1)
     assert s[2]["vulns"] == 0 and 3 not in s or "vulns" not in s[3]  # rejected mapping ignored
     sc = model.score(FRAGILE, CUT.isoformat(), f)
     by = {c.name: c for c in sc.components}
-    assert by["concentration"].sub == 1.0 and "100%" in by["concentration"].reason
+    assert by["concentration"].sub == f["top1"] and "100%" in by["concentration"].reason
     assert by["contributor_churn"].sub == 0.75
     assert by["activity_trend"].available and by["activity_trend"].sub > 0.5
     assert by["responsiveness"].sub == 1.0 and by["members_added"].sub == 1.0
@@ -326,3 +329,54 @@ def test_cli_live_and_explain(data: dict[str, Path], tmp_path: Path) -> None:
 
     row = next(x for x in json.loads(out.read_text())["scores"] if x["repo_id"] == 1)
     assert row["criticality"] == pytest.approx(0.8466, abs=1e-4) and row["risk"] is not None
+
+
+def test_empty_scope_and_actor_month_parquet(data: dict[str, Path], tmp_path: Path) -> None:
+    inp = signals.open_inputs(data["clean"], data["clean_wh"])
+    try:
+        assert signals.compute(inp, Window(CUT), []) == {}
+        assert signals.criticality_inputs(inp, []) == {}
+        month = inp.con.execute("SELECT * FROM repo_actor_month").fetchdf()
+        hour = inp.con.execute("SELECT * FROM repo_hour").fetchdf()
+        want = signals.compute(inp, Window(CUT), [FRAGILE])
+    finally:
+        inp.close()
+    d = tmp_path / "pqm"
+    for name, df in (("repo_hour", hour), ("repo_actor_month", month)):
+        (d / name).mkdir(parents=True)
+        df.to_parquet(d / name / "part.parquet")
+    inp = signals.open_inputs(d, data["clean_wh"])
+    try:
+        assert signals.compute(inp, Window(CUT), [FRAGILE]) == want
+    finally:
+        inp.close()
+
+
+def test_e3_window_uses_pr_closes_not_merges(tmp_path: Path) -> None:
+    db = tmp_path / "e3.duckdb"
+    con = duckdb.connect(str(db))
+    con.execute("SET TimeZone = 'UTC'")
+    con.execute(
+        "CREATE TABLE repo_hour AS SELECT TIMESTAMPTZ '2026-08-01 12:00' AS window_start, "
+        "1::BIGINT AS repo_id, 'E3' AS era, 'PushEvent' AS event_type, 1::BIGINT AS events, "
+        "1::BIGINT AS human_events, 0::BIGINT AS opened, 0::BIGINT AS closed, "
+        "0::BIGINT AS published, 0::BIGINT AS added"
+    )
+    con.execute(
+        "CREATE TABLE repo_actor_month AS SELECT * FROM (VALUES "
+        "(DATE '2026-08-01', 1::BIGINT, 'a', 20::BIGINT, 0::BIGINT, 0::BIGINT, 20::BIGINT, "
+        "0::BIGINT, 0::BIGINT), "
+        "(DATE '2026-08-01', 1::BIGINT, 'b', 20::BIGINT, 0::BIGINT, 99::BIGINT, 0::BIGINT, "
+        "0::BIGINT, 0::BIGINT)) t(month, repo_id, actor_key, events, pushes, prs_merged, "
+        "prs_closed, releases, issues_closed)"
+    )
+    con.close()
+    inp = signals.open_inputs(db)
+    try:
+        cut = datetime(2026, 10, 1, tzinfo=UTC)  # window 2025-10 to 2026-09 crosses E2/E3
+        s = signals.compute(inp, Window(cut), [1])[1]
+        assert s["maint_version"] == "maint_v0" and s["maint_actions"] == 0
+    finally:
+        inp.close()
+    assert "prs_merged" not in signals.MAINT_SQL["maint_v2"]
+    assert "prs_merged" not in signals.MAINT_SQL["maint_v0"]
