@@ -152,7 +152,7 @@ class OpenRouterChooser:
         if any(float(v or 0) != 0 for v in prices.values()):
             raise WouldCost(f"{self.model} has a non-zero price: {prices}")
 
-    def _post(self, body: dict[str, Any]) -> dict[str, Any]:
+    def post(self, body: dict[str, Any]) -> dict[str, Any]:
         for attempt in range(self.max_retries + 1):
             wait = self._next - time.monotonic()
             if wait > 0:
@@ -208,7 +208,7 @@ class OpenRouterChooser:
                 "json_schema": {"name": "choice", "strict": True, "schema": schema},
             },
         }
-        data = self._post(body)
+        data = self.post(body)
         try:
             text = data["choices"][0]["message"]["content"] or ""
             start, end = text.find("{"), text.rfind("}")

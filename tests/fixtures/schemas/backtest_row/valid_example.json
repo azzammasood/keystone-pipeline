@@ -1,0 +1,18 @@
+{
+ "id": "xz",
+ "month": "2024-03",
+ "cut": "2024-03-01T00:00:00+00:00",
+ "summary": "example summary",
+ "sources": [
+  "https://example.org/advisory"
+ ],
+ "outcome": "pending data",
+ "points": [
+  {
+   "cut": "2024-03-01T00:00:00+00:00",
+   "status": "pending data",
+   "hour_coverage": 0.0
+  }
+ ],
+ "sensitivity": null
+}

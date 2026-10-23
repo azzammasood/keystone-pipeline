@@ -1,0 +1,97 @@
+{
+ "generated_at": "2026-10-22T03:30:44.932729+00:00",
+ "generator": "keystone metadata export",
+ "datasets": [
+  {
+   "id": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence",
+   "namespace": "duckdb://keystone",
+   "name": "keystone.intermediate.int_package_repo_evidence",
+   "title": "intermediate.int_package_repo_evidence",
+   "layer": "warehouse",
+   "domain": "packages",
+   "kind": "dataset",
+   "fields": [
+    "kind",
+    "package_key",
+    "packages_in_vuln",
+    "repo_full_name",
+    "repo_host",
+    "vuln_id"
+   ],
+   "cataloged": true
+  }
+ ],
+ "jobs": [
+  {
+   "id": "job:keystone/keystone-rollup-batch-rollup_full",
+   "name": "keystone-rollup-batch-rollup_full",
+   "tool": "Flink (openlineage-flink)",
+   "runs": 0
+  }
+ ],
+ "edges": [
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence",
+   "to": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run",
+   "kind": "reads"
+  }
+ ],
+ "field_edges": [
+  {
+   "from": "duckdb://keystone/keystone.intermediate.int_package_repo_evidence#kind",
+   "to": "duckdb://keystone/keystone.marts.bridge_package_repo#confidence",
+   "job": "job:keystone/keystone.marts.keystone.bridge_package_repo.build.run"
+  }
+ ],
+ "tools": {
+  "Flink (openlineage-flink)": {
+   "table_edges": 33
+  },
+  "dbt (dbt-ol)": {
+   "table_edges": 366,
+   "column_edges": 1206
+  },
+  "keystone CLI": {
+   "table_edges": 262,
+   "column_edges": 772
+  }
+ },
+ "unresolved_column_inputs": 61,
+ "hour_files_kept": 8,
+ "gate_path": {
+  "tables": [
+   "https://data.gharchive.org/2011-02-12-0.json.gz",
+   "job:keystone/parse.gharchive",
+   "file://keystone/silver/gharchive/events",
+   "job:keystone/rollup.duckdb",
+   "duckdb://keystone/rollup.main.repo_hour",
+   "job:keystone/keystone.staging.keystone.stg_rollup__repo_hour.build.run",
+   "duckdb://keystone/keystone.staging.stg_rollup__repo_hour",
+   "job:keystone/keystone.marts.keystone.fct_repo_day.build.run",
+   "duckdb://keystone/keystone.marts.fct_repo_day",
+   "job:keystone/keystone.metrics.keystone.metric_maint_v1_repo_day.build.run",
+   "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day",
+   "job:keystone/warehouse.publish.metrics.metric_maint_v1_repo_day",
+   "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day"
+  ],
+  "field": [
+   "iceberg://lakekeeper/keystone/metrics.metric_maint_v1_repo_day#activity_date",
+   "duckdb://keystone/keystone.metrics.metric_maint_v1_repo_day#activity_date",
+   "duckdb://keystone/keystone.marts.fct_repo_day#activity_date",
+   "duckdb://keystone/keystone.staging.stg_rollup__repo_hour#window_start",
+   "duckdb://keystone/rollup.main.repo_hour#window_start",
+   "file://keystone/silver/gharchive/events#created_at"
+  ],
+  "complete": true
+ },
+ "full_engine_path": [
+  "https://data.gharchive.org/2011-02-12-0.json.gz"
+ ],
+ "summary": {
+  "nodes": 109,
+  "edges": 123,
+  "field_edges": 294,
+  "datasets": 56,
+  "jobs": 53
+ }
+}

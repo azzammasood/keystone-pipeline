@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/metadata_catalog.schema.json",
+  "title": "Keystone metadata export: catalog",
+  "description": "Every dataset with owner, layer, domain, classification, contract, freshness SLA and documented columns (ADR-034). Repository and dataset level only; no people.",
+  "type": "object",
+  "required": [
+    "generated_at",
+    "generator",
+    "completeness",
+    "owner",
+    "domains",
+    "classifications",
+    "datasets"
+  ],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generator": {
+      "const": "keystone metadata export"
+    },
+    "completeness": {
+      "type": "object",
+      "required": [
+        "models",
+        "columns",
+        "datasets",
+        "documented_pct"
+      ]
+    },
+    "owner": {
+      "type": "object",
+      "required": [
+        "id",
+        "kind"
+      ]
+    },
+    "domains": {
+      "type": "object"
+    },
+    "classifications": {
+      "type": "object"
+    },
+    "datasets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "layer",
+          "domain",
+          "classification",
+          "description",
+          "freshness_sla_hours",
+          "owner",
+          "columns"
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/backtest_row.schema.json",
+  "title": "Keystone backtest row",
+  "description": "One incident of the point-in-time backtest (dataset backtest, v1). Misses are reported as misses; 'pending data' means the window is not loaded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "month",
+    "cut",
+    "summary",
+    "sources",
+    "outcome",
+    "points",
+    "sensitivity"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "month": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}$"
+    },
+    "cut": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "summary": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "format": "uri"
+      }
+    },
+    "outcome": {
+      "type": "string",
+      "minLength": 1
+    },
+    "points": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "cut",
+          "status",
+          "hour_coverage"
+        ],
+        "properties": {
+          "cut": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string"
+          },
+          "hour_coverage": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          }
+        }
+      }
+    },
+    "sensitivity": {
+      "type": [
+        "object",
+        "null"
+      ]
+    }
+  }
+}

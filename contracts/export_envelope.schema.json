@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/export_envelope.schema.json",
   "title": "Keystone export envelope",
-  "description": "Every published dataset is one JSON document in this envelope (ADR-043): a versioned header that says what the data is, which window and sources it covers, which profile produced it and under which privacy level, around the rows. Repository and package level only; no person appears in any export. A breaking change to the envelope bumps envelope_version's major part; a breaking change to a dataset's rows bumps its dataset_version.",
+  "description": "Every published dataset is one JSON document in this envelope (ADR-043; status added in 1.1, ADR-060): a versioned header that says what the data is, which window and sources it covers, which profile produced it and under which privacy level, around the rows. Repository and package level only; no person appears in any export. A breaking change to the envelope bumps envelope_version's major part; a breaking change to a dataset's rows bumps its dataset_version.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -164,6 +164,28 @@
       "type": "array",
       "items": {
         "type": "object"
+      }
+    },
+    "status": {
+      "description": "Optional since 1.1: whether the rows are complete. 'partial data' or 'pending data' means the window is not covered (the rows may be empty); 'skipped' means a step did not run (the detail says why). Absent means ok.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "detail"
+      ],
+      "properties": {
+        "state": {
+          "enum": [
+            "ok",
+            "partial data",
+            "pending data",
+            "skipped"
+          ]
+        },
+        "detail": {
+          "type": "string"
+        }
       }
     }
   }

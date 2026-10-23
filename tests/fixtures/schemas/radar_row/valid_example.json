@@ -1,0 +1,23 @@
+{
+ "repo_id": 123456,
+ "repo_name": "example-org/example-lib",
+ "packages": [
+  "npm/example-lib"
+ ],
+ "score_version": "score_v1",
+ "cut": "2026-10-01T00:00:00+00:00",
+ "fragility": 61.5,
+ "criticality": 0.72,
+ "risk": 44.28,
+ "coverage": 0.85,
+ "note": "signals only; not a prediction",
+ "top_signals": [
+  {
+   "name": "concentration",
+   "available": true,
+   "sub": 0.8,
+   "weight": 0.3,
+   "reason": "example: one share of human events"
+  }
+ ]
+}

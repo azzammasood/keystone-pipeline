@@ -1,0 +1,20 @@
+{
+ "rung": "1 hour (example)",
+ "engine": "DuckDB",
+ "input_rows": 100,
+ "input_mb": 1.0,
+ "wall_s": [
+  2.9,
+  1.6
+ ],
+ "engine_s": [
+  0.5,
+  0.3
+ ],
+ "peak_mb": [
+  86.1,
+  86.0
+ ],
+ "rows_out": 10,
+ "mb_out": 0.8
+}

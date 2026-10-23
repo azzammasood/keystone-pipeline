@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/brief_row.schema.json",
+  "title": "Keystone weekly brief row",
+  "description": "The weekly risk brief (dataset brief, v1): prose by a free language model over the published facts. Every number in the text was checked against the facts; text is null when the step was skipped or the check failed.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "week",
+    "text",
+    "model",
+    "input_sha256",
+    "outcome",
+    "detail"
+  ],
+  "properties": {
+    "week": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-W[0-9]{2}$"
+    },
+    "text": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "model": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "input_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "outcome": {
+      "enum": [
+        "written",
+        "cached",
+        "skipped",
+        "rejected"
+      ]
+    },
+    "detail": {
+      "type": "string"
+    }
+  }
+}

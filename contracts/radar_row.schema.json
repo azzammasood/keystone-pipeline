@@ -1,0 +1,129 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/radar_row.schema.json",
+  "title": "Keystone radar row",
+  "description": "One repository on the radar (dataset radar, v1): its score and its three heaviest signals. Signals, not predictions; repository level only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "repo_id",
+    "repo_name",
+    "packages",
+    "score_version",
+    "cut",
+    "fragility",
+    "criticality",
+    "risk",
+    "coverage",
+    "note",
+    "top_signals"
+  ],
+  "properties": {
+    "repo_id": {
+      "description": "GitHub repository id (API id).",
+      "type": "integer",
+      "minimum": 1
+    },
+    "repo_name": {
+      "description": "Latest owner/name seen in GH Archive; null when the warehouse has no name.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "packages": {
+      "description": "Package keys (ecosystem/name) mapped to the repository (status accepted or auto_exact).",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "score_version": {
+      "type": "string",
+      "pattern": "^score_v[1-9][0-9]*$"
+    },
+    "cut": {
+      "description": "Point-in-time cut (UTC): only data before it is read.",
+      "type": "string",
+      "format": "date-time"
+    },
+    "fragility": {
+      "description": "0-100 weighted fragility signals; null below the weight coverage floor.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "criticality": {
+      "description": "0-1 from ecosyste.ms dependents (live only).",
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 1
+    },
+    "risk": {
+      "description": "100 x criticality x fragility; null when either is null.",
+      "type": [
+        "number",
+        "null"
+      ],
+      "minimum": 0,
+      "maximum": 100
+    },
+    "coverage": {
+      "description": "Share of the signal weight with data.",
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "note": {
+      "description": "Signals only; never a prediction.",
+      "type": "string"
+    },
+    "top_signals": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "available",
+          "sub",
+          "weight",
+          "reason"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "available": {
+            "type": "boolean"
+          },
+          "sub": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1
+          },
+          "weight": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

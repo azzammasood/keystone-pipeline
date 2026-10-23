@@ -1,0 +1,47 @@
+{
+ "generated_at": "2026-10-22T03:30:44.932729+00:00",
+ "completeness": {
+  "models": 29,
+  "models_documented": 29,
+  "columns": 679,
+  "columns_documented": 679,
+  "datasets": 63,
+  "datasets_complete": 63,
+  "owners_missing": 0,
+  "documented_pct": 100.0
+ },
+ "owner": {
+  "id": "keystone-maintainers",
+  "kind": "group",
+  "description": "Maintainers of the keystone-pipeline repository; corrections go through its issues."
+ },
+ "domains": {
+  "sources": "External inputs as fetched (GH Archive hourly files, OSV zips).",
+  "activity": "Repository activity derived from GH Archive (silver events, rollups, repository facts).",
+  "vulnerabilities": "OSV advisories and the packages they affect.",
+  "packages": "Packages and their mapping to repositories.",
+  "operations": "How the pipeline itself ran (metrics, lineage, quality)."
+ },
+ "classifications": {
+  "public": "Repository- or package-level facts; safe to publish.",
+  "pseudonymous": "Salted keys of accounts (ADR-019); internal only, never published.",
+  "internal": "Pipeline-internal (quarantine, staging); no personal data, not published."
+ },
+ "datasets": [
+  {
+   "id": "https://data.gharchive.org/{hour}.json.gz",
+   "title": "GH Archive hourly file",
+   "layer": "sources",
+   "domain": "sources",
+   "classification": "internal",
+   "description": "One gzipped JSON-lines file per UTC hour of public GitHub events (data.gharchive.org). Fetched politely, verified by MD5 and SHA-256, parsed and deleted; never republished.",
+   "contract": "config/sources.yml",
+   "freshness_sla_hours": 3,
+   "owner": "keystone-maintainers",
+   "published": false,
+   "glossary_terms": [],
+   "columns": [],
+   "missing": []
+  }
+ ]
+}

@@ -1,0 +1,15 @@
+{
+ "rung": "1 hour",
+ "engine": "Snowflake",
+ "input_rows": 1,
+ "input_mb": 1,
+ "wall_s": [
+  1
+ ],
+ "engine_s": null,
+ "peak_mb": [
+  1
+ ],
+ "rows_out": 1,
+ "mb_out": 1
+}

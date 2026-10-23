@@ -78,6 +78,8 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "PTH"]
 "src/keystone/backfill/cli.py" = ["B008"]
 "src/keystone/profile/cli.py" = ["B008"]  # Typer options as defaults
 "src/keystone/score/cli.py" = ["B008"]
+"src/keystone/export/cli.py" = ["B008"]
+"src/keystone/narrate/cli.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"

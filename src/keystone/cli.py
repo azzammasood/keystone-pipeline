@@ -1385,3 +1385,9 @@ app.add_typer(profile_app, name="profile")
 from keystone.score.cli import score_app  # noqa: E402
 
 app.add_typer(score_app, name="score")  # Phase 8 score and backtest (keystone/score)
+
+from keystone.export.cli import export_app  # noqa: E402
+from keystone.narrate.cli import narrate_app  # noqa: E402
+
+app.add_typer(export_app, name="export")  # Phase 10 site exports (keystone/export/site.py)
+app.add_typer(narrate_app, name="narrate")  # Phase 10 weekly brief (keystone/narrate)

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/metadata_lineage.schema.json",
+  "title": "Keystone metadata export: lineage",
+  "description": "Dataset, job and column lineage graph from OpenLineage events (ADR-031, ADR-034). Repository and dataset level only; no people.",
+  "type": "object",
+  "required": [
+    "generated_at",
+    "generator",
+    "datasets",
+    "jobs",
+    "edges",
+    "field_edges",
+    "summary"
+  ],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generator": {
+      "const": "keystone metadata export"
+    },
+    "datasets": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "namespace",
+          "name",
+          "kind"
+        ]
+      }
+    },
+    "jobs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "tool"
+        ]
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "kind"
+        ]
+      }
+    },
+    "field_edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to"
+        ]
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "nodes",
+        "edges",
+        "datasets",
+        "jobs"
+      ]
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+ "generated_at": "2026-10-22T03:30:44.932729+00:00",
+ "generator": "keystone metadata export",
+ "terms": [
+  {
+   "term": "criticality",
+   "definition": "How much of the open-source ecosystem depends on a package or repository, from dependents and downloads (ecosyste.ms, ADR-010). A signal of exposure, not of quality.",
+   "status": "planned (Phase 7)",
+   "attached_to": []
+  }
+ ]
+}

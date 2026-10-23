@@ -19,7 +19,7 @@ from keystone.telemetry.metrics import produced_by
 from keystone.telemetry.runlog import read
 
 SCHEMA_PATH = CONTRACTS_DIR / "export_envelope.schema.json"
-ENVELOPE_VERSION = "1.0"
+ENVELOPE_VERSION = "1.1"  # 1.1: optional `status` (ADR-060)
 CORRECTIONS_URL = "https://github.com/azzammasood/keystone-pipeline/issues"
 
 
@@ -51,6 +51,7 @@ def wrap(
     window_end: datetime | None = None,
     periods: Sequence[str] = (),
     level: str = "repository",
+    status: tuple[str, str] | None = None,
     now: datetime | None = None,
 ) -> dict[str, Any]:
     doc = {
@@ -70,12 +71,30 @@ def wrap(
         "row_count": len(rows),
         "rows": [dict(r) for r in rows],
     }
+    if status is not None:
+        doc["status"] = {"state": status[0], "detail": status[1]}
     validate(doc)
     return doc
 
 
+def row_schema_path(dataset: str) -> Path:
+    return CONTRACTS_DIR / f"{dataset}_row.schema.json"
+
+
 def validate(doc: dict[str, Any]) -> None:
+    """The envelope, then every row against `contracts/<dataset>_row.schema.json` when the
+    dataset has one (every dataset `keystone export site` writes does)."""
     schema = json.loads(SCHEMA_PATH.read_text("utf-8"))
     jsonschema.validate(doc, schema, format_checker=jsonschema.FormatChecker())
     if doc["row_count"] != len(doc["rows"]):
         raise jsonschema.ValidationError(f"row_count {doc['row_count']} != {len(doc['rows'])} rows")
+    rows = row_schema_path(doc["dataset"])
+    if rows.exists():
+        validator = jsonschema.Draft202012Validator(
+            json.loads(rows.read_text("utf-8")),
+            format_checker=jsonschema.Draft202012Validator.FORMAT_CHECKER,
+        )
+        for i, row in enumerate(doc["rows"]):
+            err = next(validator.iter_errors(row), None)
+            if err is not None:
+                raise jsonschema.ValidationError(f"{doc['dataset']} row {i}: {err.message}")

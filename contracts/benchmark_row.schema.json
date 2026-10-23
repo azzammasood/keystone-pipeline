@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/benchmark_row.schema.json",
+  "title": "Keystone benchmark row",
+  "description": "One measured engine run of the scale ladder (dataset benchmark, v1), read from docs/benchmarks.md (the measured numbers). Two runs per cell.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "rung",
+    "engine",
+    "input_rows",
+    "input_mb",
+    "wall_s",
+    "engine_s",
+    "peak_mb",
+    "rows_out",
+    "mb_out"
+  ],
+  "properties": {
+    "rung": {
+      "type": "string",
+      "minLength": 1
+    },
+    "engine": {
+      "enum": [
+        "DuckDB",
+        "Spark",
+        "Flink"
+      ]
+    },
+    "input_rows": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "input_mb": {
+      "type": "number",
+      "minimum": 0
+    },
+    "wall_s": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minimum": 0
+      },
+      "minItems": 1
+    },
+    "engine_s": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "number",
+        "minimum": 0
+      }
+    },
+    "peak_mb": {
+      "type": "array",
+      "items": {
+        "type": "number",
+        "minimum": 0
+      },
+      "minItems": 1
+    },
+    "rows_out": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "mb_out": {
+      "type": "number",
+      "minimum": 0
+    }
+  }
+}

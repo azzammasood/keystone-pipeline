@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/index_row.schema.json",
+  "title": "Keystone export index row",
+  "description": "One published file (dataset index, v1) with its checksum and the schema that validated it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "path",
+    "dataset",
+    "sha256",
+    "bytes",
+    "schema"
+  ],
+  "properties": {
+    "path": {
+      "type": "string",
+      "pattern": "^[a-z0-9_./-]+$"
+    },
+    "dataset": {
+      "type": "string"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "bytes": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "schema": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

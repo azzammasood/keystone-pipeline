@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/metadata_glossary.schema.json",
+  "title": "Keystone metadata export: glossary",
+  "description": "Business glossary terms and what they are attached to (ADR-034). Repository and dataset level only; no people.",
+  "type": "object",
+  "required": [
+    "generated_at",
+    "generator",
+    "terms"
+  ],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "generator": {
+      "const": "keystone metadata export"
+    },
+    "terms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "term",
+          "definition",
+          "status",
+          "attached_to"
+        ]
+      }
+    }
+  }
+}

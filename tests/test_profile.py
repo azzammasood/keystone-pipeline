@@ -155,7 +155,7 @@ def test_envelope_refuses_unknown_profile_and_bad_counts(tmp_path: Path) -> None
     with pytest.raises(envelope.NoProfileRecorded):
         envelope.recorded_profile(tmp_path)
     produced = {"profile": "free", "fallback": False, "run_id": "r", "keystone_version": "0"}
-    doc = envelope.wrap("radar", "v1", [{"repo": 1}], produced=produced, sources=SOURCES)
+    doc = envelope.wrap("probe", "v1", [{"repo": 1}], produced=produced, sources=SOURCES)
     assert doc["row_count"] == 1
     doc["row_count"] = 2
     with pytest.raises(jsonschema.ValidationError):
@@ -178,3 +178,37 @@ def test_schema_examples_pass_and_checker_catches_bad_ones(tmp_path: Path) -> No
     assert len(problems) == 2
     (contracts / "y.schema.json").write_text(json.dumps({"type": 5}))
     assert any("not a valid 2020-12 schema" in p for p in schemas.check(contracts, examples))
+
+
+def test_full_outage_publishes_valid_site_exports(parsed_fixtures: object, tmp_path: Path) -> None:
+    """Phase 10 gate: with every `full` service down, the job runs in free and the whole site
+    export (radar, pages, backtests, benchmarks, metrics, metadata, index) validates and says
+    produced_by free with fallback true."""
+    from keystone.export import site
+    from keystone.score import cli as score_cli
+
+    root = parsed_fixtures.root  # type: ignore[attr-defined]
+    out = prun.run(root, lambda: None, _free(root), probes=_outage())
+    assert out.produced_by == "free" and out.fallback
+    rollup, scores = root / "rollup" / "rollup.duckdb", tmp_path / "score"
+    nowh = tmp_path / "no-warehouse.duckdb"
+    score_cli.score_live(None, rollup, nowh, scores / "live.json", False)
+    score_cli.score_backtest(None, 0, rollup, nowh, scores / "backtest.json", tmp_path / "bt.md")
+    metrics = tmp_path / "pipeline_metrics.json"
+    metrics.write_text(json.dumps(tm.build(root, METADATA_DIR)), encoding="utf-8")
+
+    pub = tmp_path / "site"
+    index = site.build(pub, root=root, score_dir=scores, warehouse=nowh, metrics=metrics)
+
+    names = {r["path"] for r in index}
+    assert {"radar.json", "project_pages.json", "backtests.json", "benchmarks.json"} <= names
+    assert {"pipeline_metrics.json", "metadata/catalog.json", "metadata/lineage.json"} <= names
+    assert all(r["schema"] for r in index)  # every published file has a schema that passed
+    radar = json.loads((pub / "radar.json").read_text("utf-8"))
+    assert radar["produced_by"]["profile"] == "free" and radar["produced_by"]["fallback"]
+    assert radar["status"]["state"] == "partial data" and radar["rows"] == []  # never guessed
+    bt = json.loads((pub / "backtests.json").read_text("utf-8"))
+    assert bt["status"]["state"] == "pending data"
+    doc = json.loads((pub / "index.json").read_text("utf-8"))
+    envelope.validate(doc)
+    assert doc["row_count"] == len(index)

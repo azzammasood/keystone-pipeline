@@ -1,0 +1,8 @@
+{
+ "week": "2026-W43",
+ "text": null,
+ "model": null,
+ "input_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+ "outcome": "skipped",
+ "detail": "OPENROUTER_API_KEY is not set"
+}
