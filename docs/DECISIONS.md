@@ -2,6 +2,107 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-064 (2026-10-23) Phase 10 close: switches on, rungs skipped, what waits on the backfill
+- **Switches (owner 2026-10-22/23: "don't stop for decisions"):** repository variables
+  `KEYSTONE_SCHEDULES=true` (ingest every 6 h, publish daily) and `KEYSTONE_PUBLIC=true`
+  (release attestations, ADR-042), set with `gh variable set` after `gh api user --jq .login`
+  printed `azzammasood`, once the guarded workflows were dispatched and green. No other
+  repository setting was changed.
+- **Self-hardening, as it stands:** Scorecard (weekly and on push, ADR-006), zizmor on every
+  workflow in CI, actions pinned by SHA and dependencies by `uv.lock` (`uv sync --frozen`
+  everywhere), Dependabot, gitleaks, pip-audit, Syft SBOM + checksums + attestations on `v*`
+  releases (ADR-042).
+- **Skipped (logged, not built):** Databricks keepalive (no Databricks account); Tier 2
+  Terraform for repository settings and R2 (no R2 account; repository settings are the owner's)
+  and Elementary (dbt tests and the contracts already gate; not trivial). The warehouse reading
+  the `full` rollup when `produced_by = full`, the atomic Iceberg publish (ADR-029) and pushing
+  the compressed OpenLineage log to a data branch: `full` never runs in production (no stack on
+  runners, ADR-040), so these are showcase-only and stay listed in PROGRESS.
+- **Waits on the backfill:** the backtest rerun (`backtest.yml`), the first real ingest
+  (it yields while a backfill run is queued or running, ADR-062), and so the first published
+  `site-data`. Until then the radar says "partial data" and the backtests "pending data".
+
+## ADR-063 (2026-10-23) Airflow: a local DAG that only calls the CLI, lineage from the provider
+- Options: a full Airflow stack (scheduler, API server, Postgres) as a compose profile; or a
+  one-shot `airflow dags test` in the official image with a SQLite metadata DB. Choice: the
+  one-shot (`compose` profile `airflow`, `apache/airflow:3.3.2-python3.12` pinned by digest).
+  Why: production orchestration is GitHub Actions (ADR-041); Airflow shows the same CLI under
+  a second orchestrator, and RAM is tight (Docker VM 8.2 GB). It installs the project into its
+  own venv in the container (the host `.venv` is Windows).
+- `airflow/dags/keystone_pipeline.py`: parse the fixture hours, the rollup through
+  `profile check --run` (no stack in the container: falls back to free), score, metrics, site
+  export, brief. No logic in the DAG; no secrets (a showcase salt, no OpenRouter key: the brief
+  is skipped and says so).
+- Lineage: the Airflow OpenLineage provider (2.20.1) writes task START/COMPLETE events with the
+  file transport into the same events directory as the CLI's own events, so one graph holds
+  both. A stage run under Airflow records `detail.orchestrator` and `services.airflow` (from
+  `AIRFLOW_CTX_*`, `AIRFLOW_VERSION`), which puts Airflow in `engines[]` only when it ran.
+- Measured 2026-10-23: `docker compose --profile airflow run --rm airflow` 66 s wall (venv
+  install included); DAG run 27.8 s, 6 of 6 tasks succeeded; 13 provider events (6 START,
+  7 COMPLETE incl. the DAG run) + 4 CLI events; engines[] = airflow 3.3.2, duckdb 1.5.6,
+  keystone 0.1.0, keystone-parser 0.1.0; index of 9 validated files. Image 2.36 GB on disk.
+- Found by this run: `pytz` was missing from the runtime dependencies (DuckDB needs it to
+  fetch TIMESTAMPTZ; the dev group had hidden it). Added.
+
+## ADR-062 (2026-10-23) Publish wiring: exports to `site-data`, fallback issue, guards
+- `publish.yml` runs, CLI only: rollup through the profile check, OSV, warehouse, contracts,
+  `score live`, `score backtest`, metadata export, `metrics emit`, the schema check, `export
+  site`, `narrate brief` (secret `OPENROUTER_API_KEY`; none is set, so it is skipped and says
+  so), then uploads every export to the pre-release `site-data` (`gh release upload
+  --clobber`, assets flat: `metadata/x.json` as `metadata__x.json`). The freshness lag, SLO and
+  producer go to the run summary. `contents: write` on that job only.
+- Fallback issue: after `metrics emit`, `.github/scripts/fallback-issue.sh` opens
+  "[keystone] full profile unavailable: scheduled jobs ran in free" on the first fallback and
+  edits its body on later ones (no daily notifications). Runners never have the stack, so the
+  issue stays open while production is `free`, which is the designed state (ADR-040).
+- Guards: GH Archive allows 2 concurrent requests and a backfill chunk uses both, so ingest
+  skips (a notice, success) while a `backfill.yml` run is queued or in progress; the next run
+  re-checks its hours with conditional requests. Publish skips until an ingest cache exists
+  (the warehouse cannot build without silver; failing daily would open an issue for nothing).
+- `cost.free_quota`: the Actions minutes line says the repository is public and standard
+  runners are not metered (no quota to read), instead of a private-repository null.
+- CI's metadata job runs the gate path on every push: fixture hours, `profile check --run`
+  with no stack (falls back), score, metrics, `export site` (every file validated), brief
+  skipped, and checks `produced_by` and the index.
+
+## ADR-061 (2026-10-23) Weekly brief: free model, numbers checked, cached by input hash
+- `keystone narrate brief` builds facts from the exported JSON (radar status and top 5 rows,
+  backtest outcomes, freshness target met or missed, the producing profile), asks a free
+  OpenRouter model for 3 to 6 sentences, and publishes `brief.json` (dataset `brief`, v1).
+- Checks before publishing: every number in the text must occur in the facts; banned wording
+  (predictive: "will be abandoned/compromised", "predict", "forecast", "going to"; shaming:
+  "fault", "negligen"; no URLs, no `@`); at most 1,500 characters. A refused text gets one
+  retry with the reason; a second failure publishes `text: null`, outcome `rejected`.
+- Cache: answers stored under SHA-256 of facts + model + prompt version; the same input never
+  asks twice. Rejections are not cached.
+- $0: only a `:free` model id, listed prices checked to be zero, every response's reported cost
+  zero (the Phase 7 client), at most 2 requests per run. No key: outcome `skipped`, said in the
+  file. Options rejected: placeholder templates (the brief asked for validated numbers, and
+  the checks catch an invented one); a paid model (the $0 rule).
+- Measured 2026-10-23 (local key, `nvidia/nemotron-3-ultra-550b-a55b:free`): 1 request per
+  brief, written and passed the checks (2 prompt versions tried); the rerun was `cached` with
+  0 requests; cost $0.
+
+## ADR-060 (2026-10-23) Site exports: envelope 1.1, row schemas, metadata schemas, index
+- `keystone export site` writes `radar.json`, `project_pages.json`, `backtests.json`,
+  `benchmarks.json` (each one envelope), copies `pipeline_metrics.json` and the metadata export,
+  and writes `index.json` (every file, its SHA-256, size and the schema that validated it).
+- Every dataset's rows are checked against `contracts/<dataset>_row.schema.json` (radar,
+  project_page, backtest, benchmark, brief, index); catalog, glossary and lineage against
+  `contracts/metadata_*.schema.json`; pipeline_metrics against its own schema. Rows are
+  `additionalProperties: false`, so a person field is refused. The schema check in CI runs
+  every example (`valid_*` must pass, `invalid_*` must fail).
+- Envelope 1.1 (minor, readers of 1.x keep working): optional `status` {state: ok | partial
+  data | pending data | skipped, detail}. An empty radar says why, instead of looking like "no
+  risk".
+- Rows hold only what measured files hold: scores from `keystone score live`, names and
+  mapped packages from the warehouse, backtests from `keystone score backtest`, benchmarks
+  parsed from `docs/benchmarks.md` (the measured ladder, 9 runs). Component `raw` values stay
+  internal; pages show each signal's value, weight and reason.
+- Measured 2026-10-23 on local data after a forced outage (5 of 5 probes down): 8 files
+  validated plus the brief; radar 0 rows, status "partial data: the rollup holds 0.1% of the
+  window's hours; not scored"; backtests "pending data" for event-stream, colors-faker, xz.
+
 ## ADR-051 (2026-10-23) Backfill reports rare-type drift instead of failing the hour (amends ADR-022)
 - Context: the first backfill chunk (event-stream, 2017-12) lost one of 746 hours: 2017-12-01
   19h holds 95 `FollowEvent` records, a type the E2 registry never saw because the stratified

@@ -3,6 +3,15 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
+**Backend complete (Phases 0 to 10), except the backtest rerun, which waits on the Phase 9
+backfill** (2026-10-23, ADR-060 to ADR-064). When the backfill has landed:
+`gh workflow run backtest.yml` (incident windows), then the first ingest runs on its schedule
+(it yields while a backfill run is queued or running) and the daily publish uploads the site
+exports to the pre-release `site-data`; the radar stays "partial data" until the live window's
+hours are covered. Schedules and attestations are on (`KEYSTONE_SCHEDULES=true`,
+`KEYSTONE_PUBLIC=true`, set 2026-10-23). The brief is skipped on Actions until the owner adds
+the secret `OPENROUTER_API_KEY` (a free-tier key; optional).
+
 Phase 8 (scoring and backtest) gate checks pass locally (2026-10-22): `keystone score
 live|explain|backtest`, score_v1 (ADR-044), leakage and sensitivity checks; review
 `docs/reviews/phase-8.md` (2 major, 6 minor, 3 nit; fixed or documented). **Backtest: pending
@@ -92,15 +101,30 @@ encrypted asset 2026-10-22; secret `KEYSTONE_ACTOR_DATA_KEY`). **Phase 8 complet
   none of any incident window, so the live score is withheld ("partial data") and every
   backtest is "pending data".
 
+- 2026-10-23 Phase 10 narration, export, orchestration, fallback, hardening (ADR-060 to 064):
+  `keystone export site` (radar, project pages, backtests, benchmarks, metrics, metadata, index;
+  envelope 1.1 with `status`; row and metadata JSON Schemas, 11 schemas in CI);
+  `keystone narrate brief` (free OpenRouter model, every number checked, cached by input hash,
+  2-request cap; live run: written in 1 request, rerun cached with 0); `publish.yml` scores,
+  exports, briefs and uploads to `site-data`, fallback issue edited in place; guards: ingest
+  yields to the backfill, publish waits for an ingest cache (both dispatched: guard ok, job
+  skipped, runs 39907534978 and 39907539094); Airflow 3.3.2 DAG calling the CLI (6 of 6 tasks,
+  27.8 s, 13 OpenLineage events from the provider, Airflow in engines[]); `pytz` made a runtime
+  dependency (found by the Airflow run). Gate: schemas validate; simulated full outage (5 of 5
+  probes down) falls back to free and every site export validates, locally, in Airflow and in
+  CI's metadata job. Skipped: Databricks keepalive, Terraform, Elementary (ADR-064).
+  REVIEW_AND_CI_PLACEHOLDER
+
 ## Next
-1. **Phase 8 rerun on backfilled data** (one command, see Now); then Phase 10 site exports.
+1. **Backtest rerun on backfilled data** (one command, see Now); the first real publish follows.
+   Phase 10 leftovers (showcase-only, ADR-064): warehouse reading the `full` rollup, atomic
+   Iceberg publish, OpenLineage log push to a data branch; brief on Actions needs the secret.
    Phase 8 leftovers: first-response time and OSV time to fix need inputs the rollups lack;
    bot-free opens and closes in `repo_hour` would be a new metric version. Phase 7 leftovers: re-run
    the 3,976 names still suggested may resolve once Phase 9 loads the missing hours (re-run
    `warehouse build` and `resolve report` then);
    fold resolved E1/E0 events into activity metrics as a new metric version (Phase 8).
-   Earlier leftovers: Phase 6 leftovers: Airflow lineage when the DAGs exist
-   (Phase 10); push of the compressed OpenLineage log to a data branch with the live refresh
+   Earlier leftovers: Phase 6 leftovers: push of the compressed OpenLineage log to a data branch with the live refresh
    (Phase 10); the site export adds one hop to the lineage graph (Phase 8); Databricks and
    Unity Catalog lineage when a token exists. Phase 5 leftovers: Databricks target when a token exists
    (ADR-030); atomic Iceberg publish (ADR-029); E1 2012 repositories without ids are resolved by
@@ -216,7 +240,7 @@ Score-independent half of Phase 10, merged 2026-10-22 (ADR-040 to ADR-043).
   ADR-042); zizmor in CI; `contracts/export_envelope.schema.json` and the schema check in CI
   (ADR-043). Measured: fixture hours with no stack, 5/5 probes down, free rollup 303 events,
   `produced_by=free, fallback=true`.
-- Remaining for Phase 10 after Phase 8: site exports (radar, project pages) in the envelope with
+- (Done 2026-10-23, see Done and ADR-060 to 064; leftovers in Next.) Was remaining after Phase 8: site exports (radar, project pages) in the envelope with
   their row schemas, and their push from `publish.yml`; narration; the warehouse reading the
   `full` rollup when `produced_by=full`; atomic Iceberg publish (ADR-029); Airflow DAGs calling
   the CLI and their lineage; push of the compressed OpenLineage log with the live refresh;
