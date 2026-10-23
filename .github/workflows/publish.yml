@@ -1,9 +1,10 @@
 name: publish
 
-# Daily publish skeleton (Phase 10, ADR-041). Calls only the CLI: the rollup through the profile
-# check (no full stack on a runner, so it records `produced_by: free`), OSV, the warehouse,
-# contracts, the metadata export and pipeline_metrics.json, then the schema check. The site
-# exports (radar, project pages) and the push to the site come after Phase 8 and are not here.
+# Daily publish (Phase 10, ADR-041, ADR-062). Calls only the CLI: the rollup through the profile
+# check (no full stack on a runner, so it falls back and records `produced_by: free`), OSV, the
+# warehouse, contracts, the score, the metadata export and pipeline_metrics.json, then the site
+# exports (every file validated by its JSON Schema) and the weekly brief (skipped without the
+# OPENROUTER_API_KEY secret). The exports go to the pre-release `site-data` for the site repo.
 # Off until the repository variable KEYSTONE_SCHEDULES is `true`; a manual dispatch always runs.
 on:
   schedule:
@@ -23,8 +24,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: read
-      issues: write  # failure issue only
+      contents: write  # uploads the exports to the pre-release `site-data`
+      issues: write  # failure and fallback issues
     env:
       KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}  # decrypts the data cache
     steps:
@@ -55,11 +56,38 @@ jobs:
       - run: uv run keystone parse osv
       - run: uv run keystone warehouse build
       - run: uv run keystone quality contracts --require-all
+      - run: uv run keystone score live
+      - run: uv run keystone score backtest --report data/score/backtest.md
       - run: uv run keystone metadata export --out data/publish/metadata
       - run: uv run keystone metrics emit --metadata-dir data/publish/metadata
       - run: uv run python -m keystone.export.schemas
-      # Phase 10 after Phase 8: `keystone export radar|project` in the envelope
-      # (contracts/export_envelope.schema.json) and the push to the site go here.
+      - run: uv run keystone export site --metadata-dir data/publish/metadata
+      - name: Weekly brief (free model; skipped without the secret)
+        run: uv run keystone narrate brief
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      - name: Freshness and producer in the run summary
+        run: |
+          jq -r '"- freshness: newest hour \(.freshness.newest_data_hour), lag \(.freshness.lag_hours) h, SLO \(.freshness.slo_hours) h: \(.freshness.status)", "- produced_by: \(.produced_by.profile) (fallback \(.produced_by.fallback))"' \
+            data/metrics/pipeline_metrics.json >> "$GITHUB_STEP_SUMMARY"
+      - name: Fallback issue (opened once, then edited)
+        run: bash .github/scripts/fallback-issue.sh data/metrics/pipeline_metrics.json
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Upload the exports to the pre-release site-data
+        run: |
+          gh release view site-data >/dev/null 2>&1 || gh release create site-data --prerelease \
+            --title "Site data (daily)" \
+            --notes "Daily site exports (ADR-060). Repository and package level only; signals, not predictions."
+          # Release assets are flat: metadata/catalog.json is published as metadata__catalog.json.
+          mkdir -p "$RUNNER_TEMP/site"
+          (cd data/publish/site && find . -name '*.json' | sed 's|^\./||') | while read -r f; do
+            cp "data/publish/site/$f" "$RUNNER_TEMP/site/${f//\//__}"
+          done
+          gh release upload site-data "$RUNNER_TEMP"/site/*.json --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
       - run: bash .github/scripts/data-cache.sh pack
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -67,8 +95,8 @@ jobs:
           key: keystone-data-${{ github.run_id }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: pipeline-metrics
-          path: data/metrics/pipeline_metrics.json
+          name: site-exports
+          path: data/publish/site
           retention-days: 7
       - if: failure()
         run: bash .github/scripts/failure-issue.sh

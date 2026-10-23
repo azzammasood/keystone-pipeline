@@ -22,8 +22,35 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  ingest:
+  # GH Archive allows this project at most 2 concurrent requests (config/policy.yml). A backfill
+  # chunk already uses both, so ingest waits its turn: it skips while a backfill run is in
+  # progress (ADR-062). The next run re-checks the hours (cheap conditional requests).
+  guard:
     if: github.event_name == 'workflow_dispatch' || vars.KEYSTONE_SCHEDULES == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      busy: ${{ steps.backfill.outputs.busy }}
+    steps:
+      - id: backfill
+        run: |
+          n=$(gh run list --workflow backfill.yml --status in_progress --json databaseId --jq length)
+          q=$(gh run list --workflow backfill.yml --status queued --json databaseId --jq length)
+          if [ "$((n + q))" -gt 0 ]; then
+            echo "::notice::backfill running ($n in progress, $q queued): ingest skipped (polite limit)"
+            echo "busy=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "busy=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+
+  ingest:
+    needs: guard
+    if: (github.event_name == 'workflow_dispatch' || vars.KEYSTONE_SCHEDULES == 'true') && needs.guard.outputs.busy != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:

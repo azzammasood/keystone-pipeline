@@ -98,6 +98,19 @@ jobs:
       # examples pass (ADR-043).
       - run: jq -e '.produced_by.profile == "free" and .produced_by.fallback' ci-data/metrics/pipeline_metrics.json
       - run: uv run python -m keystone.export.schemas
+      # Phase 10 gate (ADR-062): the fallback run publishes the site exports, every file checked
+      # by its schema; the brief is skipped (no key in CI) and says so.
+      - name: Site exports from the fallback run
+        run: |
+          db=ci-data/warehouse/keystone.duckdb rollup=ci-data/rollup/rollup.duckdb
+          uv run keystone score live --rollup "$rollup" --warehouse "$db" --out ci-data/score/live.json
+          uv run keystone score backtest --rollup "$rollup" --warehouse "$db" \
+            --out ci-data/score/backtest.json --report ci-data/score/backtest.md
+          uv run keystone export site --root ci-data --score-dir ci-data/score --warehouse "$db" \
+            --metrics ci-data/metrics/pipeline_metrics.json --metadata-dir ci-metadata --out ci-site
+          uv run keystone narrate brief --site ci-site --root ci-data --cache-dir ci-data/narrate
+          jq -e '.produced_by.fallback and .status.state == "skipped"' ci-site/brief.json
+          jq -e '.produced_by.profile == "free" and .row_count >= 9' ci-site/index.json
 
   security:
     runs-on: ubuntu-latest

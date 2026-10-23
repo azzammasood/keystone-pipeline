@@ -320,9 +320,14 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
                     "name": f"disk budget ({fraction:.0%} of free disk, config/policy.yml)",
                     "used_pct": round(100 * data_bytes / budget, 2) if budget else None,
                 },
-                # Not measurable from a local run; null until the production workflow reads
-                # the repository's Actions usage (Phase 10).
-                {"name": "GitHub Actions minutes (private repository)", "used_pct": None},
+                # The repository is public: standard GitHub-hosted runners are not metered, so
+                # there is no minutes quota to use up (ADR-062). Storage is the limit that
+                # applies (Actions cache 10 GB per repository, evicted, not billed).
+                {
+                    "name": "GitHub Actions minutes (public repository: standard runners not "
+                    "metered)",
+                    "used_pct": None,
+                },
                 {
                     "name": "ecosyste.ms anonymous API, hour of the last fetch (policy.yml)",
                     "used_pct": _quota_pct(registry),
