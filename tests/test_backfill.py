@@ -125,3 +125,26 @@ def test_one_chunk_publishes_key_free_files_that_add_up(
     assert not list((tmp_path / "work" / "raw").rglob("*.json.gz"))  # raw deleted
     t = totals_of([rec])
     assert t["all"]["events_in_chunk"] == ev["in_chunk"] and t["t"]["days"] == 1
+
+
+def test_backfill_reports_rare_types_but_live_parse_fails(data_dir: Any) -> None:
+    """ADR-051: in report mode an unknown event type is recorded and the hour kept; the
+    default (live ingest) still fails the hour (ADR-022)."""
+    from keystone.parsers.drift import DriftError
+
+    hour = FIXTURES / "2026-10-19-12.json.gz"
+    reg = data_dir.sink.registry
+    assert reg is not None
+    dropped = sorted(reg["E3"])[0]
+    data_dir.sink.registry = {**reg, "E3": {k: v for k, v in reg["E3"].items() if k != dropped}}
+    with pytest.raises(DriftError, match="unknown_event_type"):
+        data_dir.parse(hour)
+    assert not list(data_dir.events.rglob("*.parquet"))
+    data_dir.sink.drift_mode = "report"
+    data_dir.parse(hour)
+    assert list(data_dir.events.rglob("*.parquet"))  # the hour is kept
+    assert any(
+        line.startswith(f"unknown_event_type {dropped}") for line in data_dir.sink.last_drift
+    )
+    summary = chunkmod._drift_summary([{"drift": data_dir.sink.last_drift}, {"drift": []}])
+    assert summary == {f"unknown_event_type {dropped}": 1}

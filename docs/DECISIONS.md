@@ -2,6 +2,22 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-051 (2026-10-23) Backfill reports rare-type drift instead of failing the hour (amends ADR-022)
+- Context: the first backfill chunk (event-stream, 2017-12) lost one of 746 hours: 2017-12-01
+  19h holds 95 `FollowEvent` records, a type the E2 registry never saw because the stratified
+  drift sample ADR-022 planned before the backfill was not taken. Every such hour would mark its
+  chunk incomplete, and the owner asked to finish fast and not stop for decisions.
+- Choice: `backfill chunk` parses with `drift_mode = "report"`. Unknown event types, fields and
+  JSON types are written to the hour's drift report and summarised in the chunk record
+  (`hours.drift`: finding -> hours seen), and the hour is kept. Era-shape drift (a record shaped
+  like another era, or a push contradicting the trim instant) still fails the hour. Live ingest
+  and `parse` keep the default `fail` mode.
+- Why it is safe: the parser is an allow-list projection (ADR-019) validated by strict pydantic
+  models, so a field or type it does not read cannot reach silver or the rollups; an unknown
+  event type is rolled up under its own `event_type` key and used by no metric unless named.
+- Follow-up: after the backfill, review the summed `hours.drift` of all chunks and learn the
+  reviewed shapes into `contracts/drift/gharchive.yml`.
+
 ## ADR-050 (2026-10-22) Backfill: 12-month windows, monthly chunks on Actions, aggregates only (supersedes parts of ADR-039)
 - **Owner decisions (2026-10-22, relayed by the Phase 4 kickoff session):** minimum data. Each
   incident window is the 12 months before the incident month plus that month (event-stream

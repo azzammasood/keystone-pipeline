@@ -103,6 +103,11 @@ class GhArchiveSink:
         self.registry = registry
         self.totals = {"files": 0, "events": 0, "quarantined": 0, "bytes_in": 0, "bytes_out": 0}
         self.stems: list[str] = []  # hours written by this sink (lineage inputs)
+        # "fail" (default): any drift fails the hour (ADR-022). "report" (backfill, ADR-051):
+        # unknown event types, fields and types are reported and the hour is kept, since the
+        # allow-list projection never reads them; era-shape drift still fails the hour.
+        self.drift_mode = "fail"
+        self.last_drift: list[str] = []
 
     def context(self, record: FileRecord) -> FileContext:
         if record.hour is None or record.sha256 is None:
@@ -129,7 +134,12 @@ class GhArchiveSink:
         size = path.stat().st_size
         result = parse_file(path, ctx, self.hasher, self.registry)
         stem = ctx.source_file.rsplit("/", 1)[-1].removesuffix(".json.gz")
-        if result.drift:
+        self.last_drift = []
+        tolerated = self.drift_mode == "report" and all(f.kind != "era_shape" for f in result.drift)
+        if result.drift and tolerated:
+            self._report_drift(stem, ctx, result)
+            self.last_drift = [f.line() for f in result.drift]
+        elif result.drift:
             self._report_drift(stem, ctx, result)
             lines = "; ".join(f.line() for f in result.drift[:5])
             more = f" (+{len(result.drift) - 5} more)" if len(result.drift) > 5 else ""

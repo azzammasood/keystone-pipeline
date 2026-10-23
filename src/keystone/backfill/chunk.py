@@ -61,6 +61,16 @@ def _init_worker(work: str) -> None:
         ActorHasher(salt_from_env()),
         driftmod.load_registry(),
     )
+    _SINK.drift_mode = "report"  # ADR-051: rare types are reported per hour, not fatal
+
+
+def _drift_summary(results: list[dict[str, Any]]) -> dict[str, int]:
+    seen: dict[str, int] = {}
+    for r in results:
+        for line in r.get("drift") or []:
+            key = line.split(" x")[0].split("  ")[0]  # finding without its count
+            seen[key] = seen.get(key, 0) + 1
+    return dict(sorted(seen.items()))
 
 
 def _sql_path(p: Path) -> str:
@@ -75,6 +85,7 @@ def parse_hour(path: Path, rec: FileRecord) -> dict[str, Any]:
     out: dict[str, Any] = {"hour": rec.hour.isoformat(), "error": None}
     try:
         _SINK(path, rec)
+        out["drift"] = _SINK.last_drift
         events = _WORK / "silver" / "events" / f"date={rec.hour:%Y-%m-%d}" / f"{stem}.parquet"
         con = duckdb.connect()
         con.execute("SET TimeZone = 'UTC'; SET threads = 1; SET enable_progress_bar = false")
@@ -288,6 +299,9 @@ def run_chunk(window: str, start: date, end: date, work: Path, out: Path, *,
             "skipped_unpublished": summary.skipped_unpublished,
             "parse_failed": failed,
             "parse_errors": sorted({r["error"] for r in results if r["error"]})[:20],
+            # Tolerated drift (ADR-051): per finding, the hours it was seen in; reviewed and
+            # learned into contracts/drift/gharchive.yml after the backfill.
+            "drift": _drift_summary(results),
             "fetch_errors": fetch_errors,
             "missing": sorted(h.isoformat() for h, r in records.items() if r.status == "missing"),
         },
