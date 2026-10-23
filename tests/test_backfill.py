@@ -36,9 +36,11 @@ def test_chunks_follow_months_and_split_evenly() -> None:
 
 def test_pending_skips_done_and_incomplete_unless_asked() -> None:
     a, b = plan.chunks({"x": (date(2020, 1, 1), date(2020, 3, 1))})
-    published = {a.done_asset, b.incomplete_asset}
+    published = {a.done_asset, a.actor_asset, b.incomplete_asset}
     assert plan.pending([a, b], published) == []
     assert plan.pending([a, b], published, redo_incomplete=True) == [b]
+    # Done before ADR-045 (no sealed repo_actor_month): redone.
+    assert plan.pending([a, b], {a.done_asset, b.incomplete_asset}) == [a]
     with pytest.raises(ValueError, match="overlap"):
         plan.chunks(
             {"x": (date(2020, 1, 1), date(2020, 3, 1)), "y": (date(2020, 2, 1), date(2020, 4, 1))}

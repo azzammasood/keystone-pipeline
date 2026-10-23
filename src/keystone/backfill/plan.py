@@ -33,6 +33,11 @@ class Chunk:
         return f"chunk-{self.name}.json"
 
     @property
+    def actor_asset(self) -> str:
+        """The sealed internal table (ADR-045); a chunk without it is redone."""
+        return f"repo_actor_month-{self.name}.parquet.enc"
+
+    @property
     def incomplete_asset(self) -> str:
         return f"chunk-{self.name}.incomplete.json"
 
@@ -82,10 +87,11 @@ def chunks(wins: dict[str, tuple[date, date]], chunk_days: int = 0) -> list[Chun
 def pending(
     plan: list[Chunk], published: set[str], *, redo_incomplete: bool = False
 ) -> list[Chunk]:
-    """Chunks with no published JSON (`published` = asset names in the window releases)."""
+    """Chunks with no published JSON (`published` = asset names in the window releases), or
+    done before ADR-045 without the sealed `repo_actor_month` (redone to add it)."""
     out = []
     for c in plan:
-        if c.done_asset in published:
+        if c.done_asset in published and c.actor_asset in published:
             continue
         if c.incomplete_asset in published and not redo_incomplete:
             continue
