@@ -62,9 +62,9 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - `cost.free_quota`: the Actions minutes line says the repository is public and standard
   runners are not metered (no quota to read), instead of a private-repository null.
 - After review (`docs/reviews/phase-10.md`): the ingest guard counts every backfill run not
-  completed; it stays check-then-act, and `backfill.yml` (owned by the Phase 9 session) does
-  not check for a running ingest, so a backfill dispatched during an ingest can overlap it
-  (logged, not fixed here). The publish guard reads `main`'s caches only. The salt is set on
+  completed; it stays check-then-act. `backfill.yml` now waits (up to 60 minutes) before each
+  chunk fetches while an ingest run is not completed (2026-10-23); both guards are
+  check-then-act, so a start in the same minute can still overlap briefly. The publish guard reads `main`'s caches only. The salt is set on
   the cache steps only. `index.json` rows carry the flat asset name, it is uploaded last, and
   assets not in it are deleted. `metrics emit` runs before export and brief, so those two
   stages appear in the next run's `pipeline_metrics.json`.

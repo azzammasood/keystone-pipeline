@@ -83,6 +83,7 @@ jobs:
     permissions:
       contents: write  # Release assets of data-<window> only
       issues: write  # failure issue only
+      actions: read  # see whether an ingest run holds GH Archive's connections
     env:
       KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}
       KEYSTONE_ACTOR_DATA_KEY: ${{ secrets.KEYSTONE_ACTOR_DATA_KEY }}
@@ -107,6 +108,16 @@ jobs:
       - run: uv python install
       - run: uv sync --frozen
       - run: uv run keystone machine
+      - name: Wait for any running ingest (2 GH Archive connections in total; ADR-062)
+        run: |
+          for i in $(seq 1 60); do
+            busy=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ingest.yml --limit 20                      --json status --jq '[.[] | select(.status != "completed")] | length')
+            [ "$busy" = "0" ] && exit 0
+            echo "ingest run active ($busy); waiting"
+            sleep 60
+          done
+          echo "::error::ingest still running after 60 minutes"
+          exit 1
       - name: Fetch, parse, roll up
         run: |
           uv run keystone backfill chunk --window "$WINDOW" --start "$START" --end "$END" \
