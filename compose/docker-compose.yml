@@ -328,6 +328,39 @@ services:
       retries: 60
       start_period: 60s
 
+  # --- airflow (Phase 10, ADR-063: local showcase; the DAG only calls the keystone CLI) ----
+  # One-shot: installs the project into its own venv (the host .venv is Windows), migrates a
+  # SQLite metadata DB and runs `airflow dags test keystone_pipeline` on the fixture hours.
+  # The provider's OpenLineage events join the CLI's in data/airflow/lineage/events/ (one graph).
+  #   docker compose -f compose/docker-compose.yml --profile airflow run --rm airflow
+  airflow:
+    profiles: [airflow]
+    image: apache/airflow:3.3.2-python3.12@sha256:9df9c8be4096b9cc626bd7cb1f2b8c712eef66c59c615f8c7e6200871ca10bd1
+    user: "50000:0"
+    working_dir: /opt/keystone
+    environment:
+      AIRFLOW__CORE__DAGS_FOLDER: /opt/keystone/airflow/dags
+      AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+      AIRFLOW__OPENLINEAGE__NAMESPACE: keystone
+      AIRFLOW__OPENLINEAGE__TRANSPORT: '{"type": "file", "log_file_path": "/opt/keystone/data/airflow/lineage/events/airflow.jsonl", "append": true}'
+      KEYSTONE_ACTOR_SALT: airflow-showcase-salt-not-a-secret
+      UV_PROJECT_ENVIRONMENT: /home/airflow/keystone-venv
+      UV_LINK_MODE: copy
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -euo pipefail
+        pip install --quiet --user uv==0.11.25
+        ~/.local/bin/uv sync --frozen --no-dev --quiet
+        export PATH="$$UV_PROJECT_ENVIRONMENT/bin:$$PATH:$$HOME/.local/bin"
+        rm -rf data/airflow && mkdir -p data/airflow/lineage/events
+        airflow db migrate >/dev/null
+        airflow dags test keystone_pipeline
+    volumes:
+      - ..:/opt/keystone
+    mem_limit: 2g
+    restart: "no"
+
 volumes:
   marquez-db:
   prometheus:

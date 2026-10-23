@@ -29,7 +29,7 @@ def narrate_brief(
     said so in the file) without OPENROUTER_API_KEY."""
     key = os.environ.get("OPENROUTER_API_KEY", "")
     ask, requests = brief.openrouter_ask(key, model) if key else (None, lambda: 0)
-    service, version = ("openrouter", model) if ask else ("keystone", __version__)
+    service, version = ("keystone-llm", model) if ask else ("keystone", __version__)
     with Stage(root, "narrate", service, version) as st:
         row = brief.write_brief(
             site_dir,

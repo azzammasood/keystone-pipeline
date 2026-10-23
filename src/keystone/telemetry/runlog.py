@@ -81,6 +81,14 @@ class Stage:
         )
         self.inputs, self.outputs = list(inputs), list(outputs)
         self.job = job or stage
+        dag = os.environ.get("AIRFLOW_CTX_DAG_ID")  # set by Airflow for a task's command
+        if dag:  # the stage ran under Airflow (ADR-063): evidence for engines[]
+            ver = os.environ.get("AIRFLOW_VERSION", "unknown")
+            self.rec.detail["services"] = {**self.rec.detail.get("services", {}), "airflow": ver}
+            self.rec.detail["orchestrator"] = {
+                "dag": dag,
+                "task": os.environ.get("AIRFLOW_CTX_TASK_ID", ""),
+            }
         self._t0 = 0.0
         self._lineage: LineageRun | None = None
 

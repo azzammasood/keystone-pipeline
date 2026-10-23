@@ -169,3 +169,20 @@ def test_brief_never_publishes_a_failing_text(
     )
     assert row["outcome"] == "rejected" and row["text"] is None
     assert not (tmp_path / "c").exists()  # a rejection is not cached
+
+
+def test_stage_under_airflow_records_the_orchestrator(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from keystone.telemetry import metrics as tm
+    from keystone.telemetry.runlog import Stage, read
+
+    monkeypatch.setenv("AIRFLOW_CTX_DAG_ID", "keystone_pipeline")
+    monkeypatch.setenv("AIRFLOW_CTX_TASK_ID", "export_site")
+    monkeypatch.setenv("AIRFLOW_VERSION", "3.3.2")
+    with Stage(tmp_path, "export", "keystone", "0"):
+        pass
+    (rec,) = read(tmp_path)
+    assert rec.detail["orchestrator"] == {"dag": "keystone_pipeline", "task": "export_site"}
+    names = {e["name"]: e["version"] for e in tm.engines([rec], rec.run_id)}
+    assert names == {"keystone": "0", "airflow": "3.3.2"}

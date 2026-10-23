@@ -44,7 +44,9 @@ ROLES = {
     "otel-collector": "OpenTelemetry metrics pipeline",
     "spark": "lakehouse reader (Iceberg)",
     "trino": "lakehouse reader (Iceberg)",
-    "keystone": "metadata export and metrics",
+    "keystone": "metadata export, metrics and site exports",
+    "keystone-llm": "free language model (OpenRouter): resolution ties, weekly brief",
+    "airflow": "local orchestration showcase (tasks call the CLI)",
 }
 
 # Stages whose records_out are GH Archive events parsed.

@@ -838,7 +838,10 @@ def warehouse_verify(
     with Stage(DATA_DIR, "lakehouse-verify", "keystone", __version__) as st:
         reads = whlake.verify(tables, engine)
         st.records_in, st.records_out = len(reads), sum(r.matches for r in reads)
-        st.detail["services"] = {e: engine_versions[e] for e in engine}
+        st.detail["services"] = {
+            **st.detail.get("services", {}),
+            **{e: engine_versions[e] for e in engine},
+        }
         for r in reads:
             typer.echo(f"{r.engine:7} {r.table:45} rows={r.rows} match={r.matches}")
         if json_out is not None:
