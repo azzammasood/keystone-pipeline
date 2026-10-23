@@ -48,10 +48,14 @@
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": [
           "cut",
+          "hour_coverage",
           "status",
-          "hour_coverage"
+          "reference_size",
+          "leakage_check",
+          "repos"
         ],
         "properties": {
           "cut": {
@@ -65,6 +69,95 @@
             "type": "number",
             "minimum": 0,
             "maximum": 1
+          },
+          "reference_size": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "leakage_check": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "repos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "name",
+                "status"
+              ],
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "repo_id": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "status": {
+                  "type": "string"
+                },
+                "fragility": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "percentile": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "flagged": {
+                  "type": "boolean"
+                },
+                "signals": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                      "name",
+                      "available",
+                      "sub",
+                      "weight",
+                      "reason"
+                    ],
+                    "properties": {
+                      "name": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "available": {
+                        "type": "boolean"
+                      },
+                      "sub": {
+                        "type": [
+                          "number",
+                          "null"
+                        ],
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "weight": {
+                        "type": "number",
+                        "minimum": 0,
+                        "maximum": 1
+                      },
+                      "reason": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
           }
         }
       }
@@ -73,7 +166,45 @@
       "type": [
         "object",
         "null"
-      ]
+      ],
+      "additionalProperties": false,
+      "required": [
+        "variants",
+        "per_repo"
+      ],
+      "properties": {
+        "variants": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "per_repo": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "scored_variants": {
+                "type": "integer"
+              },
+              "percentile_min": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "percentile_max": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "flagged_variants": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

@@ -36,10 +36,10 @@ jobs:
     steps:
       - id: backfill
         run: |
-          n=$(gh run list --workflow backfill.yml --status in_progress --json databaseId --jq length)
-          q=$(gh run list --workflow backfill.yml --status queued --json databaseId --jq length)
-          if [ "$((n + q))" -gt 0 ]; then
-            echo "::notice::backfill running ($n in progress, $q queued): ingest skipped (polite limit)"
+          # Any backfill run not completed (queued, waiting, pending, requested, in progress).
+          n=$(gh run list --workflow backfill.yml --limit 50 --json status             --jq '[.[] | select(.status != "completed")] | length')
+          if [ "$n" -gt 0 ]; then
+            echo "::notice::$n backfill run(s) not completed: ingest skipped (polite limit)"
             echo "busy=true" >> "$GITHUB_OUTPUT"
           else
             echo "busy=false" >> "$GITHUB_OUTPUT"

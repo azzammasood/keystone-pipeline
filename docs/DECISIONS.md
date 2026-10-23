@@ -61,6 +61,13 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   (the warehouse cannot build without silver; failing daily would open an issue for nothing).
 - `cost.free_quota`: the Actions minutes line says the repository is public and standard
   runners are not metered (no quota to read), instead of a private-repository null.
+- After review (`docs/reviews/phase-10.md`): the ingest guard counts every backfill run not
+  completed; it stays check-then-act, and `backfill.yml` (owned by the Phase 9 session) does
+  not check for a running ingest, so a backfill dispatched during an ingest can overlap it
+  (logged, not fixed here). The publish guard reads `main`'s caches only. The salt is set on
+  the cache steps only. `index.json` rows carry the flat asset name, it is uploaded last, and
+  assets not in it are deleted. `metrics emit` runs before export and brief, so those two
+  stages appear in the next run's `pipeline_metrics.json`.
 - CI's metadata job runs the gate path on every push: fixture hours, `profile check --run`
   with no stack (falls back), score, metrics, `export site` (every file validated), brief
   skipped, and checks `produced_by` and the index.
@@ -74,9 +81,16 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   "fault", "negligen"; no URLs, no `@`); at most 1,500 characters. A refused text gets one
   retry with the reason; a second failure publishes `text: null`, outcome `rejected`.
 - Cache: answers stored under SHA-256 of facts + model + prompt version; the same input never
-  asks twice. Rejections are not cached.
+  asks twice, and a cached text is checked again before it is republished. Rejections are not
+  cached.
+- After review: numbers in words, leading-dot decimals and digits glued to letters are refused;
+  modal/adverb predictive forms, "likely", "abandon*", shaming adjectives, pronouns and
+  "maintainer/author/owner" are banned. A model or price-check failure publishes outcome
+  `error` (or `skipped`) and never fails the publish. Client retries are off, so the 2-request
+  cap is exact. Residual risk: a plain person name is not detectable by pattern; the facts hold
+  repository names only and the prompt forbids naming people.
 - $0: only a `:free` model id, listed prices checked to be zero, every response's reported cost
-  zero (the Phase 7 client), at most 2 requests per run. No key: outcome `skipped`, said in the
+  zero (the Phase 7 client), at most 2 requests per run (no retries). No key: outcome `skipped`, said in the
   file. Options rejected: placeholder templates (the brief asked for validated numbers, and
   the checks catch an invented one); a paid model (the $0 rule).
 - Measured 2026-10-23 (local key, `nvidia/nemotron-3-ultra-550b-a55b:free`): 1 request per

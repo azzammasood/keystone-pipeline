@@ -39,7 +39,8 @@
         "written",
         "cached",
         "skipped",
-        "rejected"
+        "rejected",
+        "error"
       ]
     },
     "detail": {

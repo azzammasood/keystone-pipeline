@@ -113,7 +113,9 @@ encrypted asset 2026-10-22; secret `KEYSTONE_ACTOR_DATA_KEY`). **Phase 8 complet
   dependency (found by the Airflow run). Gate: schemas validate; simulated full outage (5 of 5
   probes down) falls back to free and every site export validates, locally, in Airflow and in
   CI's metadata job. Skipped: Databricks keepalive, Terraform, Elementary (ADR-064).
-  REVIEW_AND_CI_PLACEHOLDER
+  Review: `docs/reviews/phase-10.md` (3 major, 9 minor, 4 nit; majors fixed, minors fixed or
+  documented: the backfill-side ingest check needs `backfill.yml`). Tests: 251 pass locally.
+  CI_RESULT_PLACEHOLDER
 
 ## Next
 1. **Backtest rerun on backfilled data** (one command, see Now); the first real publish follows.

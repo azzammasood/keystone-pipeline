@@ -7,6 +7,7 @@
   "additionalProperties": false,
   "required": [
     "path",
+    "asset",
     "dataset",
     "sha256",
     "bytes",
@@ -33,6 +34,11 @@
         "string",
         "null"
       ]
+    },
+    "asset": {
+      "description": "Release asset name in `site-data` (paths flattened: / becomes __).",
+      "type": "string",
+      "pattern": "^[a-z0-9_.-]+$"
     }
   }
 }

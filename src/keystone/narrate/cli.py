@@ -4,6 +4,7 @@ Kept out of cli.py (one `add_typer` line there).
 """
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 
 import typer
@@ -18,6 +19,10 @@ from keystone.telemetry.runlog import Stage
 narrate_app = typer.Typer(no_args_is_help=True, help="Weekly risk brief (Phase 10).")
 
 
+def _none() -> int:
+    return 0
+
+
 @narrate_app.command("brief")
 def narrate_brief(
     site_dir: Path = typer.Option(site.OUT, "--site", help="`keystone export site` output."),
@@ -28,17 +33,20 @@ def narrate_brief(
     """Write brief.json from the exported facts and re-index the site directory. Skipped (and
     said so in the file) without OPENROUTER_API_KEY."""
     key = os.environ.get("OPENROUTER_API_KEY", "")
-    ask, requests = brief.openrouter_ask(key, model) if key else (None, lambda: 0)
-    service, version = ("keystone-llm", model) if ask else ("keystone", __version__)
-    with Stage(root, "narrate", service, version) as st:
+    ask: brief.Ask | None = None
+    requests: Callable[[], int] = _none
+    skip = "OPENROUTER_API_KEY is not set"
+    if key:
+        try:  # the price check is a request too; a failure skips the brief, not the publish
+            ask, requests = brief.openrouter_ask(key, model)
+        except Exception as exc:
+            skip = f"model unavailable: {type(exc).__name__}: {str(exc)[:200]}"
+    with Stage(root, "narrate", "keystone", __version__) as st:
         row = brief.write_brief(
-            site_dir,
-            cache_dir,
-            root=root,
-            model=model,
-            ask=ask,
-            skip_reason="" if key else "OPENROUTER_API_KEY is not set",
+            site_dir, cache_dir, root=root, model=model, ask=ask, skip_reason=skip
         )
+        if requests():  # the model is credited in engines[] only when it was asked
+            st.rec.service, st.rec.version = "keystone-llm", model
         st.detail["outcome"] = row["outcome"]
         st.detail["requests"] = requests()
         st.records_out = 1 if row["text"] else 0

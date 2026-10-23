@@ -33,7 +33,8 @@ jobs:
     steps:
       - id: cache
         run: |
-          n=$(gh cache list --key keystone-data- --json id --jq length)
+          # Only main's caches: a scheduled run restores from the default branch.
+          n=$(gh cache list --key keystone-data- --ref refs/heads/main --json id --jq length)
           if [ "$n" -gt 0 ]; then
             echo "data=true" >> "$GITHUB_OUTPUT"
           else
@@ -52,8 +53,6 @@ jobs:
     permissions:
       contents: write  # uploads the exports to the pre-release `site-data`
       issues: write  # failure and fallback issues
-    env:
-      KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}  # decrypts the data cache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,6 +71,8 @@ jobs:
           restore-keys: keystone-data-
       - if: steps.data.outputs.cache-matched-key != ''
         run: bash .github/scripts/data-cache.sh unpack
+        env:
+          KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}  # decrypts the data cache
       - name: Ingested data exists
         if: steps.data.outputs.cache-matched-key == ''
         run: |
@@ -110,11 +111,20 @@ jobs:
           (cd data/publish/site && find . -name '*.json' | sed 's|^\./||') | while read -r f; do
             cp "data/publish/site/$f" "$RUNNER_TEMP/site/${f//\//__}"
           done
-          gh release upload site-data "$RUNNER_TEMP"/site/*.json --clobber
+          # index.json last, so a reader never sees an index naming files not yet uploaded;
+          # then assets no longer in the index are deleted.
+          find "$RUNNER_TEMP/site" -name '*.json' ! -name index.json -print0             | xargs -0 gh release upload site-data --clobber
+          gh release upload site-data "$RUNNER_TEMP/site/index.json" --clobber
+          keep=$(jq -r '.rows[].asset, "index.json"' data/publish/site/index.json)
+          gh release view site-data --json assets --jq '.assets[].name' | while read -r a; do
+            grep -qxF "$a" <<< "$keep" || gh release delete-asset site-data "$a" --yes
+          done
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
       - run: bash .github/scripts/data-cache.sh pack
+        env:
+          KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}  # encrypts the data cache
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: data-cache

@@ -90,6 +90,15 @@ FACTS = {
         ("We predict trouble for 12 repositories.", "banned wording"),
         ("Ask @someone about 12 repositories.", "banned wording"),
         ("", "empty text"),
+        ("Twelve repositories carry signals.", "number in words"),
+        ("Risk is .9 now for 12 repositories.", "number not in the facts: .9"),
+        ("Top5 of 12 repositories.", "digit glued to letters"),
+        ("Risk is 44.28k across 12 repositories.", "digit glued to letters"),
+        ("Risk doubled for 12 repositories.", "number in words"),
+        ("The top project will likely be abandoned.", "banned wording"),
+        ("It could fail, with 12 repositories listed.", "banned wording"),
+        ("Its maintainer was slow on 12 repositories.", "banned wording"),
+        ("The irresponsible upkeep of 12 repositories.", "banned wording"),
     ],
 )
 def test_brief_check(text: str, reason: str | None) -> None:
@@ -186,3 +195,45 @@ def test_stage_under_airflow_records_the_orchestrator(
     assert rec.detail["orchestrator"] == {"dag": "keystone_pipeline", "task": "export_site"}
     names = {e["name"]: e["version"] for e in tm.engines([rec], rec.run_id)}
     assert names == {"keystone": "0", "airflow": "3.3.2"}
+
+
+def test_brief_model_error_is_published_not_raised(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(brief.envelope, "recorded_profile", lambda root: PRODUCED)
+
+    def down(system: str, user: str) -> str:
+        raise RuntimeError("free daily quota used up")
+
+    s = _site(tmp_path)
+    row = brief.write_brief(s, tmp_path / "c", root=tmp_path, model="m:free", ask=down)
+    assert row["outcome"] == "error" and row["text"] is None
+    assert "RuntimeError: free daily quota" in row["detail"]
+    envelope.validate(json.loads((s / "brief.json").read_text("utf-8")))
+
+
+def test_cached_brief_is_checked_again(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(brief.envelope, "recorded_profile", lambda root: PRODUCED)
+    s, cache = _site(tmp_path), tmp_path / "cache"
+    f = brief.facts(s, brief.datetime.now(brief.UTC))
+    sha = brief.input_sha256(f, "m:free")
+    cache.mkdir()
+    stale = brief._row(f, "It will likely be abandoned.", "m:free", sha, "written", "")
+    (cache / f"{sha}.json").write_text(json.dumps(stale), encoding="utf-8")
+    row = brief.write_brief(s, cache, root=tmp_path, model="m:free", ask=None, skip_reason="x")
+    assert row["outcome"] == "skipped"  # the stale cached text was not republished
+
+
+def test_workflow_guards() -> None:
+    import yaml
+
+    from keystone.paths import REPO_ROOT
+
+    wf = REPO_ROOT / ".github" / "workflows"
+    ingest = yaml.safe_load((wf / "ingest.yml").read_text("utf-8"))["jobs"]
+    assert "needs.guard.outputs.busy != 'true'" in ingest["ingest"]["if"]
+    assert 'select(.status != "completed")' in ingest["guard"]["steps"][0]["run"]
+    publish = yaml.safe_load((wf / "publish.yml").read_text("utf-8"))["jobs"]
+    assert "needs.guard.outputs.data == 'true'" in publish["publish"]["if"]
+    assert "--ref refs/heads/main" in publish["guard"]["steps"][0]["run"]
+    assert "env" not in publish["publish"]  # the salt is scoped to the cache steps only

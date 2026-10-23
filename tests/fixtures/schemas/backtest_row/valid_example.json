@@ -11,7 +11,10 @@
   {
    "cut": "2024-03-01T00:00:00+00:00",
    "status": "pending data",
-   "hour_coverage": 0.0
+   "hour_coverage": 0.0,
+   "reference_size": 0,
+   "leakage_check": null,
+   "repos": []
   }
  ],
  "sensitivity": null

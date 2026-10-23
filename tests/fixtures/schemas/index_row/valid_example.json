@@ -3,5 +3,6 @@
  "dataset": "radar",
  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
  "bytes": 1057,
- "schema": "radar_row.schema.json"
+ "schema": "radar_row.schema.json",
+ "asset": "radar.json"
 }

@@ -23,7 +23,7 @@ from typing import Any
 
 from keystone.export import envelope
 
-PROMPT_VERSION = "brief-2"
+PROMPT_VERSION = "brief-3"
 MAX_REQUESTS = 2
 MAX_CHARS = 1500
 TOP = 5
@@ -34,24 +34,47 @@ SOURCES = [
 SYSTEM = (
     "You write a short weekly brief for an open-source supply-chain risk radar. Use only the "
     "facts given as JSON. Write 3 to 6 plain sentences, no lists, no headings. Copy every "
-    "number exactly as it appears in the facts; do not compute, round or add numbers. The "
+    "number exactly as it appears in the facts, as digits; do not compute, round or add "
+    "numbers, and never write a quantity in words. The "
     "score components are 'signals' (say so once); describe data status in plain words. "
     "Never predict what will happen, never say a project will be abandoned or "
-    "compromised, never blame or name people. If the data is partial or pending, say so "
-    "plainly."
+    "compromised, never use 'likely', never blame, name or mention people or maintainers. "
+    "If the data is partial or pending, say so plainly."
 )
 BANNED = [
-    r"\bwill (?:be |become |get )?(?:abandon|compromis|fail|break|collapse)",
+    # predictive or speculative
+    r"\b(?:will|would|could|may|might|shall)\b(?:\s+\w+){0,3}\s+"
+    r"(?:abandon|compromis|fail|break|collapse|die|disappear|stop)",
+    r"\babandon",
+    r"\blikely\b",
+    r"\bprobabl",
+    r"\bexpected to\b",
     r"\bpredict",
     r"\bforecast",
     r"\bgoing to\b",
     r"\bdoomed\b",
+    r"\bat risk of\b",
+    # shaming or about people
     r"\bnegligen",
     r"\bfault\b",
+    r"\bblame",
+    r"\blazy\b",
+    r"\birresponsib",
+    r"\bcareless",
+    r"\bincompeten",
+    r"\b(?:he|she|him|his|her|hers|maintainers?|authors?|owners?)\b",
     r"https?://",
     r"@",
 ]
-_NUM = re.compile(r"(?<![\w.])-?\d[\d,]*(?:\.\d+)?")
+# Numbers in words: the facts hold digits only, so any spelled-out quantity is invented.
+NUMBER_WORDS = re.compile(
+    r"\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|"
+    r"fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|"
+    r"seventy|eighty|ninety|hundred|thousand|million|billion|dozen|half|double[sd]?|"
+    r"triple[sd]?|twice|thrice|quadruple[sd]?|single|percent|first|second|third)\b",
+    re.IGNORECASE,
+)
+_NUM = re.compile(r"-?(?:\d[\d,]*(?:\.\d+)?|\.\d+)")
 
 
 def iso_week(now: datetime) -> str:
@@ -106,11 +129,18 @@ def _walk(value: Any) -> Iterator[str]:
         yield str(value)
 
 
+def _strings(f: dict[str, Any]) -> list[str]:
+    """Fact strings with digits that are not plain numbers (2026-W43, a repository name)."""
+    found = {s for s in _walk(f) if re.search(r"\d", s) and not _NUM.fullmatch(s)}
+    return sorted(found, key=len, reverse=True)
+
+
 def allowed_numbers(f: dict[str, Any]) -> set[float]:
+    """Every number the facts hold, as values or inside their strings (e.g. 0.1 in a detail)."""
     out: set[float] = set()
     for text in _walk(f):
-        for m in [*_NUM.findall(text), *re.findall(r"\d+(?:\.\d+)?", text)]:
-            out.add(float(m.replace(",", "")))  # the second pattern: 43 inside "2026-W43"
+        for m in _NUM.findall(text):
+            out.add(float(m.replace(",", "")))
     return out
 
 
@@ -124,10 +154,21 @@ def check(text: str, f: dict[str, Any]) -> str | None:
         m = re.search(pat, text, re.IGNORECASE)
         if m:
             return f"banned wording: {m.group(0)!r}"
+    m = NUMBER_WORDS.search(text)
+    if m:
+        return f"number in words: {m.group(0)!r}"
+    # Fact strings that hold digits (2026-W43, repository names) are fine verbatim; any other
+    # digit must stand alone as a number from the facts, never glued to letters (5x, 44.28k).
+    rest = text
+    for s in _strings(f):
+        rest = rest.replace(s, " ")
+    glued = re.search(r"[A-Za-z]\d|\d[A-Za-z]", rest)
+    if glued:
+        return f"digit glued to letters: {glued.group(0)!r}"
     allowed = allowed_numbers(f)
-    for m in _NUM.findall(text):
-        if float(m.replace(",", "")) not in allowed:
-            return f"number not in the facts: {m}"
+    for m2 in _NUM.findall(rest):
+        if float(m2.replace(",", "")) not in allowed:
+            return f"number not in the facts: {m2}"
     return None
 
 
@@ -137,7 +178,8 @@ Ask = Callable[[str, str], str]  # (system, user) -> text
 def openrouter_ask(api_key: str, model: str) -> tuple[Ask, Callable[[], int]]:
     from keystone.resolve.chooser import OpenRouterChooser
 
-    client = OpenRouterChooser(api_key, model)  # refuses a model id without `:free`
+    # max_retries=0: every request counts against MAX_REQUESTS (refuses a non-:free id)
+    client = OpenRouterChooser(api_key, model, max_retries=0)
     client.check_free()
 
     def ask(system: str, user: str) -> str:
@@ -177,22 +219,32 @@ def write_brief(
     sha = input_sha256(f, model)
     cached = cache_dir / f"{sha}.json"
     row: dict[str, Any]
-    if cached.exists():
-        row = {**json.loads(cached.read_text("utf-8")), "outcome": "cached"}
+    hit = json.loads(cached.read_text("utf-8")) if cached.exists() else None
+    if hit is not None and hit.get("text") and check(hit["text"], f) is not None:
+        hit = None  # the checks tightened since it was cached: never republish unchecked
+    if hit is not None:
+        row = {**hit, "outcome": "cached"}
     elif ask is None:
         row = _row(f, None, None, sha, "skipped", skip_reason or "no language model configured")
     else:
         user = "Facts (JSON):\n" + json.dumps(f, indent=1, sort_keys=True)
         reason = "no answer"
         text = ""
+        error = ""
         for _ in range(MAX_REQUESTS):
-            text = ask(SYSTEM, user)
+            try:
+                text = ask(SYSTEM, user)
+            except Exception as exc:  # quota, cost guard, network: the exports still publish
+                error = f"model error: {type(exc).__name__}: {str(exc)[:200]}"
+                break
             found = check(text, f)
             if found is None:
                 break
             reason = found
             user += f"\n\nYour last text was refused ({found}). Write it again."
-        if check(text, f) is None:
+        if error:
+            row = _row(f, None, model, sha, "error", error)
+        elif check(text, f) is None:
             row = _row(f, text, model, sha, "written", "every number checked against the facts")
             cached.parent.mkdir(parents=True, exist_ok=True)
             cached.write_bytes((json.dumps(row, indent=2) + "\n").encode())

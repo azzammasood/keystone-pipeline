@@ -203,7 +203,13 @@ def test_full_outage_publishes_valid_site_exports(parsed_fixtures: object, tmp_p
     names = {r["path"] for r in index}
     assert {"radar.json", "project_pages.json", "backtests.json", "benchmarks.json"} <= names
     assert {"pipeline_metrics.json", "metadata/catalog.json", "metadata/lineage.json"} <= names
-    assert all(r["schema"] for r in index)  # every published file has a schema that passed
+    schemas = {r["path"]: r["schema"] for r in index}
+    assert schemas["radar.json"] == "radar_row.schema.json"
+    assert schemas["pipeline_metrics.json"] == "pipeline_metrics.schema.json"
+    assert schemas["metadata/catalog.json"] == "metadata_catalog.schema.json"
+    assert all(schemas.values())  # every published file was checked by a schema
+    bt_rows = json.loads((pub / "backtests.json").read_text("utf-8"))["rows"]
+    assert "raw" not in json.dumps(bt_rows) and "score" not in json.dumps(bt_rows)
     radar = json.loads((pub / "radar.json").read_text("utf-8"))
     assert radar["produced_by"]["profile"] == "free" and radar["produced_by"]["fallback"]
     assert radar["status"]["state"] == "partial data" and radar["rows"] == []  # never guessed

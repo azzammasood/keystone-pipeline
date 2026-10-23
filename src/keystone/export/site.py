@@ -137,18 +137,44 @@ def radar_and_pages(
     return radar, pages
 
 
-def _strip_raw(value: Any) -> Any:
-    """Backtest points carry full score dicts; drop component `raw` like the pages do."""
-    if isinstance(value, dict):
-        return {k: _strip_raw(v) for k, v in value.items() if k != "raw"}
-    if isinstance(value, list):
-        return [_strip_raw(v) for v in value]
-    return value
+POINT_KEYS = ("cut", "hour_coverage", "status", "reference_size", "leakage_check")
+REPO_KEYS = ("name", "repo_id", "status", "fragility", "percentile", "flagged")
+
+
+def _point(p: dict[str, Any]) -> dict[str, Any]:
+    """An allow-list projection: each scored repository keeps its signals (no `raw`)."""
+    repos = []
+    for r in p.get("repos") or []:
+        row = {k: r.get(k) for k in REPO_KEYS if k in r}
+        score = r.get("score")
+        if score:
+            row["signals"] = _signals(score["components"])
+        repos.append(row)
+    return {**{k: p.get(k) for k in POINT_KEYS}, "repos": repos}
+
+
+def _sensitivity(s: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not s:
+        return None
+    keys = ("scored_variants", "percentile_min", "percentile_max", "flagged_variants")
+    return {
+        "variants": s["variants"],
+        "per_repo": {
+            str(rid): {k: v.get(k) for k in keys} for rid, v in s.get("per_repo", {}).items()
+        },
+    }
 
 
 def backtest_rows(bt: dict[str, Any]) -> list[dict[str, Any]]:
-    keys = ("id", "month", "cut", "summary", "sources", "outcome", "points", "sensitivity")
-    return [_strip_raw({k: i.get(k) for k in keys}) for i in bt["incidents"]]
+    keys = ("id", "month", "cut", "summary", "sources", "outcome")
+    return [
+        {
+            **{k: i.get(k) for k in keys},
+            "points": [_point(p) for p in i["points"]],
+            "sensitivity": _sensitivity(i.get("sensitivity")),
+        }
+        for i in bt["incidents"]
+    ]
 
 
 _NUM = re.compile(r"-?[0-9][0-9,]*(?:\.[0-9]+)?")
@@ -156,6 +182,13 @@ _NUM = re.compile(r"-?[0-9][0-9,]*(?:\.[0-9]+)?")
 
 def _nums(cell: str) -> list[float]:
     return [float(m.replace(",", "")) for m in _NUM.findall(cell)]
+
+
+def _num(cell: str, line: str) -> float:
+    found = _nums(cell)
+    if not found:
+        raise ValueError(f"benchmarks.md: no number in {cell!r} on line: {line}")
+    return found[0]
 
 
 def benchmark_rows(md: str) -> list[dict[str, Any]]:
@@ -180,8 +213,8 @@ def benchmark_rows(md: str) -> list[dict[str, Any]]:
         if cells[0]:
             cur = {
                 "rung": cells[0],
-                "input_rows": int(_nums(cells[1])[0]),
-                "input_mb": _nums(cells[2])[0],
+                "input_rows": int(_num(cells[1], line)),
+                "input_mb": _num(cells[2], line),
             }
         engine_s = _nums(cells[5])
         rows.append(
@@ -191,8 +224,8 @@ def benchmark_rows(md: str) -> list[dict[str, Any]]:
                 "wall_s": _nums(cells[4]),
                 "engine_s": engine_s or None,
                 "peak_mb": _nums(cells[6]),
-                "rows_out": int(_nums(cells[7])[0]),
-                "mb_out": _nums(cells[8])[0],
+                "rows_out": int(_num(cells[7], line)),
+                "mb_out": _num(cells[8], line),
             }
         )
     return rows
@@ -222,12 +255,14 @@ def build(
     has no profile decision (envelope.NoProfileRecorded) or any document fails its schema."""
     now = now or datetime.now(UTC)
     produced = envelope.recorded_profile(root)
+    if out.exists():  # a fresh directory: nothing stale is indexed or uploaded again
+        shutil.rmtree(out)
     live = json.loads((score_dir / "live.json").read_text("utf-8"))
     bt = json.loads((score_dir / "backtest.json").read_text("utf-8"))
     ids = sorted({int(s["repo_id"]) for s in live["scores"]})
     radar, pages = radar_and_pages(live, repo_facts(warehouse, ids))
     cut = datetime.fromisoformat(live["cut"])
-    start = cut.replace(year=cut.year - 1)
+    start = cut.replace(year=cut.year - 1)  # cuts are month starts: never 29 February
     status = _status(live["note"], int(live["scored"]))
     common: dict[str, Any] = {"produced": produced, "now": now}
     docs = {
@@ -310,6 +345,7 @@ def write_index(
         rows.append(
             {
                 "path": rel,
+                "asset": rel.replace("/", "__"),  # the flat release asset name (publish.yml)
                 "dataset": dataset,
                 "sha256": _sha(path),
                 "bytes": path.stat().st_size,
