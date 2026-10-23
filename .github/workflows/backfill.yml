@@ -85,6 +85,7 @@ jobs:
       issues: write  # failure issue only
     env:
       KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}
+      KEYSTONE_ACTOR_DATA_KEY: ${{ secrets.KEYSTONE_ACTOR_DATA_KEY }}
       GH_TOKEN: ${{ github.token }}
       WINDOW: ${{ matrix.window }}
       START: ${{ matrix.start }}
@@ -110,17 +111,22 @@ jobs:
         run: |
           uv run keystone backfill chunk --window "$WINDOW" --start "$START" --end "$END" \
             --out out --work "$RUNNER_TEMP/work"
-          rm -rf "$RUNNER_TEMP/work"  # partials with salted keys never leave the runner
+          # repo_actor_month (salted keys) leaves the runner only as ciphertext (ADR-045).
+          for f in "$RUNNER_TEMP"/work/private/*.parquet; do
+            bash .github/scripts/actor-data.sh encrypt "$f" "out/$(basename "$f").enc"
+          done
+          rm -rf "$RUNNER_TEMP/work"  # partials and plaintext with salted keys never leave it
           ls -l out
       - name: Publish key-free assets
         run: |
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
               --prerelease --latest=false --title "Keystone data: $WINDOW window" \
-              --notes "Key-free GH Archive aggregates for the $WINDOW window (ADR-050): repo_hour and contributors per chunk, zstd Parquet, with each chunk's JSON record (exact counts, fetch manifest). No actor keys or person data."
+              --notes "Key-free GH Archive aggregates for the $WINDOW window (ADR-050): repo_hour and contributors per chunk, zstd Parquet; repo_actor_month only AES-256 encrypted (internal, salted keys), with each chunk's JSON record (exact counts, fetch manifest). No actor keys or person data."
           fi
           # Data files first; the JSON record marks the chunk done, so it goes last.
           gh release upload "$TAG" out/*.parquet --repo "$GITHUB_REPOSITORY" --clobber
+          gh release upload "$TAG" out/*.parquet.enc --repo "$GITHUB_REPOSITORY" --clobber
           gh release upload "$TAG" out/chunk-*.json --repo "$GITHUB_REPOSITORY" --clobber
       - if: failure()
         run: bash .github/scripts/failure-issue.sh

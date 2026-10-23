@@ -109,6 +109,16 @@ def test_one_chunk_publishes_key_free_files_that_add_up(
                     "top_actor_events"]  # fmt: skip
     assert not any("actor_key" in c for c in cols)
     assert rec["rows"]["repo_hour"] == con.execute(f"SELECT count(*) FROM '{rh}'").fetchone()[0]  # type: ignore[index]
+    # repo_actor_month (salted keys) is written under work/private only, never into out/, for
+    # the workflow to encrypt (ADR-045); its sums match the human events of the contributors.
+    am = (tmp_path / "work" / "private" / "repo_actor_month-20261019-20261020.parquet").as_posix()
+    acols = [r[0] for r in con.execute(f"DESCRIBE SELECT * FROM '{am}'").fetchall()]
+    assert acols[:3] == ["month", "repo_id", "actor_key"] and "login" not in " ".join(acols)
+    keys = con.execute(f"SELECT DISTINCT length(actor_key) FROM '{am}'").fetchall()
+    assert keys == [(32,)]  # salted HMAC keys only (ADR-019)
+    am_events = con.execute(f"SELECT sum(events) FROM '{am}'").fetchone()
+    co_events = con.execute(f"SELECT sum(human_events) FROM '{co}'").fetchone()
+    assert am_events == co_events and rec["rows"]["repo_actor_month_sealed"] > 0
     assert rec["manifest"][0]["url"].endswith("2026-10-19-12.json.gz")
     assert not list((tmp_path / "work" / "raw").rglob("*.json.gz"))  # raw deleted
     t = totals_of([rec])

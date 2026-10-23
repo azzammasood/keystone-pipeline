@@ -35,6 +35,7 @@ from keystone.parsers.privacy import ActorHasher, salt_from_env
 from keystone.policy import load_policy
 from keystone.rollup.contract import duckdb_projection
 from keystone.rollup.spec import Rollup, _agg_sql, duckdb_select, input_sql, rollups
+from keystone.score.signals import ACTOR_MONTH_FROM_DAY
 from keystone.sources import gharchive as gha
 from keystone.sources import load_sources
 
@@ -189,6 +190,18 @@ def merge(work: Path, out: Path, name: str, start: datetime, end: datetime,
             raise RuntimeError(f"{dest.name} is over 1.5 GiB: rerun with a smaller --chunk-days")
     rad = con.execute("SELECT count(*) FROM repo_actor_day").fetchone()
     stats["rows"]["repo_actor_day_in_job"] = int(rad[0]) if rad else 0  # count only
+    # Internal per-actor month table (salted keys; ADR-045, owner 2026-10-22). Written under
+    # the work dir, never into `out/`: the workflow encrypts it there and uploads only the
+    # ciphertext, then deletes the work dir.
+    private = work / "private"
+    private.mkdir(exist_ok=True)
+    dest = private / f"repo_actor_month-{name}.parquet"
+    con.execute(
+        f"COPY ({ACTOR_MONTH_FROM_DAY.format(src='repo_actor_day')} ORDER BY ALL) "
+        f"TO '{_sql_path(dest)}' (FORMAT parquet, COMPRESSION zstd)"
+    )
+    ram = con.execute(f"SELECT count(*) FROM read_parquet('{_sql_path(dest)}')").fetchone()
+    stats["rows"]["repo_actor_month_sealed"] = int(ram[0]) if ram else 0  # count only
     con.close()
     return stats
 
