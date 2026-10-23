@@ -115,7 +115,9 @@ encrypted asset 2026-10-22; secret `KEYSTONE_ACTOR_DATA_KEY`). **Phase 8 complet
   CI's metadata job. Skipped: Databricks keepalive, Terraform, Elementary (ADR-064).
   Review: `docs/reviews/phase-10.md` (3 major, 9 minor, 4 nit; majors fixed, minors fixed or
   documented: the backfill-side ingest check needs `backfill.yml`). Tests: 251 pass locally.
-  CI_RESULT_PLACEHOLDER
+  CI green on 2a71e91: ci, parity, scorecard (runs 39908989250, 39908989282, 39908989333);
+  release dry run 39907749464 (Syft SBOM); guarded ingest and publish 39909007290, 39909011774;
+  checked with gh as azzammasood.
 
 ## Next
 1. **Backtest rerun on backfilled data** (one command, see Now); the first real publish follows.
