@@ -19,8 +19,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  publish:
+  # Publish needs the data directory the ingest workflow caches. Until a first ingest has run
+  # (ingest yields to the backfill, ADR-062), there is nothing to publish: skip with a notice
+  # instead of failing (and opening an issue) every day.
+  guard:
     if: github.event_name == 'workflow_dispatch' || vars.KEYSTONE_SCHEDULES == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      data: ${{ steps.cache.outputs.data }}
+    steps:
+      - id: cache
+        run: |
+          n=$(gh cache list --key keystone-data- --json id --jq length)
+          if [ "$n" -gt 0 ]; then
+            echo "data=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::no ingested data cached yet (ingest has not run): publish skipped"
+            echo "data=false" >> "$GITHUB_OUTPUT"
+          fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+
+  publish:
+    needs: guard
+    if: (github.event_name == 'workflow_dispatch' || vars.KEYSTONE_SCHEDULES == 'true') && needs.guard.outputs.data == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
