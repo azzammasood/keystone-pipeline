@@ -2,6 +2,33 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-066 (2026-10-26) Backfill memory: cap DuckDB's merge, half-months from 2023
+- **Context:** the 2021-02 chunk peaked at 13.6 GB RSS on a 16 GB runner. The merge connection had
+  no `memory_limit`, so DuckDB took its default (80% of RAM) whatever the month size; 2023-2025
+  months hold more events, and their `repo_actor_month` nears the 1.5 GiB asset check.
+- **Choice:** `SET memory_limit = '8GB'` on the merge connection (it spills to `temp_directory`
+  on the runner's disk instead), and the `xz` and `live` windows are dispatched with
+  `chunk_days=16` (52 jobs). `colors-faker` (2020-2021) keeps whole months: its months ran to
+  completion. `event-stream` is complete and is not replanned (chunk names differ per split).
+- **Why:** a bounded peak independent of month size; halving also halves each job's disk and
+  asset size. Cost: about 13 more job setups (~2 min each). Each record's `peak_rss_mb` checks it.
+
+## ADR-065 (2026-10-26) Backfill 403: tags on the default branch head, releases created once
+- **Context:** run 39907359217: 39 chunks did their work and then failed at `gh release create
+  data-colors-faker` with `HTTP 403: Resource not accessible by integration`. Checked read-only
+  with `gh api`: no rulesets, immutable releases off, token permissions identical to the run that
+  created `data-event-stream` (Contents write, Issues write, Metadata read).
+- **Cause:** `--target "$GITHUB_SHA"` puts the new tag on the run's commit (1b70157). While the
+  run was going, main received workflow changes (d68d9b4, 2a71e91, 7de5022), so the tag would
+  add a ref with outdated `.github/workflows` files, and GITHUB_TOKEN never has the `workflows`
+  permission that needs. `data-event-stream` worked because its commit (97dd27d) was main's head.
+  The first failure (10:39Z) came after main moved (05:45Z).
+- **Choice:** drop `--target` (the tag goes on the default branch head), and create the missing
+  pre-releases `data-colors-faker`, `data-xz` and `data-live` once from the owner's verified gh
+  session (login `azzammasood`) at main's head. No repository setting changed.
+- **Why:** this fixes the cause in the workflow, and creating the releases up front means no chunk
+  depends on tag creation.
+
 ## ADR-064 (2026-10-23) Phase 10 close: switches on, rungs skipped, what waits on the backfill
 - **Switches (owner 2026-10-22/23: "don't stop for decisions"):** repository variables
   `KEYSTONE_SCHEDULES=true` (ingest every 6 h, publish daily) and `KEYSTONE_PUBLIC=true`

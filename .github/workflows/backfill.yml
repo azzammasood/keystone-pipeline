@@ -131,7 +131,10 @@ jobs:
       - name: Publish key-free assets
         run: |
           if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
-            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            # No --target: the tag goes on the default branch head. A tag on this run's commit
+            # (older workflow files once main moves on) needs the `workflows` permission that
+            # GITHUB_TOKEN never has: HTTP 403 (run 39907359217, ADR-065).
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" \
               --prerelease --latest=false --title "Keystone data: $WINDOW window" \
               --notes "Key-free GH Archive aggregates for the $WINDOW window (ADR-050): repo_hour and contributors per chunk, zstd Parquet; repo_actor_month only AES-256 encrypted (internal, salted keys), with each chunk's JSON record (exact counts, fetch manifest). No actor keys or person data."
           fi

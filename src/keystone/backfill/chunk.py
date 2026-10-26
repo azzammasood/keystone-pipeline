@@ -137,6 +137,9 @@ def _merge_sql(r: Rollup, start: datetime, end: datetime, glob: str) -> str:
     )
 
 
+MERGE_MEMORY_LIMIT = "8GB"
+
+
 def merge(work: Path, out: Path, name: str, start: datetime, end: datetime,
           overlap_end: datetime) -> dict[str, Any]:  # fmt: skip
     """Merge the partials into the chunk's two published files; count edge events."""
@@ -145,6 +148,9 @@ def merge(work: Path, out: Path, name: str, start: datetime, end: datetime,
     con = duckdb.connect(str(work / "merge.duckdb"))
     con.execute(f"SET TimeZone = 'UTC'; SET temp_directory = '{_sql_path(work / 'tmp')}'")
     con.execute("SET preserve_insertion_order = false; SET enable_progress_bar = false")
+    # DuckDB's default cap is 80% of RAM (13.6 GB peak on a 16 GB runner, 2021-02): cap it so
+    # larger months spill to temp_directory instead of risking the OOM killer (ADR-066).
+    con.execute(f"SET memory_limit = '{MERGE_MEMORY_LIMIT}'")
     stats: dict[str, Any] = {"rows": {}, "bytes": {}}
     by_name = {r.name: r for r in rollups()}
     for table in ("repo_hour", "repo_actor_day"):
