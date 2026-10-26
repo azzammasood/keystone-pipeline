@@ -126,6 +126,11 @@ def source_tables() -> dict[str, str]:
 
 def stage(ws: Workspace, paths: WarehousePaths, work: Path) -> dict[str, int]:
     """Each dbt source -> one Parquet file in the volume -> one Unity Catalog table."""
+    from keystone.resolve.chooser import ensure_choices
+    from keystone.sources.registry import RegistryPaths, ensure_tables
+
+    ensure_tables(RegistryPaths(paths.root))  # empty until fetched, as in run_dbt
+    ensure_choices(paths.root)
     root = paths.root.resolve().as_posix()
     work.mkdir(parents=True, exist_ok=True)
     wh = ws.warehouse_id()

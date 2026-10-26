@@ -148,3 +148,11 @@ def test_backfill_reports_rare_types_but_live_parse_fails(data_dir: Any) -> None
     )
     summary = chunkmod._drift_summary([{"drift": data_dir.sink.last_drift}, {"drift": []}])
     assert summary == {f"unknown_event_type {dropped}": 1}
+
+
+def test_totals_skip_superseded_incomplete_records(tmp_path: Path) -> None:
+    from keystone.backfill.cli import record_files
+
+    for n in ("chunk-a.json", "chunk-a.incomplete.json", "chunk-b.incomplete.json"):
+        (tmp_path / n).write_text("{}")
+    assert [p.name for p in record_files(tmp_path)] == ["chunk-a.json", "chunk-b.incomplete.json"]

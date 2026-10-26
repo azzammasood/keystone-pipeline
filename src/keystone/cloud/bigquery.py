@@ -9,6 +9,7 @@ has no billing account (sandbox), so a charge is impossible; the guards keep the
 Auth: a short-lived access token from keyless Workload Identity Federation, never printed.
 """
 
+import calendar
 import os
 import time
 from dataclasses import dataclass, field
@@ -94,14 +95,25 @@ class Sandbox:
         return int(stats.get("totalBytesProcessed", 0))
 
     def month_billed(self) -> int:
-        """Bytes billed by this project this calendar month (UTC), from INFORMATION_SCHEMA."""
-        sql = (
-            "SELECT IFNULL(SUM(total_bytes_billed), 0) "
-            f"FROM `region-{self.location.lower()}`.INFORMATION_SCHEMA.JOBS_BY_PROJECT "
-            "WHERE creation_time >= TIMESTAMP_TRUNC(CURRENT_TIMESTAMP(), MONTH)"
-        )
-        rows, _ = self.query(sql, label="month_billed", check_month=False)
-        return int(rows[0][0]) if rows else 0
+        """Bytes billed by this project's jobs this calendar month (UTC), summed from jobs.list
+        (an API read: no query, nothing billed). Covers the jobs of this identity, the only
+        one that queries the sandbox."""
+        now = time.gmtime()
+        start = calendar.timegm((now.tm_year, now.tm_mon, 1, 0, 0, 0))
+        params: dict[str, Any] = {
+            "projection": "full",
+            "minCreationTime": str(start * 1000),
+            "maxResults": 1000,
+        }
+        total = 0
+        while True:
+            page = self._get("jobs", params)
+            for job in page.get("jobs", []):
+                q = (job.get("statistics") or {}).get("query") or {}
+                total += int(q.get("totalBytesBilled", 0) or 0)
+            if not page.get("nextPageToken"):
+                return total
+            params["pageToken"] = page["nextPageToken"]
 
     def query(
         self, sql: str, label: str, check_month: bool = True, max_rows: int = 0

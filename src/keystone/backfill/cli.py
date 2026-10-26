@@ -119,13 +119,26 @@ def totals_of(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {k: dict(v) for k, v in out.items()}
 
 
+def record_files(records: Path) -> list[Path]:
+    """Chunk records to count: a chunk redone after an incomplete run has both records, and
+    only the complete one counts."""
+    files = sorted(records.glob("chunk-*.json"))
+    done = {p.name for p in files if not p.name.endswith(".incomplete.json")}
+    return [
+        p
+        for p in files
+        if not p.name.endswith(".incomplete.json")
+        or p.name.replace(".incomplete.json", ".json") not in done
+    ]
+
+
 @app.command("totals")
 def totals(
     records: Path = typer.Option(DATA_DIR / "backfill" / "records", help="Dir of chunk-*.json."),
     json_out: bool = typer.Option(False, "--json"),
 ) -> None:
     """Processed totals per window from the published chunk records (exact counts)."""
-    recs = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(records.glob("chunk-*.json"))]
+    recs = [json.loads(p.read_text(encoding="utf-8")) for p in record_files(records)]
     if not recs:
         typer.echo(f"no chunk records in {records}", err=True)
         raise typer.Exit(1)
