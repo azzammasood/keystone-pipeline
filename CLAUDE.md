@@ -77,6 +77,7 @@ uv run keystone metrics emit ; uv run keystone metrics check-grafana   # pipelin
 # Env: OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:4318, OPENLINEAGE_URL=http://127.0.0.1:5000,
 #      KEYSTONE_RUN_ID=<uuid> groups stages into one pipeline run
 uv run keystone profile check [--run] [--want free] [--root DIR]  # probe full; run rollup, fall back to free
+uv run keystone cloud databricks run|keepalive ; uv run keystone cloud bigquery run  # cloud.yml (ADR-067/068)
 uv run python -m keystone.export.schemas  # JSON Schemas + examples (CI)
 uv run pytest                             # network tests skip unless KEYSTONE_NETWORK_TESTS=1
 KEYSTONE_STACK_TESTS=1 uv run pytest tests/parity  # engine parity on the running stack

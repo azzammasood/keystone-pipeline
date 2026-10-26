@@ -2,6 +2,51 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-068 (2026-10-26) BigQuery sandbox rung: dry runs, capped jobs, paged export
+- **Context:** brief Phase 1 item (a), never done: what the public `githubarchive` dataset costs
+  per column set, and whether rollups can run in place within the free limits. Project
+  `keystone-pipeline` has no billing account (sandbox); auth is keyless (Workload Identity
+  Federation, `google-github-actions/auth`, a 30-minute access token, never printed).
+- **Choice:** `keystone cloud bigquery run` on Actions (`cloud.yml`). Every query is dry-run
+  first; it is refused if it would scan more than 5 GB, exceed the run budget (20 GB) or take
+  this month's bytes billed past 100 GB (10% of the 1 TB free tier). The month's usage comes from
+  `jobs.list` (an API read): `INFORMATION_SCHEMA.JOBS_BY_PROJECT` needs `jobs.listAll`, which
+  the service account lacks, and unknown usage stops the run (it did, run 40374311873).
+  Every real job carries `maximumBytesBilled`.
+- **Export path:** paging `jobs.getQueryResults` (free) into zstd Parquet with DuckDB.
+  `EXPORT DATA` needs a Cloud Storage bucket, and Cloud Storage needs billing, so it is out at $0.
+- **Measured (run 40374905775):** see `docs/benchmarks.md` section 6. The in-place repo-day
+  rollup of 2026-10-19 billed 29.4 MB. Its event total equals our own parse of that day; the
+  public table for 2015-01-01 holds one event fewer than our parse of the raw files.
+
+## ADR-067 (2026-10-26) Databricks Free Edition rung: staged sources, dbt, Lakeflow, keepalive
+- **Context:** the Phase 5/6/9/10 Databricks rungs were skipped without a workspace (ADR-030,
+  ADR-064). The owner added `DATABRICKS_HOST`/`DATABRICKS_TOKEN` (secrets). The workspace
+  cannot fetch GH Archive.
+- **Choice:** `keystone cloud databricks run` on Actions (`cloud.yml`), REST only (httpx).
+  1. The runner builds the CI fixture data, writes each dbt source as Parquet into the Unity
+     Catalog volume `workspace.keystone_src.landing` (Files API), then creates one table per
+     source.
+  2. `dbt build --target databricks` (dbt-databricks, serverless SQL warehouse). Sources switch
+     schema on `target.type`; the dbt SQL is unchanged.
+  3. One serverless Lakeflow Declarative Pipeline (`keystone-marts`) refreshes a materialized
+     view `repo_week` over `marts.fct_repo_day`, with an expectation.
+  4. Lineage is read from `system.access.table_lineage`.
+  5. A weekly keepalive (`SELECT current_date()`) runs under `KEYSTONE_SCHEDULES`.
+  - **Evidence:** stage records go to the pre-release `cloud-evidence`. publish merges them into
+    its run log (`keystone metrics import-runs`, placed before its own run), so `engines[]` lists
+    `databricks-sql`, `dbt-databricks`, `databricks-lakeflow` and `bigquery` only after they ran.
+  - **Dependency:** dbt-databricks is in its own `databricks` group. The first lock (1.12.8)
+    pulled packaging, pydantic and virtualenv down; that virtualenv had CVEs and pip-audit
+    failed CI. The fix was a floor `oauthlib>=4.0.0` (PYSEC-2026-4114) and relocking from the
+    previous lock. That resolves dbt-databricks 1.10.9 with every shared pin unchanged
+    (dbt-core 1.12.6, pydantic 2.14.1, packaging 26.3), and pip-audit is clean.
+- **Quota:** fixture data only (547 source rows). No quota limit was hit (run 40374905775).
+  The real history stays on Actions and in the Release assets: Free Edition compute is capped
+  per day and is not a place for 100+ GB.
+- **Lineage:** readable, but 0 edges for the dbt schemas right after the run. System tables lag,
+  so this is re-checked on the next run and recorded as found.
+
 ## ADR-066 (2026-10-26) Backfill memory: cap DuckDB's merge, half-months from 2023
 - **Context:** the 2021-02 chunk peaked at 13.6 GB RSS on a 16 GB runner. The merge connection had
   no `memory_limit`, so DuckDB took its default (80% of RAM) whatever the month size; 2023-2025

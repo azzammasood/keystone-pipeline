@@ -235,3 +235,42 @@ chunk records (`chunk-*.json`: rows, bytes, wall time, peak RSS, cost $0), summe
 `keystone backfill totals`. As of 2026-10-22 none has run (the owner still has to set the salt
 secret and merge the workflow), so this section has no numbers yet. The sizes in section 4 are
 for the superseded 24-month design.
+
+## 6. BigQuery sandbox rung (ADR-068), measured 2026-10-26
+
+Run 40374905775 (`cloud.yml`, project `keystone-pipeline`, no billing account). Bytes are the
+dry-run `totalBytesProcessed` per day table of the public `githubarchive.day` dataset (dry runs
+are free). BigQuery bills at least 10 MB per table referenced.
+
+| columns read | 2015-01-01 (E2) | 2026-10-19 (E3) |
+|---|---:|---:|
+| `type` | 2,767,153 | 12,442,919 |
+| `type, repo.id` | 4,518,657 | 20,784,431 |
+| `type, repo.id, created_at` | 6,270,161 | 29,125,975 |
+| `type, repo.id, actor.id, created_at` | 8,021,665 | 37,467,519 |
+| `payload` | 406,327,240 | 588,908,830 |
+| all columns | 462,435,781 | 912,799,908 |
+
+- `COUNT(*)` per day table: 0 bytes billed (metadata). 2026-10-19: 1,042,693 events, equal to
+  our parse of the raw hours (section 2). 2015-01-01: 218,938, one fewer than our 218,939.
+- In-place repo-day rollup of 2026-10-19 (`repo.id, type, created_at`):
+  - billed 29,360,128 bytes (dry run 29,125,975), 13.0 slot-seconds, 23.7 s;
+  - 535,063 rows;
+  - export: 11 result pages to 2.46 MB zstd Parquet in 0.4 s, event total 1,042,693.
+- Whole run: 29.4 MB billed of the 1 TB monthly free tier (month usage before the run: 0).
+- The rollup columns cost 2-5% of the payload, so in-place rollups of the needed columns fit the
+  free tier with room to spare. Only `payload` (merge flags, release actions) is expensive.
+
+## 7. Databricks Free Edition rung (ADR-067), measured 2026-10-26
+
+Run 40374905775 (`cloud.yml`, serverless SQL warehouse, catalog `workspace`), on the
+committed fixtures (as in CI). The workspace cannot fetch GH Archive, so these are integration
+timings, not scale numbers.
+
+| step | measured |
+|---|---|
+| stage 8 sources (Files API to a volume, then one table each) | 547 rows, 31.4 s |
+| `dbt build --target databricks` (dbt-databricks 1.12.8) | 123 nodes, 94 tests passed, 0 failed, 152.6 s |
+| Lakeflow Declarative Pipeline update (`repo_week`, serverless) | COMPLETED, 178 rows, 77.8 s |
+| Unity Catalog lineage (`system.access.table_lineage`, 7 days) | readable, 0 edges right after the run |
+| quota | no limit hit; cost $0 |

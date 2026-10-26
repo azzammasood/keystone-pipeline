@@ -28,6 +28,7 @@ keystone = "keystone.cli:app"
 [dependency-groups]
 databricks = [
     "dbt-databricks>=1.10",
+    "oauthlib>=4.0.0",  # PYSEC-2026-4114 (via databricks-sql-connector)
 ]
 dev = [
     "mypy>=1.11",
