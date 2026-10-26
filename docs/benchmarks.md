@@ -274,3 +274,7 @@ timings, not scale numbers.
 | Lakeflow Declarative Pipeline update (`repo_week`, serverless) | COMPLETED, 178 rows, 77.8 s |
 | Unity Catalog lineage (`system.access.table_lineage`, 7 days) | readable, 0 edges right after the run |
 | quota | no limit hit; cost $0 |
+
+Rerun 40376934911 with the audited lock (dbt-databricks 1.10.9): `dbt build` 123 nodes, 94 tests
+passed, 108.0 s; Lakeflow COMPLETED, 178 rows, 61.9 s; Unity Catalog lineage (system table,
+7 days) 104 edges into 28 tables, from both runs.

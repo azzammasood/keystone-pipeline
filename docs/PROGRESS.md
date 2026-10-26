@@ -3,6 +3,27 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
+**2026-10-26 (ADR-065 to ADR-068): backfill publishing again; cloud rungs ran.**
+- Backfill: the 403 at `gh release create` was the tag target (run commit with older workflow
+  files; GITHUB_TOKEN has no `workflows` permission), fixed (no `--target`) and the releases
+  `data-colors-faker`, `data-xz`, `data-live` created once (ADR-065). Merge memory capped at 8 GB
+  (ADR-066). Runs: 40371049281 (colors-faker, 13 whole months), then 40371109404 (xz + live,
+  `chunk_days=16`, 52 chunks; queued behind it in the concurrency group). event-stream complete
+  (13 chunks, 517,146,065 events). Projection (from 2021 months at 36-48 min each; later months
+  are larger, so a range): colors-faker done around 2026-10-27 04:00Z, xz + live 22-42 h later,
+  i.e. about 2026-10-28 02:00Z to 2026-10-28 22:00Z. Each record's `peak_rss_mb` checks ADR-066.
+- Cloud (`cloud.yml`): Databricks Free Edition (stage to Unity Catalog, `dbt build --target
+  databricks` 123 nodes / 94 tests pass, Lakeflow pipeline COMPLETED, lineage readable) and the
+  BigQuery sandbox (bytes per column set, in-place rollup billed 29.4 MB, count equals our parse)
+  ran on run 40374905775; numbers in `docs/benchmarks.md` sections 6-7. Weekly Databricks
+  keepalive is scheduled. `engines[]` picks them up at the first publish after the backfill
+  (`keystone metrics import-runs` from the `cloud-evidence` release); README mentions wait for it.
+- Waits on the backfill: the first publish (and with it the brief on Actions with
+  `OPENROUTER_API_KEY`, guarded `:free` only, $0, numbers checked), `backtest.yml`, learning the
+  summed `hours.drift` into `contracts/drift/gharchive.yml` (ADR-051), and the final Phase 9
+  totals + `docs/reviews/phase-9.md`. Unity Catalog lineage: 104 edges into 28 tables
+  (rerun 40376934911, green with the audited lock).
+
 **Backend complete (Phases 0 to 10), except the backtest rerun, which waits on the Phase 9
 backfill** (2026-10-23, ADR-060 to ADR-064). When the backfill has landed:
 `gh workflow run backtest.yml` (incident windows), then the first ingest runs on its schedule

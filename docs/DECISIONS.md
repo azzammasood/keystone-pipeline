@@ -44,8 +44,9 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - **Quota:** fixture data only (547 source rows). No quota limit was hit (run 40374905775).
   The real history stays on Actions and in the Release assets: Free Edition compute is capped
   per day and is not a place for 100+ GB.
-- **Lineage:** readable, but 0 edges for the dbt schemas right after the run. System tables lag,
-  so this is re-checked on the next run and recorded as found.
+- **Lineage:** `system.access.table_lineage` showed 0 edges right after the first run (system
+  tables lag). After the rerun (40376934911, dbt-databricks 1.10.9, green) it showed 104 edges
+  into 28 tables of the dbt and Lakeflow schemas.
 
 ## ADR-066 (2026-10-26) Backfill memory: cap DuckDB's merge, half-months from 2023
 - **Context:** the 2021-02 chunk peaked at 13.6 GB RSS on a 16 GB runner. The merge connection had
