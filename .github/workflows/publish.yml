@@ -86,6 +86,16 @@ jobs:
       - run: uv run keystone score live
       - run: uv run keystone score backtest --report data/score/backtest.md
       - run: uv run keystone metadata export --out data/publish/metadata
+      - name: Cloud rung stage records (engines[] evidence, ADR-067)
+        run: |
+          mkdir -p "$RUNNER_TEMP/cloud"
+          gh release download cloud-evidence -p 'runs-*.jsonl' -D "$RUNNER_TEMP/cloud"             || echo "no cloud evidence yet"
+          shopt -s nullglob
+          files=("$RUNNER_TEMP"/cloud/runs-*.jsonl)
+          if [ ${#files[@]} -gt 0 ]; then uv run keystone metrics import-runs "${files[@]}"; fi
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
       - run: uv run keystone metrics emit --metadata-dir data/publish/metadata
       - run: uv run python -m keystone.export.schemas
       - run: uv run keystone export site --metadata-dir data/publish/metadata

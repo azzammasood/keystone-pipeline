@@ -5,6 +5,8 @@ version: 2
 sources:
   - name: silver
     description: Typed silver Parquet written by `keystone parse` (lineage columns on every row).
+    # On Databricks the runner stages each source as a Unity Catalog table (ADR-067).
+    schema: "{{ 'keystone_src' if target.type == 'databricks' else 'silver' }}"
     meta:
       root: "{{ env_var('KEYSTONE_DATA_ROOT') }}"
     tables:
@@ -42,8 +44,8 @@ sources:
           external_location: "read_parquet('{{ env_var('KEYSTONE_DATA_ROOT') }}/silver/resolve/llm_choices/*.parquet', union_by_name = true)"
   - name: rollup
     description: Rollup tables of the free engine (`keystone rollup run`), attached read-only.
-    database: rollup
-    schema: main
+    database: "{{ target.database if target.type == 'databricks' else 'rollup' }}"
+    schema: "{{ 'keystone_src' if target.type == 'databricks' else 'main' }}"
     tables:
       - name: repo_hour
         description: Activity per repository, era and event type in UTC hours (ADR-024).

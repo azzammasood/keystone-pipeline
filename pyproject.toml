@@ -26,6 +26,9 @@ dependencies = [
 keystone = "keystone.cli:app"
 
 [dependency-groups]
+databricks = [
+    "dbt-databricks>=1.10",
+]
 dev = [
     "mypy>=1.11",
     "pip-audit>=2.7",
@@ -81,6 +84,7 @@ select = ["E", "F", "W", "I", "B", "UP", "SIM", "PTH"]
 "src/keystone/score/cli.py" = ["B008"]
 "src/keystone/export/cli.py" = ["B008"]
 "src/keystone/narrate/cli.py" = ["B008"]
+"src/keystone/cloud/cli.py" = ["B008"]
 
 [tool.mypy]
 python_version = "3.12"

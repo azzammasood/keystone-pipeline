@@ -1,0 +1,138 @@
+name: cloud
+
+# Cloud rungs at $0 (ADR-067, ADR-068). Databricks Free Edition: the dbt sources (built from
+# the committed fixtures, as in CI) are staged in Unity Catalog, `dbt build --target
+# databricks` runs, then one Lakeflow Declarative Pipeline update and a lineage read. BigQuery
+# sandbox: dry runs, bytes per column set, one in-place rollup and its export, every job with
+# maximumBytesBilled. The weekly schedule only keeps the Databricks account active. Each rung's
+# stage records go to the pre-release `cloud-evidence`, which publish merges into
+# pipeline_metrics.json (engines[] evidence). Logs are public: no token is ever printed.
+on:
+  workflow_dispatch:
+    inputs:
+      rung:
+        description: databricks, bigquery, both or keepalive
+        default: both
+  schedule:
+    - cron: "17 4 * * 1"  # Mondays: Databricks keepalive
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keystone-cloud
+  cancel-in-progress: false
+
+jobs:
+  keepalive:
+    if: github.event_name == 'schedule' && vars.KEYSTONE_SCHEDULES == 'true' || inputs.rung == 'keepalive'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --frozen
+      - run: uv run keystone cloud databricks keepalive
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+
+  databricks:
+    if: (inputs.rung == 'databricks' || inputs.rung == 'both') && (github.event_name == 'workflow_dispatch' || vars.KEYSTONE_SCHEDULES == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write  # the cloud-evidence pre-release only
+    env:
+      KEYSTONE_ACTOR_SALT: ci-only-salt-not-a-secret-0000  # fixtures only, as in CI
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --frozen --group warehouse --group databricks
+      - name: Fixture data (the CI path)
+        run: |
+          uv run keystone parse files tests/fixtures/gharchive/*.json.gz \
+            tests/fixtures/gharchive/quarantine/*.json.gz --root ci-data
+          uv run keystone profile check --run --root ci-data
+          uv run keystone parse osv --zip tests/fixtures/osv/PyPI/all.zip --root ci-data
+          uv run keystone resolve fetch --root ci-data --replay tests/fixtures/registry
+          rm -f ci-data/telemetry/runs.jsonl  # evidence below is the cloud stages only
+      - name: Stage, dbt build, Lakeflow, lineage
+        run: uv run keystone cloud databricks run --root ci-data --out cloud-evidence/databricks.json
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+      - name: Evidence
+        if: always()
+        run: |
+          cp ci-data/telemetry/runs.jsonl cloud-evidence/runs-databricks.jsonl 2>/dev/null || true
+          ls -l cloud-evidence
+      - name: Publish evidence
+        if: success()
+        run: bash .github/scripts/cloud-evidence.sh cloud-evidence/databricks.json cloud-evidence/runs-databricks.jsonl
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: cloud-databricks
+          path: |
+            cloud-evidence
+            ci-data/warehouse/dbt-target/run_results.json
+          if-no-files-found: ignore
+
+  bigquery:
+    if: (inputs.rung == 'bigquery' || inputs.rung == 'both') && (github.event_name == 'workflow_dispatch' || vars.KEYSTONE_SCHEDULES == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write  # the cloud-evidence pre-release only
+      id-token: write  # keyless Workload Identity Federation
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          enable-cache: true
+      - run: uv python install
+      - run: uv sync --frozen
+      - id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+          token_format: access_token
+          access_token_lifetime: 1800s
+          create_credentials_file: false
+      - name: Dry runs, column sets, in-place rollup, export
+        run: uv run keystone cloud bigquery run --root bq-data --out cloud-evidence/bigquery.json
+        env:
+          GOOGLE_OAUTH_ACCESS_TOKEN: ${{ steps.auth.outputs.access_token }}
+          GCP_PROJECT: keystone-pipeline
+      - name: Evidence
+        if: always()
+        run: |
+          cp bq-data/telemetry/runs.jsonl cloud-evidence/runs-bigquery.jsonl 2>/dev/null || true
+          ls -l cloud-evidence
+      - name: Publish evidence
+        if: success()
+        run: bash .github/scripts/cloud-evidence.sh cloud-evidence/bigquery.json cloud-evidence/runs-bigquery.jsonl
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: cloud-bigquery
+          path: cloud-evidence
+          if-no-files-found: ignore

@@ -11,6 +11,7 @@ import typer
 from keystone import __version__
 from keystone.backfill.cli import app as backfill_app
 from keystone.bench.cli import app as bench_app
+from keystone.cloud.cli import app as cloud_app
 from keystone.fetch.client import DiskBudgetExceeded, DiskGuard, PoliteClient
 from keystone.fetch.manifest import FileRecord, Manifest
 from keystone.lineage import datasets as lds
@@ -32,6 +33,7 @@ from keystone.warehouse import lake as whlake
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 app.add_typer(bench_app, name="bench")  # Phase 9 scale ladder (keystone/bench)
+app.add_typer(cloud_app, name="cloud")  # Databricks and BigQuery rungs (keystone/cloud)
 app.add_typer(backfill_app, name="backfill")  # Phase 9 history backfill (keystone/backfill)
 ingest_app = typer.Typer(no_args_is_help=True, help="Polite, resumable ingestion (Phase 2).")
 app.add_typer(ingest_app, name="ingest")
@@ -988,6 +990,17 @@ def metrics_emit(
         f"valid pipeline_metrics.json: profile={doc['profile']} engines={len(doc['engines'])} "
         f"last_run_stages={stages} events_processed={doc['totals']['events_processed']} -> {target}"
     )
+
+
+@metrics_app.command("import-runs")
+def metrics_import_runs(
+    files: list[Path] = typer.Argument(..., help="runs.jsonl files from other workflows."),
+    root: Path = typer.Option(DATA_DIR, help="Data directory (telemetry/)."),
+) -> None:
+    """Merge stage records of other workflows (cloud rungs) into this run log (ADR-067)."""
+    from keystone.telemetry.runlog import import_runs
+
+    typer.echo(f"imported {import_runs(root, [f for f in files if f.exists()])} stage records")
 
 
 @metrics_app.command("check-grafana")

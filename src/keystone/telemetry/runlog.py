@@ -159,6 +159,32 @@ def read(root: Path) -> list[StageRecord]:
     return out
 
 
+NL = b"\n"
+
+
+def import_runs(root: Path, files: Sequence[Path]) -> int:
+    """Stage records from other workflows (the cloud rungs, ADR-067) merged into the run log,
+    deduplicated by (run_id, stage, started_at). They go *before* the existing records, so the
+    run in progress stays the last run; their services still count as engines[] evidence."""
+    have = {(r.run_id, r.stage, r.started_at) for r in read(root)}
+    new: list[bytes] = []
+    for f in files:
+        for line in f.read_bytes().splitlines():
+            if not line.strip():
+                continue
+            rec = StageRecord(**orjson.loads(line))
+            key = (rec.run_id, rec.stage, rec.started_at)
+            if key not in have:
+                have.add(key)
+                new.append(orjson.dumps(asdict(rec)))
+    if new:
+        path = runs_path(root)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        old = path.read_bytes() if path.exists() else b""
+        path.write_bytes(NL.join(new) + NL + old)
+    return len(new)
+
+
 def iter_runs(records: Sequence[StageRecord]) -> Iterator[tuple[str, list[StageRecord]]]:
     """Records grouped by pipeline run, in order of each run's first record."""
     groups: dict[str, list[StageRecord]] = {}
