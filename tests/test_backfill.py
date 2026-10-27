@@ -156,3 +156,24 @@ def test_totals_skip_superseded_incomplete_records(tmp_path: Path) -> None:
     for n in ("chunk-a.json", "chunk-a.incomplete.json", "chunk-b.incomplete.json"):
         (tmp_path / n).write_text("{}")
     assert [p.name for p in record_files(tmp_path)] == ["chunk-a.json", "chunk-b.incomplete.json"]
+
+
+def test_drift_review_learns_by_chunk_era() -> None:
+    from keystone.backfill import drift as bd
+
+    def rec(start: str, end: str, drift: dict[str, int]) -> dict[str, object]:
+        return {"chunk": start, "start": start, "end": end, "hours": {"drift": drift}}
+
+    rev = bd.review(
+        [
+            rec("2018-11-01T00:00:00+00:00", "2018-12-01T00:00:00+00:00",
+                {"unknown_field IssuesEvent payload.issue.draft bool": 2,
+                 "unknown_event_type FollowEvent": 1}),
+            rec("2025-10-01T00:00:00+00:00", "2025-10-17T00:00:00+00:00",
+                {"unknown_field IssuesEvent payload.x int": 1}),
+        ]
+    )  # fmt: skip
+    assert rev.ambiguous == ["2025-10-01T00:00:00+00:00"]
+    reg: dict[str, dict[str, dict[str, list[str]]]] = {"E2": {"IssuesEvent": {}}}
+    assert bd.learn(rev, reg) == ["E2 IssuesEvent payload.issue.draft bool"]
+    assert "FollowEvent" not in reg["E2"]  # unknown types are reported, never learned

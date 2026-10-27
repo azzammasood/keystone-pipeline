@@ -2,6 +2,27 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-069 (2026-10-27) Backfill drift learned per era from the chunk records (ADR-051 follow-up)
+- **Context:** in report mode, backfill chunks record drift findings per hour (`hours.drift`)
+  without the era.
+- **Choice:** `keystone backfill drift [--learn]` sums findings over all chunk records, takes
+  each chunk's era from its dates (`config/sources.yml`), and learns unknown fields and JSON
+  types into that era of `contracts/drift/gharchive.yml`.
+  - A chunk spanning an era break (the live chunk with 2025-10-07) is reported, never learned.
+  - Unknown event types are reported only: their payload is not walked, so there is no shape to
+    learn.
+- **Reviewed and learned (event-stream + colors-faker, E2), 16 entries:**
+  - `IssuesEvent payload.issue.pull_request` (dict, 42 hours) and `payload.issue.draft` (bool,
+    1 hour);
+  - `ReleaseEvent payload.release.reactions` (dict, 698 hours);
+  - `active_lock_reason` as str in both PR review event types (1,619 hours);
+  - one hour of `WatchEvent payload.repository.*` (7 paths).
+  All are real GitHub API shapes. None of them is read by the allow-list parser, so silver and
+  the rollups are unchanged.
+- **Not learned:** `FollowEvent` in E2 (1 hour, 2017-12-01 19h, ADR-051). It is a retired type,
+  rolled up under its own key and used by no metric.
+- The final pass reruns this after xz and live.
+
 ## ADR-068 (2026-10-26) BigQuery sandbox rung: dry runs, capped jobs, paged export
 - **Context:** brief Phase 1 item (a), never done: what the public `githubarchive` dataset costs
   per column set, and whether rollups can run in place within the free limits. Project

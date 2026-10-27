@@ -148,3 +148,27 @@ def totals(
         return
     for k, v in t.items():
         typer.echo(f"{k}: " + " ".join(f"{a}={b}" for a, b in v.items()))
+
+
+@app.command("drift")
+def drift(
+    records: Path = typer.Option(
+        DATA_DIR / "backfill" / "records", help="Dir (searched recursively) of chunk-*.json."
+    ),
+    learn: bool = typer.Option(False, help="Write learnable findings into the drift registry."),
+) -> None:
+    """Summed `hours.drift` of the chunk records per era (ADR-051, ADR-069); --learn adds the
+    reviewed field shapes to contracts/drift/gharchive.yml."""
+    from keystone.backfill import drift as bd
+    from keystone.parsers.drift import load_registry, save_registry
+
+    rev = bd.review(bd.load_records(records))
+    for (era, key), hours in sorted(rev.findings.items()):
+        typer.echo(f"{era} hours={hours} chunks={rev.chunks[(era, key)]} {key}")
+    if rev.ambiguous:
+        typer.echo(f"not learned (chunk spans an era break): {', '.join(rev.ambiguous)}")
+    if learn:
+        reg = load_registry()
+        added = bd.learn(rev, reg)
+        save_registry(reg)
+        typer.echo(f"learned {len(added)} entries into the drift registry")
