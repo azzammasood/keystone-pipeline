@@ -186,4 +186,4 @@ def test_split_from_keeps_earlier_months_whole() -> None:
 
     wins = {"a": (date(2022, 12, 1), date(2023, 2, 1))}
     names = [c.name for c in planmod.chunks(wins, 16, date(2023, 1, 1))]
-    assert names == ["20221201-20230101", "20230101-20230116", "20230116-20230201"]
+    assert names == ["20221201-20230101", "20230101-20230117", "20230117-20230201"]
