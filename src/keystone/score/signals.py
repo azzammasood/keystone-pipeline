@@ -16,6 +16,8 @@ Inputs (DuckDB views on one connection):
 """
 
 import csv
+import os
+import tempfile
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -133,6 +135,13 @@ def open_inputs(rollup: Path, warehouse: Path | None = None) -> Inputs:
     `repo_actor_month/` or `repo_actor_day/`), plus the warehouse when given."""
     con = duckdb.connect()
     con.execute("SET TimeZone = 'UTC'")
+    # Bounded memory with spill to disk: the backtest reads every window's Parquet (GBs) and a
+    # runner was shut down at the default limit (80% of RAM, no temp directory; ADR-070).
+    spill = Path(tempfile.gettempdir()) / "keystone-duckdb-spill"
+    spill.mkdir(parents=True, exist_ok=True)
+    limit = os.environ.get("KEYSTONE_DUCKDB_MEMORY_LIMIT", "6GB")
+    con.execute(f"SET memory_limit = '{limit}'; SET temp_directory = '{spill.as_posix()}'")
+    con.execute("SET preserve_insertion_order = false; SET max_temp_directory_size = '10GB'")
     actor = False
     if rollup.is_file():
         con.execute(f"ATTACH '{rollup.as_posix()}' AS r (READ_ONLY)")

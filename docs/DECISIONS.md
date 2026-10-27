@@ -2,6 +2,16 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-070 (2026-10-27) Backtest on Actions: bounded DuckDB memory, longer timeout
+- **Context:** the first backtest with real windows (run 40451269309) read 7.3 GB of event-stream
+  and colors-faker Parquet. The runner was shut down 10 minutes into the Backtest step. The
+  in-memory connection had DuckDB's default limit (80% of RAM) and no temp directory to spill to.
+- **Choice:** `score.signals.open_inputs` sets `memory_limit` (6 GB by default;
+  `KEYSTONE_DUCKDB_MEMORY_LIMIT` overrides it), a temp directory with a 10 GB cap and
+  `preserve_insertion_order = false`. `backtest.yml` timeout goes from 60 to 240 minutes.
+- **Why:** the same fix as the backfill merge (ADR-066); the results do not change, only where
+  the intermediates live.
+
 ## ADR-069 (2026-10-27) Backfill drift learned per era from the chunk records (ADR-051 follow-up)
 - **Context:** in report mode, backfill chunks record drift findings per hour (`hours.drift`)
   without the era.
