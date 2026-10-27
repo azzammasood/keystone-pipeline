@@ -3,6 +3,27 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
+**2026-10-27 (ADR-069, ADR-070):**
+- **Backtest on Actions works** (run 40454178871, `docs/backtest.md`). Three runs failed on
+  memory first; fixed by bounded DuckDB plus the reference filter pushed into SQL (ADR-070).
+  - event-stream: scored, a miss (18.4th percentile; never flagged in 22 weight variants;
+    leakage check passes).
+  - colors-faker: partial data (88.8% of hours, needs 90%) until run 40451202607 redoes
+    2021-05 and the fetch-error hours.
+  - xz: pending.
+- **Drift learned for E2** (16 entries; `keystone backfill drift --learn`, ADR-069).
+- **Backfill:**
+  - xz + live (40371109404, 52 chunks) at about 43 min per half month, fetch-bound: done around
+    2026-10-28 17:30Z, then the colors-faker redo (around 21:00Z).
+  - 2021-08-25 17h to 08-27 22h (54 h) are absent at GH Archive: that chunk stays incomplete.
+- **Then:**
+  1. Rerun `backtest.yml`.
+  2. `keystone backfill drift --learn` over all records: E3 and live; the 2025-10-01 chunk
+     spans the break and is not learned.
+  3. Fill `docs/benchmarks.md` section 5.
+  4. Write `docs/reviews/phase-9.md`.
+  5. Dispatch publish: brief, `engines[]` cloud tools, README.
+
 **2026-10-26 (ADR-065 to ADR-068): backfill publishing again; cloud rungs ran.**
 - Backfill: the 403 at `gh release create` was the tag target (run commit with older workflow
   files; GITHUB_TOKEN has no `workflows` permission), fixed (no `--target`) and the releases
