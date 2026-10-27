@@ -55,7 +55,14 @@ jobs:
           fi
           rm -rf data/backtest/enc
       - name: Backtest
+        env:
+          # ADR-070: the reference set groups every repository of a 12-month window.
+          KEYSTONE_DUCKDB_MEMORY_LIMIT: 11GB
+          KEYSTONE_DUCKDB_TEMP_MAX: 40GB
+          KEYSTONE_DUCKDB_THREADS: "2"
         run: |
+          df -h . | tail -1
+          du -sh data/backtest
           if ! compgen -G 'data/backtest/repo_hour/*.parquet' > /dev/null; then
             echo "::error::no repo_hour assets in any window: backtest is pending data"
             exit 1

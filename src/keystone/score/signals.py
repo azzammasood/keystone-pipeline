@@ -139,9 +139,13 @@ def open_inputs(rollup: Path, warehouse: Path | None = None) -> Inputs:
     # runner was shut down at the default limit (80% of RAM, no temp directory; ADR-070).
     spill = Path(tempfile.gettempdir()) / "keystone-duckdb-spill"
     spill.mkdir(parents=True, exist_ok=True)
-    limit = os.environ.get("KEYSTONE_DUCKDB_MEMORY_LIMIT", "6GB")
-    con.execute(f"SET memory_limit = '{limit}'; SET temp_directory = '{spill.as_posix()}'")
-    con.execute("SET preserve_insertion_order = false; SET max_temp_directory_size = '10GB'")
+    env = os.environ.get
+    con.execute(f"SET memory_limit = '{env('KEYSTONE_DUCKDB_MEMORY_LIMIT', '6GB')}'")
+    con.execute(f"SET temp_directory = '{spill.as_posix()}'")
+    con.execute(f"SET max_temp_directory_size = '{env('KEYSTONE_DUCKDB_TEMP_MAX', '10GB')}'")
+    con.execute("SET preserve_insertion_order = false")
+    if env("KEYSTONE_DUCKDB_THREADS"):  # fewer threads, fewer per-thread hash tables
+        con.execute(f"SET threads = {int(env('KEYSTONE_DUCKDB_THREADS', '1'))}")
     actor = False
     if rollup.is_file():
         con.execute(f"ATTACH '{rollup.as_posix()}' AS r (READ_ONLY)")

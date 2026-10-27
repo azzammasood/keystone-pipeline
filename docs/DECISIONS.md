@@ -9,6 +9,10 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - **Choice:** `score.signals.open_inputs` sets `memory_limit` (6 GB by default;
   `KEYSTONE_DUCKDB_MEMORY_LIMIT` overrides it), a temp directory with a 10 GB cap and
   `preserve_insertion_order = false`. `backtest.yml` timeout goes from 60 to 240 minutes.
+- **Second run (40452426625):** the spill reached the 10 GB cap within 30 s in the
+  all-repositories `GROUP BY repo_id` (the reference set). On Actions the step now sets 11 GB,
+  2 threads (fewer per-thread hash tables) and a 40 GB spill cap through
+  `KEYSTONE_DUCKDB_MEMORY_LIMIT`, `KEYSTONE_DUCKDB_THREADS` and `KEYSTONE_DUCKDB_TEMP_MAX`.
 - **Why:** the same fix as the backfill merge (ADR-066); the results do not change, only where
   the intermediates live.
 
