@@ -13,8 +13,14 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   all-repositories `GROUP BY repo_id` (the reference set). On Actions the step now sets 11 GB,
   2 threads (fewer per-thread hash tables) and a 40 GB spill cap through
   `KEYSTONE_DUCKDB_MEMORY_LIMIT`, `KEYSTONE_DUCKDB_THREADS` and `KEYSTONE_DUCKDB_TEMP_MAX`.
-- **Why:** the same fix as the backfill merge (ADR-066); the results do not change, only where
-  the intermediates live.
+- **Third run (40452816855):** the runner itself ran out of memory after 11 minutes.
+  `signals.compute` returned every repository of the window as Python dicts, and the backtest
+  then kept only those with at least `ACTIVE_EVENTS` human events (plus the targets). That
+  filter now runs in DuckDB (`min_human_events`, `keep`), and the actor and vulnerability
+  queries are limited to the kept repositories. A test checks the result equals the
+  unfiltered reference set.
+- **Why:** the same fix as the backfill merge (ADR-066) plus a pushed-down filter; the results
+  do not change, only where the intermediates live.
 
 ## ADR-069 (2026-10-27) Backfill drift learned per era from the chunk records (ADR-051 follow-up)
 - **Context:** in report mode, backfill chunks record drift findings per hour (`hours.drift`)

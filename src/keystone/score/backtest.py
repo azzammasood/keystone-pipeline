@@ -185,7 +185,7 @@ def run_incident(
         for r in inc.repos:
             ids[r["name"]] = r.get("id") or signals.resolve_name(inp, r["name"], w)
         found = [i for i in ids.values() if i is not None]
-        sig = signals.compute(inp, w)
+        sig = signals.compute(inp, w, min_human_events=ACTIVE_EVENTS, keep=found)
         ref = _reference(sig, rules, found)
         pop = list(ref.values())
         pt = Point(w.cut.isoformat(), cov, "scored", reference_size=len(pop))

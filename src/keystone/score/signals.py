@@ -18,6 +18,7 @@ Inputs (DuckDB views on one connection):
 import csv
 import os
 import tempfile
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -238,9 +239,26 @@ def _scope(inp: Inputs, repo_ids: list[int] | None) -> str:
     return "AND repo_id IN (SELECT repo_id FROM scope)"
 
 
-def compute(inp: Inputs, w: Window, repo_ids: list[int] | None = None) -> dict[int, dict[str, Any]]:
-    """Raw signals for `repo_ids` (all repositories with activity in the window when None)."""
+def compute(
+    inp: Inputs,
+    w: Window,
+    repo_ids: list[int] | None = None,
+    min_human_events: int = 0,
+    keep: Sequence[int] = (),
+) -> dict[int, dict[str, Any]]:
+    """Raw signals for `repo_ids` (all repositories with activity in the window when None).
+    With `min_human_events`, only repositories with at least that many human events, plus
+    `keep`, are returned: the filter runs in DuckDB, so a 12-month window of every repository
+    never reaches Python (ADR-070)."""
     scope = _scope(inp, repo_ids)
+    having = ""
+    if min_human_events > 0:
+        inp.con.execute("CREATE OR REPLACE TEMP TABLE keep (repo_id BIGINT)")
+        inp.con.executemany("INSERT INTO keep VALUES (?)", [[r] for r in keep])
+        having = (
+            f"HAVING COALESCE(SUM(human_events), 0) >= {int(min_human_events)} "
+            "OR repo_id IN (SELECT repo_id FROM keep)"
+        )
     eras = spans("schema_eras.csv", "era", w.start, w.cut)
     periods = spans("completeness_periods.csv", "period", w.start, w.cut)
     mv = maint_version(eras)
@@ -272,10 +290,15 @@ def compute(inp: Inputs, w: Window, repo_ids: list[int] | None = None) -> dict[i
           COALESCE(SUM(added) FILTER (WHERE event_type = 'MemberEvent'), 0)
         FROM repo_hour
         WHERE window_start >= $start AND window_start < $cut AND repo_id IS NOT NULL {scope}
-        GROUP BY repo_id
+        GROUP BY repo_id {having}
         """,
         {"start": w.start, "cut": w.cut, "recent": w.recent, "half": w.half},
     ).fetchall()
+    if having:  # the actor and vulnerability signals only for the kept repositories
+        inp.con.execute("CREATE OR REPLACE TEMP TABLE active (repo_id BIGINT)")
+        inp.con.executemany("INSERT INTO active VALUES (?)", [[int(r[0])] for r in act])
+        inp.con.execute("INSERT INTO active SELECT repo_id FROM keep")
+        scope += " AND repo_id IN (SELECT repo_id FROM active)"
     for r in act:
         last = r[7]
         out[int(r[0])] = base | {

@@ -407,3 +407,16 @@ def test_actor_data_roundtrip(data: dict[str, Path], tmp_path: Path) -> None:
         ["bash", script, "decrypt", str(tmp_path / "enc"), str(out)], env=env, check=True
     )
     assert (out / "repo_actor_month-1.parquet").read_bytes() == plain.read_bytes()
+
+
+def test_filtered_compute_equals_the_reference_of_the_full_compute(data: dict[str, Path]) -> None:
+    inp = signals.open_inputs(data["clean"], data["clean_wh"])
+    w = signals.Window(INC.cut)
+    full = signals.compute(inp, w)
+    for k in (1, 50, 10_000):
+        keep = sorted(full)[:1]
+        part = signals.compute(inp, w, min_human_events=k, keep=keep)
+        want = {r for r, s in full.items() if s.get("human_events", 0) >= k or r in keep}
+        assert set(part) == want
+        assert all(part[r] == full[r] for r in part)
+    inp.close()
