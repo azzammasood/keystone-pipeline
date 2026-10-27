@@ -12,9 +12,13 @@ Resume point for any new session. Updated at every gate and before long runs.
     2021-05 and the fetch-error hours.
   - xz: pending.
 - **Drift learned for E2** (16 entries; `keystone backfill drift --learn`, ADR-069).
-- **Backfill:**
-  - xz + live (40371109404, 52 chunks) at about 43 min per half month, fetch-bound: done around
-    2026-10-28 17:30Z, then the colors-faker redo (around 21:00Z).
+- **Backfill (status 2026-10-27 17:30Z):**
+  - xz + live (40371109404): 22 of 52 chunks done, no job failures, about 34 min per chunk;
+    done around 2026-10-28 10:00Z.
+  - Then one redo for all windows (40548762011, ADR-071: `chunk_days=16`,
+    `split_from=2023-01-01`, `end=2026-10-27`, `redo_incomplete`). It covers colors-faker
+    2021-05 plus 5 incomplete months, 5 xz chunks with failed downloads, and any live ones.
+    Done around 2026-10-28 20:00Z.
   - 2021-08-25 17h to 08-27 22h (54 h) are absent at GH Archive: that chunk stays incomplete.
 - **Then:**
   1. Rerun `backtest.yml`.
