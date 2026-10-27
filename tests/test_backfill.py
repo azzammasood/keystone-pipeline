@@ -177,3 +177,13 @@ def test_drift_review_learns_by_chunk_era() -> None:
     reg: dict[str, dict[str, dict[str, list[str]]]] = {"E2": {"IssuesEvent": {}}}
     assert bd.learn(rev, reg) == ["E2 IssuesEvent payload.issue.draft bool"]
     assert "FollowEvent" not in reg["E2"]  # unknown types are reported, never learned
+
+
+def test_split_from_keeps_earlier_months_whole() -> None:
+    from datetime import date
+
+    from keystone.backfill import plan as planmod
+
+    wins = {"a": (date(2022, 12, 1), date(2023, 2, 1))}
+    names = [c.name for c in planmod.chunks(wins, 16, date(2023, 1, 1))]
+    assert names == ["20221201-20230101", "20230101-20230116", "20230116-20230201"]

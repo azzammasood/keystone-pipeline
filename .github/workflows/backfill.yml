@@ -17,6 +17,12 @@ on:
       chunk_days:
         description: Split months into parts of at most N days (0 = whole months).
         default: "0"
+      split_from:
+        description: Split only months from this date (YYYY-MM-DD; empty = all months).
+        default: ""
+      end:
+        description: Exclusive end of the live window (YYYY-MM-DD; empty = today).
+        default: ""
       max_chunks:
         description: Plan at most N pending chunks (0 = all).
         default: "0"
@@ -44,6 +50,8 @@ jobs:
       WINDOWS: ${{ inputs.windows }}
       CHUNK_DAYS: ${{ inputs.chunk_days }}
       MAX_CHUNKS: ${{ inputs.max_chunks }}
+      SPLIT_FROM: ${{ inputs.split_from }}
+      END: ${{ inputs.end }}
       REDO: ${{ inputs.redo_incomplete }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -64,6 +72,8 @@ jobs:
           done
           args=(--published published.txt --chunk-days "$CHUNK_DAYS" --max-chunks "$MAX_CHUNKS")
           for w in $WINDOWS; do args+=(--window "$w"); done
+          if [ -n "$SPLIT_FROM" ]; then args+=(--split-from "$SPLIT_FROM"); fi
+          if [ -n "$END" ]; then args+=(--end "$END"); fi
           if [ "$REDO" = "true" ]; then args+=(--redo-incomplete); fi
           uv run keystone backfill plan "${args[@]}"
           matrix=$(uv run keystone backfill plan "${args[@]}" --json)

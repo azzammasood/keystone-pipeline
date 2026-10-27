@@ -65,10 +65,13 @@ def _split(start: date, end: date, chunk_days: int) -> list[tuple[date, date]]:
     return list(zip(bounds[:-1], bounds[1:], strict=True))
 
 
-def chunks(wins: dict[str, tuple[date, date]], chunk_days: int = 0) -> list[Chunk]:
+def chunks(
+    wins: dict[str, tuple[date, date]], chunk_days: int = 0, split_from: date | None = None
+) -> list[Chunk]:
     """Each window cut at month boundaries, each month into parts of at most `chunk_days`
-    (0: whole months). Windows are disjoint in the current config; an overlap would be
-    planned twice, so it is refused."""
+    (0: whole months), only months starting on or after `split_from` when given (so one plan
+    keeps the names already published with whole months before it, ADR-071). Windows are
+    disjoint in the current config; an overlap would be planned twice, so it is refused."""
     out: list[Chunk] = []
     spans = sorted(wins.values())
     for (_, a_end), (b_start, _) in zip(spans, spans[1:], strict=False):
@@ -79,7 +82,8 @@ def chunks(wins: dict[str, tuple[date, date]], chunk_days: int = 0) -> list[Chun
         while month < end:
             nxt = _add_months(month, 1)
             lo, hi = max(start, month), min(end, nxt)
-            out.extend(Chunk(name, a, b) for a, b in _split(lo, hi, chunk_days))
+            days = chunk_days if split_from is None or month >= split_from else 0
+            out.extend(Chunk(name, a, b) for a, b in _split(lo, hi, days))
             month = nxt
     return sorted(out, key=lambda c: c.start)
 

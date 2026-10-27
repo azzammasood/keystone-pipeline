@@ -2,6 +2,18 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-071 (2026-10-27) One backfill redo for all windows: `split_from` and a pinned live end
+- **Context:** the backfill concurrency group keeps one pending run, so a second redo dispatch
+  would replace the queued colors-faker redo. A single redo has to cover colors-faker (whole
+  months), xz (5 chunks incomplete from 22 failed downloads) and live. Chunk names depend on
+  the split and on the live window's end, which defaults to today.
+- **Choice:** `backfill plan --split-from DATE` splits only months from that date, and the
+  workflow gains `split_from` and `end` inputs. The redo is dispatched with `chunk_days=16`,
+  `split_from=2023-01-01`, `end=2026-10-27` (the end run 40371109404 planned with) and
+  `redo_incomplete=true`, so every name matches what is published.
+- **Why:** otherwise the live tail would be replanned under a new name and its days counted
+  twice.
+
 ## ADR-070 (2026-10-27) Backtest on Actions: bounded DuckDB memory, longer timeout
 - **Context:** the first backtest with real windows (run 40451269309) read 7.3 GB of event-stream
   and colors-faker Parquet. The runner was shut down 10 minutes into the Backtest step. The

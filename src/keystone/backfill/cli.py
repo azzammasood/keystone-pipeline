@@ -24,6 +24,9 @@ def plan(
     published: Path | None = typer.Option(None, help="File of published asset names, one a line."),
     window: list[str] = typer.Option([], help="Only these windows (default: all)."),
     chunk_days: int = typer.Option(0, help="Split months into parts of at most N days (0: no)."),
+    split_from: str | None = typer.Option(
+        None, help="Split only months from this date (YYYY-MM-DD); earlier stay whole."
+    ),
     max_chunks: int = typer.Option(0, help="Plan at most N pending chunks (0: all)."),
     redo_incomplete: bool = typer.Option(False, help="Retry chunks published as incomplete."),
     end: str | None = typer.Option(None, help="Exclusive end of the live window (default: today)."),
@@ -36,7 +39,7 @@ def plan(
         if unknown:
             raise typer.BadParameter(f"unknown window(s): {sorted(unknown)}")
         wins = {k: v for k, v in wins.items() if k in window}
-    allc = planmod.chunks(wins, chunk_days)
+    allc = planmod.chunks(wins, chunk_days, date.fromisoformat(split_from) if split_from else None)
     names = set(published.read_text(encoding="utf-8").split()) if published else set()
     todo = planmod.pending(allc, names, redo_incomplete=redo_incomplete)
     if max_chunks:
