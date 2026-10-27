@@ -228,13 +228,31 @@ runner. Each job stays within 5 h and about 1 GB of the runner's 14 GB disk; 138
 664 job-hours run one at a time, about 28 days end to end at this machine's rates. The live
 window then grows by one day a day (one short job).
 
-## 5. Backfill rungs on GitHub Actions (ADR-050), pending
+## 5. Backfill rungs on GitHub Actions (ADR-050)
 
-The month rung (one chunk) and the year rung (one window's 13 chunks) come from the published
-chunk records (`chunk-*.json`: rows, bytes, wall time, peak RSS, cost $0), summed by
-`keystone backfill totals`. As of 2026-10-22 none has run (the owner still has to set the salt
-secret and merge the workflow), so this section has no numbers yet. The sizes in section 4 are
-for the superseded 24-month design.
+Rungs from the published chunk records (`chunk-*.json`), summed by `keystone backfill totals`
+(a chunk redone after an incomplete run counts once). Cost $0 throughout (public repository,
+standard runners). The sizes in section 4 are for the superseded 24-month design.
+
+**Month rung** (one chunk; fetch time dominates, since GH Archive allows 2 connections):
+
+| chunk | events | job s | fetch s | peak RSS self / children MB |
+|---|---:|---:|---:|---:|
+| event-stream 2018-11 | 41,599,234 | 854 | 815 | 9,263 / 886 |
+| colors-faker 2021-02 (ADR-066 cap; 13.6 GB peak before it) | 75,290,616 | 2,103 | 2,020 | 9,115 / 1,527 |
+| xz 2023-03-01..17 (half month, ADR-066 cap) | 68,504,380 | 2,531 | 2,427 | 8,477 / 1,896 |
+
+**Year rung** (one window):
+
+| window | chunks complete | days | events in chunks | downloaded GB | repo_hour rows | job hours |
+|---|---:|---:|---:|---:|---:|---:|
+| event-stream (2017-11..2018-11) | 13 / 13 | 395 | 517,146,065 | 200.9 | 287,653,502 | 3.97 |
+| colors-faker (2021-01..2022-01) | final after the redo run | | | | | |
+| xz (2023-03..2024-03) | pending (run 40371109404) | | | | | |
+| live (2025-10..2026-10) | pending (run 40371109404) | | | | | |
+
+Known source gap: 2021-08-25 17h to 2021-08-27 22h (54 hours) were absent from GH Archive when
+fetched, so chunk 2021-08 stays incomplete whatever the retries.
 
 ## 6. BigQuery sandbox rung (ADR-068), measured 2026-10-26
 
