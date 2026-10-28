@@ -53,7 +53,14 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   the rollups are unchanged.
 - **Not learned:** `FollowEvent` in E2 (1 hour, 2017-12-01 19h, ADR-051). It is a retired type,
   rolled up under its own key and used by no metric.
-- The final pass reruns this after xz and live.
+- **Final pass (2026-10-28, all four windows):** 11 more entries.
+  - E3: `IssuesEvent payload.issue.pull_request`/`draft`, `CommitCommentEvent payload.comment.line`
+    as int, `DiscussionEvent payload.discussion.active_lock_reason` as str, `IssueCommentEvent
+    payload.comment.pin` as dict, and the label `archived_at`/`archived_by` fields on issue and
+    PR labels.
+  - Only paths and type names are stored, never values.
+  - The one chunk spanning the 2025-10-07 break (20251001-20251017) was not learned. Each of
+    its findings also appears in a single-era chunk, so nothing is lost.
 
 ## ADR-068 (2026-10-26) BigQuery sandbox rung: dry runs, capped jobs, paged export
 - **Context:** brief Phase 1 item (a), never done: what the public `githubarchive` dataset costs
