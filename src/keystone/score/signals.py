@@ -251,14 +251,24 @@ def compute(
     `keep`, are returned: the filter runs in DuckDB, so a 12-month window of every repository
     never reaches Python (ADR-070)."""
     scope = _scope(inp, repo_ids)
-    having = ""
     if min_human_events > 0:
+        # Pick the kept repositories first with a narrow aggregate (one key, one sum, only rows
+        # with human events), then compute the wide signals for them alone: a 12-month window
+        # of every repository is too many groups for the wide aggregate (ADR-070).
         inp.con.execute("CREATE OR REPLACE TEMP TABLE keep (repo_id BIGINT)")
         inp.con.executemany("INSERT INTO keep VALUES (?)", [[r] for r in keep])
-        having = (
-            f"HAVING COALESCE(SUM(human_events), 0) >= {int(min_human_events)} "
-            "OR repo_id IN (SELECT repo_id FROM keep)"
+        inp.con.execute(
+            f"""
+            CREATE OR REPLACE TEMP TABLE active AS
+            SELECT repo_id FROM repo_hour
+            WHERE window_start >= $start AND window_start < $cut AND repo_id IS NOT NULL
+              AND human_events > 0 {scope}
+            GROUP BY repo_id HAVING SUM(human_events) >= {int(min_human_events)}
+            UNION SELECT repo_id FROM keep
+            """,
+            {"start": w.start, "cut": w.cut},
         )
+        scope += " AND repo_id IN (SELECT repo_id FROM active)"
     eras = spans("schema_eras.csv", "era", w.start, w.cut)
     periods = spans("completeness_periods.csv", "period", w.start, w.cut)
     mv = maint_version(eras)
@@ -290,15 +300,10 @@ def compute(
           COALESCE(SUM(added) FILTER (WHERE event_type = 'MemberEvent'), 0)
         FROM repo_hour
         WHERE window_start >= $start AND window_start < $cut AND repo_id IS NOT NULL {scope}
-        GROUP BY repo_id {having}
+        GROUP BY repo_id
         """,
         {"start": w.start, "cut": w.cut, "recent": w.recent, "half": w.half},
     ).fetchall()
-    if having:  # the actor and vulnerability signals only for the kept repositories
-        inp.con.execute("CREATE OR REPLACE TEMP TABLE active (repo_id BIGINT)")
-        inp.con.executemany("INSERT INTO active VALUES (?)", [[int(r[0])] for r in act])
-        inp.con.execute("INSERT INTO active SELECT repo_id FROM keep")
-        scope += " AND repo_id IN (SELECT repo_id FROM active)"
     for r in act:
         last = r[7]
         out[int(r[0])] = base | {

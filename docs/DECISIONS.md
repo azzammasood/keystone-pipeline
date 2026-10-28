@@ -31,6 +31,10 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   filter now runs in DuckDB (`min_human_events`, `keep`), and the actor and vulnerability
   queries are limited to the kept repositories. A test checks the result equals the
   unfiltered reference set.
+- **Fourth (xz, run 40642236858):** the 2023 window has so many repositories that the wide
+  aggregate followed by HAVING spilled 37 GB. The kept set is now chosen first by a narrow
+  aggregate (`repo_id`, one sum, only rows with human events). The wide signals are computed
+  only for the kept repositories. The result is unchanged (same test).
 - **Why:** the same fix as the backfill merge (ADR-066) plus a pushed-down filter; the results
   do not change, only where the intermediates live.
 
