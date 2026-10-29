@@ -2,6 +2,23 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-072 (2026-10-29) Backfill retries failed hours in extra passes and records why
+- **Context:** after run 40548762011, 7 chunks still held 18 hours that failed to download.
+  - The files exist (HEAD: 200, 55-91 MB).
+  - Some hours failed again on redo; the client's 3 retries at 2/4/8 s are short for a GH
+    Archive hiccup.
+  - The records gave no reason.
+  - The 2021-04 chunk hit the 350-minute job timeout on one slow runner (it normally takes
+    about 35 minutes).
+  - The 54 hours of 2021-08 that GH Archive lacked earlier have since appeared, so that chunk
+    is now complete.
+- **Choice:** after the main fetch, `backfill chunk` retries errored hours one by one in up to
+  two more passes: after a 60 s and then a 300 s pause, with 6 retries and 15 s backoff, still
+  through the polite client and its limits. Each record now has `fetch_error_reasons`
+  (hour -> error text).
+- **Why:** the redo stays cheap; one hour at a time never re-downloads the hours already
+  parsed.
+
 ## ADR-071 (2026-10-27) One backfill redo for all windows: `split_from` and a pinned live end
 - **Context:** the backfill concurrency group keeps one pending run, so a second redo dispatch
   would replace the queued colors-faker redo. A single redo has to cover colors-faker (whole

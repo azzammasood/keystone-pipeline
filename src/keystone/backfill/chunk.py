@@ -138,6 +138,7 @@ def _merge_sql(r: Rollup, start: datetime, end: datetime, glob: str) -> str:
 
 
 MERGE_MEMORY_LIMIT = "8GB"
+RETRY_PAUSES_S = (60.0, 300.0)  # before each extra pass over errored hours (ADR-072)
 
 
 def merge(work: Path, out: Path, name: str, start: datetime, end: datetime,
@@ -261,10 +262,28 @@ def run_chunk(window: str, start: date, end: date, work: Path, out: Path, *,
         manifest = Manifest(work / "manifest.duckdb")
         try:
             async with PoliteClient(policy) as client:
-                return await gha.ingest_hours(
+                summary = await gha.ingest_hours(
                     client, manifest, cfg, begin, overlap_end, raw, disk,
                     keep=True, on_file=on_file, now=now,
                 )  # fmt: skip
+            # Hours that failed after the client's short retries get up to two more passes,
+            # one hour at a time after a pause, with longer backoff (ADR-072): the files exist
+            # and a later attempt usually succeeds.
+            for pause in RETRY_PAUSES_S:
+                errored = [
+                    h for h, r in manifest.records(gha.SOURCE, begin, overlap_end).items()
+                    if r.status == "error"
+                ]  # fmt: skip
+                if not errored:
+                    break
+                await asyncio.sleep(pause)
+                async with PoliteClient(policy, max_retries=6, backoff_seconds=15.0) as client:
+                    for h in errored:
+                        await gha.ingest_hours(
+                            client, manifest, cfg, h, h + timedelta(hours=1), raw, disk,
+                            keep=True, on_file=on_file, now=now,
+                        )  # fmt: skip
+            return summary
         finally:
             manifest.close()
 
@@ -282,6 +301,11 @@ def run_chunk(window: str, start: date, end: date, work: Path, out: Path, *,
         manifest.close()
     failed = sorted(r["hour"] for r in results if r["error"])
     fetch_errors = sorted(h.isoformat() for h, r in records.items() if r.status == "error")
+    fetch_error_reasons = {
+        h.isoformat(): (r.error or "unknown")[:200]
+        for h, r in records.items()
+        if r.status == "error"
+    }
     merged = merge(work, out, name, begin, finish, overlap_end)
     total_s = time.monotonic() - t0
     hours_in_chunk = int((finish - begin).total_seconds() // 3600)
@@ -309,6 +333,7 @@ def run_chunk(window: str, start: date, end: date, work: Path, out: Path, *,
             # learned into contracts/drift/gharchive.yml after the backfill.
             "drift": _drift_summary(results),
             "fetch_errors": fetch_errors,
+            "fetch_error_reasons": fetch_error_reasons,
             "missing": sorted(h.isoformat() for h, r in records.items() if r.status == "missing"),
         },
         "download": {"bytes": summary.downloaded_bytes, "requests": summary.requests},
