@@ -187,3 +187,18 @@ def test_split_from_keeps_earlier_months_whole() -> None:
     wins = {"a": (date(2022, 12, 1), date(2023, 2, 1))}
     names = [c.name for c in planmod.chunks(wins, 16, date(2023, 1, 1))]
     assert names == ["20221201-20230101", "20230101-20230117", "20230117-20230201"]
+
+
+def test_plan_refuses_chunks_overlapping_published_days() -> None:
+    from datetime import date
+
+    import pytest
+
+    from keystone.backfill import plan as planmod
+
+    wins = {"a": (date(2023, 1, 1), date(2023, 2, 1))}
+    published = {"chunk-20230101-20230117.json", "repo_actor_month-20230101-20230117.parquet.enc"}
+    with pytest.raises(ValueError, match="overlaps published"):
+        planmod.pending(planmod.chunks(wins, 0), published)  # whole month over a half
+    same = planmod.pending(planmod.chunks(wins, 16), published)
+    assert [c.name for c in same] == ["20230117-20230201"]

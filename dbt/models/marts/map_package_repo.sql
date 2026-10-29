@@ -47,7 +47,7 @@ decisions AS (
         COALESCE('github.com#' || CAST(i.repo_id AS STRING), d.candidate) AS candidate_key
     FROM {{ ref('resolve_decisions') }} AS d
     LEFT JOIN {{ ref('int_repo_identity') }} AS i
-        ON d.candidate = 'github.com/' || i.repo_name_lower
+        ON LOWER(d.candidate) = 'github.com/' || i.repo_name_lower
     WHERE d.subject = 'package_repo'
 ),
 

@@ -206,6 +206,8 @@ def lakeflow(ws: Workspace, timeout_s: int = 1800) -> dict[str, Any]:
         if state in {"COMPLETED", "FAILED", "CANCELED"}:
             break
         time.sleep(15)
+    if state not in {"COMPLETED", "FAILED", "CANCELED"}:  # timed out: stop it, spare the quota
+        ws.api("POST", f"/api/2.0/pipelines/{pid}/stop")
     out: dict[str, Any] = {"state": state, "seconds": round(time.monotonic() - t0, 1)}
     if state != "COMPLETED":
         ev = ws.api(

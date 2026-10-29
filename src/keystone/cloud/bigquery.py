@@ -3,7 +3,7 @@ dataset costs per column set, an in-place rollup and its export path, all at $0.
 
 Guards, in order, for every query: a dry run first (free; reports the bytes the query would
 scan); refused when that exceeds the per-query cap or what is left of the run budget and of the
-monthly free tier after this project's bytes billed this month (INFORMATION_SCHEMA); then the
+monthly free tier after this project's bytes billed this month (jobs.list); then the
 real job with `maximumBytesBilled` set, so BigQuery itself refuses anything larger. The project
 has no billing account (sandbox), so a charge is impossible; the guards keep the free tier too.
 Auth: a short-lived access token from keyless Workload Identity Federation, never printed.

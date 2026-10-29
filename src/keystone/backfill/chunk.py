@@ -104,7 +104,9 @@ def parse_hour(path: Path, rec: FileRecord) -> dict[str, Any]:
     except driftmod.DriftError as exc:
         out["error"] = f"drift: {exc}"[:400]
     except Exception as exc:  # one bad hour is recorded, not fatal to the chunk
-        out["error"] = f"{type(exc).__name__}: {exc}"[:400]
+        # The record is public: the exception type only, never its text (it can quote a raw
+        # record); drift errors above carry paths and type names only.
+        out["error"] = type(exc).__name__
     finally:
         path.unlink(missing_ok=True)
         for sub in ("silver", "quarantine"):

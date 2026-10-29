@@ -41,7 +41,11 @@ def plan(
         wins = {k: v for k, v in wins.items() if k in window}
     allc = planmod.chunks(wins, chunk_days, date.fromisoformat(split_from) if split_from else None)
     names = set(published.read_text(encoding="utf-8").split()) if published else set()
-    todo = planmod.pending(allc, names, redo_incomplete=redo_incomplete)
+    try:
+        todo = planmod.pending(allc, names, redo_incomplete=redo_incomplete)
+    except ValueError as exc:
+        typer.echo(f"refused: {exc}", err=True)
+        raise typer.Exit(1) from exc
     if max_chunks:
         todo = todo[:max_chunks]
     if json_out:

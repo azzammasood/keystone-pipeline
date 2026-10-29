@@ -14,7 +14,7 @@ WITH d AS (
         END AS candidate_key
     FROM {{ ref('resolve_decisions') }} AS r
     LEFT JOIN {{ ref('int_repo_identity') }} AS i
-        ON r.candidate = 'github.com/' || i.repo_name_lower
+        ON LOWER(r.candidate) = 'github.com/' || i.repo_name_lower
 )
 
 SELECT d.subject, d.subject_key, d.candidate

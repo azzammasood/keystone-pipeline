@@ -16,13 +16,13 @@ on:
         default: ""
       chunk_days:
         description: Split months into parts of at most N days (0 = whole months).
-        default: "0"
+        default: "16"  # the split the windows were published with (ADR-071, ADR-074)
       split_from:
         description: Split only months from this date (YYYY-MM-DD; empty = all months).
-        default: ""
+        default: "2023-01-01"
       end:
         description: Exclusive end of the live window (YYYY-MM-DD; empty = today).
-        default: ""
+        default: "2026-10-27"  # the published live window; a later end would overlap it
       max_chunks:
         description: Plan at most N pending chunks (0 = all).
         default: "0"

@@ -225,8 +225,8 @@ Rolling silver window (30 days ending today): 7.1 GB as parsed; 6.3 GB without a
 aggregates; upper-side for the E2 years), 50 monthly assets per window, the largest about
 1.1 GB, under the 2 GiB limit. `repo_actor_day` (93.7 GB if it were kept) never leaves a
 runner. Each job stays within 5 h and about 1 GB of the runner's 14 GB disk; 138 jobs and
-664 job-hours run one at a time, about 28 days end to end at this machine's rates. The live
-window then grows by one day a day (one short job).
+664 job-hours run one at a time, about 28 days end to end at this machine's rates. (Superseded:
+the backfill's live window is fixed at 2026-10-27; ingest keeps the radar current, ADR-074.)
 
 ## 5. Backfill rungs on GitHub Actions (ADR-050)
 
@@ -242,17 +242,39 @@ standard runners). The sizes in section 4 are for the superseded 24-month design
 | colors-faker 2021-02 (ADR-066 cap; 13.6 GB peak before it) | 75,290,616 | 2,103 | 2,020 | 9,115 / 1,527 |
 | xz 2023-03-01..17 (half month, ADR-066 cap) | 68,504,380 | 2,531 | 2,427 | 8,477 / 1,896 |
 
-**Year rung** (one window):
+**Month rung, largest half months** (after ADR-066):
 
-| window | chunks complete | days | events in chunks | downloaded GB | repo_hour rows | job hours |
-|---|---:|---:|---:|---:|---:|---:|
-| event-stream (2017-11..2018-11) | 13 / 13 | 395 | 517,146,065 | 200.9 | 287,653,502 | 3.97 |
-| colors-faker (2021-01..2022-01) | final after the redo run | | | | | |
-| xz (2023-03..2024-03) | pending (run 40371109404) | | | | | |
-| live (2025-10..2026-10) | pending (run 40371109404) | | | | | |
+| chunk | events | job s | fetch s | peak RSS self / children MB |
+|---|---:|---:|---:|---:|
+| xz 2024-03-01..17 (slowest and largest) | 87,760,116 | 3,009 | 2,909 | 8,511 / 2,231 |
+| live 2026-05-01..17 (highest RSS in live) | 57,573,212 | 1,084 | 1,019 | 8,510 / 1,293 |
 
-Known source gap: 2021-08-25 17h to 2021-08-27 22h (54 hours) were absent from GH Archive when
-fetched, so chunk 2021-08 stays incomplete whatever the retries.
+Peak RSS (self) per window, highest chunk:
+- event-stream: 9,474 MB (whole 2018 months, run before the cap);
+- colors-faker: 9,238 MB (whole 2021 months, 8 GB merge cap, ADR-066);
+- xz: 8,511 MB and live: 8,510 MB (half months, cap).
+
+The uncapped 2021-02 attempt reached 13.6 GB on the 16 GB runner.
+
+**Year rung** (one window; final, every chunk complete, 2026-10-29):
+
+| window | chunks | days | events in chunks | downloaded GB | repo_hour rows | contributors rows | sealed repo_actor_month rows | repo_hour GB | contributors GB | job hours | hours missing at source |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| event-stream (2017-11..2018-11) | 13 | 395 | 517,146,065 | 200.9 | 287,653,502 | 126,470,684 | 107,808,370 | 0.92 | 0.36 | 3.97 | 3 |
+| colors-faker (2021-01..2022-01) | 13 | 396 | 1,121,147,780 | 604.9 | 607,736,949 | 207,186,513 | 168,508,949 | 1.87 | 0.59 | 10.22 | 225 |
+| xz (2023-03..2024-03, half months) | 26 | 397 | 1,678,142,834 | 781.1 | 803,615,825 | 276,412,877 | 246,599,034 | 2.60 | 0.79 | 15.15 | 0 |
+| live (2025-10..2026-10, half months) | 26 | 391 | 1,257,623,050 | 286.3 | 643,971,153 | 236,529,253 | 161,816,825 | 2.03 | 0.65 | 8.54 | 0 |
+| **all** | **78** | **1,579** | **4,574,059,729** | **1,873.2** | **2,342,977,429** | **846,599,327** | **684,733,178** | **7.42** | **2.39** | **37.88** | **228** |
+
+- Two parse quarantines in the whole backfill (1 colors-faker, 1 xz).
+- Job hours count the final successful attempt of each chunk; retries and the cancelled
+  attempts are not included.
+- Gaps at GH Archive (404 when fetched): 2021-08-25 17h to 08-27 22h, 2021-10-22 05h to 10-29
+  17h, and 3 hours in the event-stream window.
+- About 1.87 TB was downloaded and streamed through standard runners at $0. What is kept:
+  9.8 GB of key-free Parquet in the Release assets, plus the encrypted repo_actor_month.
+- The live window downloaded 2.7x fewer bytes than xz for 75% of its events: E3 payloads (from
+  2025-10-07) are trimmed (`docs/era-map.md`).
 
 ## 6. BigQuery sandbox rung (ADR-068), measured 2026-10-26
 

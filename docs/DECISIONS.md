@@ -2,6 +2,27 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-074 (2026-10-29) Publish fetches registry claims; backfill refuses overlapping plans
+- **Context:** with the backfill complete, the daily publish still failed
+  `assert_review_decisions_still_apply`: 22 reviewed id-keyed decisions, such as
+  `PyPI/future -> github.com#11403699`.
+  - The rows were printed by the new failed-test output (`dbt show --inline`).
+  - Publish never ran `keystone resolve fetch`, so production had no registry claims and no
+    ecosyste.ms ids. Many candidates were keyed by name or missing.
+  - ADR-037 had set the order: warehouse build, resolve fetch, warehouse build.
+  - The Phase 9 review also found that re-dispatching the backfill with other split or end
+    inputs would replan published days under new names, so they would be counted twice.
+- **Choice:**
+  - `publish.yml` runs ADR-037's order: seeds and models first (`DBT_INDIRECT_SELECTION=empty`,
+    no tests), then `resolve fetch` (polite; claims kept in the data cache and refreshed after
+    7 days), then the full build with its tests. The job timeout goes from 30 to 90 minutes.
+  - `backfill plan` refuses a pending chunk that overlaps a published chunk of another name.
+  - The `backfill.yml` defaults are the published layout (`chunk_days=16`,
+    `split_from=2023-01-01`, `end=2026-10-27`). The backfill's live window is fixed; ingest keeps
+    the radar current.
+- **Why:** the mapping the site shows needs the registry claims, and no re-dispatch can count
+  history twice.
+
 ## ADR-073 (2026-10-29) Reviewed decisions follow a candidate's name to its GitHub id
 - **Context:** once the backfill landed, the daily publish failed for 3 days on
   `assert_review_decisions_still_apply` (23 rows).
@@ -26,8 +47,10 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   - The records gave no reason.
   - The 2021-04 chunk hit the 350-minute job timeout on one slow runner (it normally takes
     about 35 minutes).
-  - The 54 hours of 2021-08 that GH Archive lacked earlier have since appeared, so that chunk
-    is now complete.
+  - Correction (2026-10-29): GH Archive still lacks those hours. Missing hours are source gaps
+    and do not make a chunk incomplete; only failed downloads do. The 2021-08 chunk was
+    incomplete because of one download error, which the redo fixed. Source gaps in the windows:
+    2021-08-25 17h to 08-27 22h (54 h) and 2021-10-22 05h to 10-29 17h (171 h); event-stream 3 h.
 - **Choice:** after the main fetch, `backfill chunk` retries errored hours one by one in up to
   two more passes: after a 60 s and then a 300 s pause, with 6 retries and 15 s backoff, still
   through the polite client and its limits. Each record now has `fetch_error_reasons`

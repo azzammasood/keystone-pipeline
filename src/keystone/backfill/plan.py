@@ -8,8 +8,9 @@ instead and is retried only on request.
 """
 
 import math
+import re
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from keystone.bench.storage import _add_months, design_windows, load_incidents
 
@@ -100,4 +101,23 @@ def pending(
         if c.incomplete_asset in published and not redo_incomplete:
             continue
         out.append(c)
+    # A pending chunk must not cover days already published under another name (a different
+    # split or live end): its rows would be counted twice downstream (ADR-074).
+    done = [published_range(n) for n in published]
+    for c in out:
+        for r in done:
+            if r and r[0] < c.end and c.start < r[1] and (r[0], r[1]) != (c.start, c.end):
+                raise ValueError(
+                    f"chunk {c.name} overlaps published {r[0]:%Y%m%d}-{r[1]:%Y%m%d}: plan with "
+                    "the split and live end used before (chunk_days, split_from, end)"
+                )
     return out
+
+
+def published_range(asset: str) -> tuple[date, date] | None:
+    """The days of a published chunk record (`chunk-YYYYMMDD-YYYYMMDD[.incomplete].json`)."""
+    m = re.fullmatch(r"chunk-(\d{8})-(\d{8})(?:\.incomplete)?\.json", asset)
+    if not m:
+        return None
+    a, b = (datetime.strptime(x, "%Y%m%d").date() for x in m.groups())
+    return a, b

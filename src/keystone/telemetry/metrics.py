@@ -47,9 +47,9 @@ ROLES = {
     "keystone": "metadata export, metrics and site exports",
     "keystone-llm": "free language model (OpenRouter): resolution ties, weekly brief",
     "airflow": "local orchestration showcase (tasks call the CLI)",
-    "databricks-sql": "Unity Catalog staging on Databricks Free Edition (serverless SQL)",
-    "dbt-databricks": "the dbt project built on Databricks (Unity Catalog)",
-    "databricks-lakeflow": "Lakeflow Declarative Pipeline over the marts",
+    "databricks-sql": "Unity Catalog staging on Databricks Free Edition (CI fixtures)",
+    "dbt-databricks": "the dbt project built on Databricks (Unity Catalog, CI fixtures)",
+    "databricks-lakeflow": "Lakeflow Declarative Pipeline over the marts (CI fixtures)",
     "bigquery": "BigQuery sandbox: in-place rollup and bytes per column set",
 }
 
