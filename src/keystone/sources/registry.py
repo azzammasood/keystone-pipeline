@@ -261,6 +261,22 @@ async def critical_names(client: PoliteClient, ecosystem: str) -> list[str]:
         page += 1
 
 
+BODY_RETRIES = 3  # a large bulk body can drop mid-read; the client retries only the response
+
+
+async def _post_batch(client: PoliteClient, url: str, purls: list[str]) -> tuple[bytes, int]:
+    """One bulk request; the body read is retried on a transport error (ADR-075)."""
+    for attempt in range(BODY_RETRIES + 1):
+        try:
+            async with client.request("POST", url, json_body={"purls": purls}) as response:
+                return await response.aread(), response.status_code
+        except httpx.TransportError:
+            if attempt >= BODY_RETRIES:
+                raise
+            await asyncio.sleep(10.0 * 2**attempt)
+    raise AssertionError("unreachable")
+
+
 async def bulk_lookup(
     client: PoliteClient,
     wanted: Sequence[Wanted],
@@ -271,11 +287,7 @@ async def bulk_lookup(
     url = f"{ECOSYSTEMS}/packages/bulk_lookup"
     for start in range(0, len(wanted), BULK_MAX):
         batch = list(wanted[start : start + BULK_MAX])
-        async with client.request(
-            "POST", url, json_body={"purls": [w.purl for w in batch]}
-        ) as response:
-            body = await response.aread()
-            status = response.status_code
+        body, status = await _post_batch(client, url, [w.purl for w in batch])
         stats.requests += 1
         stats.bytes += len(body)
         if status != 200:

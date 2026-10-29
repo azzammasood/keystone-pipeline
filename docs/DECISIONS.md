@@ -2,6 +2,15 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-075 (2026-10-29) Registry bulk lookups retry a dropped body read
+- **Context:** the first production `resolve fetch` (publish run 40925231971) died on
+  `httpx.ReadError` while reading an ecosyste.ms bulk response. Those bodies are large (664 MB
+  over the first fetch, ADR-037). The polite client retries a request until the response
+  arrives, not a body that drops mid-stream.
+- **Choice:** each bulk batch is retried up to 3 times on a transport error, after 10/20/40 s,
+  through the same client (its pacing, robots and quota checks).
+- **Why:** a single dropped read must not fail the whole daily publish.
+
 ## ADR-074 (2026-10-29) Publish fetches registry claims; backfill refuses overlapping plans
 - **Context:** with the backfill complete, the daily publish still failed
   `assert_review_decisions_still_apply`: 22 reviewed id-keyed decisions, such as
