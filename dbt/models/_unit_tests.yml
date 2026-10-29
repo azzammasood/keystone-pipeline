@@ -109,7 +109,7 @@ unit_tests:
           - {repo_name_lower: o/m2, repo_id: 112, id_rule: ecosystems_current, current_name: o/m2, seen_in_gharchive: false}
       - input: ref('resolve_decisions')
         rows:
-          - {subject: package_repo, subject_key: PyPI/h, candidate: "github.com#82", decision: accepted, decided_on: "2026-10-21", note: test}
+          - {subject: package_repo, subject_key: PyPI/h, candidate: github.com/o/h2, decision: accepted, decided_on: "2026-10-21", note: test}
           - {subject: package_repo, subject_key: PyPI/m, candidate: "github.com#111", decision: rejected, decided_on: "2026-10-21", note: test}
       - input: ref('stg_resolve__llm_choices')
         rows:

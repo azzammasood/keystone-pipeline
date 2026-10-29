@@ -38,6 +38,19 @@ keyed AS (
     FROM claims
 ),
 
+-- A decision may name the candidate by github.com name; once that name's GitHub id is known
+-- the candidate is keyed by id, so the decision follows it (ADR-073).
+decisions AS (
+    SELECT
+        d.subject_key,
+        d.decision,
+        COALESCE('github.com#' || CAST(i.repo_id AS STRING), d.candidate) AS candidate_key
+    FROM {{ ref('resolve_decisions') }} AS d
+    LEFT JOIN {{ ref('int_repo_identity') }} AS i
+        ON d.candidate = 'github.com/' || i.repo_name_lower
+    WHERE d.subject = 'package_repo'
+),
+
 grouped AS (
     SELECT
         package_key,
@@ -70,11 +83,8 @@ scored AS (
         + g.by_osv_git_range AS independent_sources,
         d.decision
     FROM grouped AS g
-    LEFT JOIN {{ ref('resolve_decisions') }} AS d
-        ON
-            d.subject = 'package_repo'
-            AND g.package_key = d.subject_key
-            AND g.repo_key = d.candidate
+    LEFT JOIN decisions AS d
+        ON g.package_key = d.subject_key AND g.repo_key = d.candidate_key
 ),
 
 ranked AS (

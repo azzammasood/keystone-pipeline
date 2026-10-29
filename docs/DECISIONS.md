@@ -2,6 +2,22 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-073 (2026-10-29) Reviewed decisions follow a candidate's name to its GitHub id
+- **Context:** once the backfill landed, the daily publish failed for 3 days on
+  `assert_review_decisions_still_apply` (23 rows).
+  - 23 `package_repo` decisions (21 accepted, 2 rejected) name their candidate as
+    `github.com/owner/name`.
+  - With real GH Archive history those names resolve to GitHub ids, so `map_package_repo`
+    keys the candidates `github.com#<id>`.
+  - The decisions no longer matched: the test caught exactly the orphaning it guards against,
+    and the overrides had stopped applying.
+- **Choice:** `map_package_repo` and the test map a name-keyed candidate through
+  `int_repo_identity` to `github.com#<id>` when the id is known, else keep the name. The unit
+  test now gives one decision by name (`github.com/o/h2` for id 82) with unchanged expected
+  output.
+- **Why:** reviewers decide on what they read (a name); the identity rules decide the key. The
+  seed is not rewritten, so a later rename or id change keeps working.
+
 ## ADR-072 (2026-10-29) Backfill retries failed hours in extra passes and records why
 - **Context:** after run 40548762011, 7 chunks still held 18 hours that failed to download.
   - The files exist (HEAD: 200, 55-91 MB).
