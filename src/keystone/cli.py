@@ -765,8 +765,7 @@ def warehouse_build(
             target=target,
         )
         if not ok:
-            for line in whdbt.failed_test_rows(paths):
-                typer.echo(line, err=True)
+            whdbt.show_failed_tests(paths, target)
             raise typer.Exit(1)
         # `docs generate` rewrites run_results.json; keep the build's (dbt-ol and metrics read it).
         build_results = (paths.target_dir / "run_results.json").read_bytes()

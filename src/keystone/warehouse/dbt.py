@@ -120,33 +120,19 @@ def published_rows(paths: WarehousePaths) -> int:
         con.close()
 
 
-def failed_test_rows(paths: WarehousePaths, limit: int = 30) -> list[str]:
-    """The first rows each failed data test returned, re-run from its compiled SQL, so a red
-    build on Actions shows what failed (the warehouse holds repository and package data only)."""
-    import duckdb
-
+def show_failed_tests(paths: WarehousePaths, target: str = "duckdb", limit: int = 30) -> int:
+    """Print the first rows of each failed data test (`dbt show --inline` on its compiled SQL,
+    through dbt's own connection), so a red build on Actions shows what failed. The warehouse
+    holds repository and package data only. Returns the number of failed tests shown."""
     path = paths.target_dir / "run_results.json"
     if not path.exists():
-        return []
+        return 0
     failed = [
         r
         for r in json.loads(path.read_text("utf-8"))["results"]
         if r["unique_id"].startswith("test.") and r["status"] == "fail" and r.get("compiled_code")
     ]
-    out: list[str] = []
-    if not failed:
-        return out
-    con = duckdb.connect(str(paths.warehouse_db), read_only=True)
-    try:
-        con.execute("SET TimeZone = 'UTC'")
-        con.execute(f"ATTACH '{paths.rollup_db.resolve().as_posix()}' AS rollup (READ_ONLY)")
-        for r in failed:
-            out.append(f"failed test {r['unique_id']}:")
-            try:
-                rows = con.execute(f"SELECT * FROM ({r['compiled_code']}) LIMIT {limit}").fetchall()
-                out.extend(f"  {row}" for row in rows)
-            except duckdb.Error as exc:
-                out.append(f"  (could not re-run: {type(exc).__name__})")
-    finally:
-        con.close()
-    return out
+    for r in failed:
+        print(f"failed test {r['unique_id']} (first {limit} rows):", flush=True)
+        run_dbt(["show", "--inline", r["compiled_code"], "--limit", str(limit)], paths, target)
+    return len(failed)
