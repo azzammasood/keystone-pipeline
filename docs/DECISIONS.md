@@ -2,6 +2,25 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-080 (2026-10-30) The live score reads the backfill's live window plus the daily rollup
+- **Context:** the first green publish (run 41022134574) scored nothing. `score live` read
+  only the publish cache's rollup, which held 0.0% of the window's hours, while the
+  backfill's live window (release `data-live`, 2025-10 to 2026-10-27) was never read.
+  ADR-039 says the live score reads the windows.
+- **Choice:**
+  - Publish downloads `data-live`'s `repo_hour` (2.0 GB) and encrypted `repo_actor_month`
+    (3.0 GB), decrypts the actor months on the runner, and deletes the ciphertext.
+  - `score live --rollup <data-live> --extra-rollup data/rollup/rollup.duckdb` adds the
+    daily rollup's whole days after the base's last day. Hours are unioned, and actor days
+    are summed into the base's months.
+  - Nothing decrypted is uploaded.
+- **Why:** the live score covers the backfill now and keeps covering the window as months
+  pass, fed by the daily ingest. No day is counted twice (test: base plus later days equals
+  the full rollup's signals).
+- **Known limits:** each publish downloads about 5 GB from the project's own release. If the
+  daily rollup misses days after 2026-10-27, coverage shows it and the score is withheld
+  below 90%.
+
 ## ADR-079 (2026-10-30) A refused npm name is quarantined, not fatal
 - **Context:** publish run 41020707685 failed when `registry.npmjs.org` answered HTTP 405 for
   `novu/api`, an OSV package name that looks like a scope missing its `@`. Any status other

@@ -420,3 +420,35 @@ def test_filtered_compute_equals_the_reference_of_the_full_compute(data: dict[st
         assert set(part) == want
         assert all(part[r] == full[r] for r in part)
     inp.close()
+
+
+def test_a_later_rollup_extends_the_base_by_whole_days(
+    data: dict[str, Path], tmp_path: Path
+) -> None:
+    # The base (the backfill's Parquet) ends mid-window; the daily rollup holds everything.
+    # Base plus the later days must give the full rollup's signals, nothing counted twice.
+    inp = signals.open_inputs(data["clean"], data["clean_wh"])
+    w = Window(CUT)
+    want = signals.compute(inp, w)
+    (split,) = inp.con.execute(
+        "SELECT date_trunc('day', min(window_start) + (max(window_start) - min(window_start)) / 2)"
+        " FROM repo_hour WHERE window_start >= $s AND window_start < $c",
+        {"s": w.start, "c": w.cut},
+    ).fetchone() or (None,)
+    hour = inp.con.execute("SELECT * FROM repo_hour WHERE window_start < ?", [split]).fetchdf()
+    day = inp.con.execute(
+        "SELECT * FROM r.main.repo_actor_day WHERE window_start < ?", [split]
+    ).fetchdf()
+    inp.close()
+    d = tmp_path / "base"
+    for name, df in (("repo_hour", hour), ("repo_actor_day", day)):
+        (d / name).mkdir(parents=True)
+        df.to_parquet(d / name / "part.parquet")
+    base = signals.open_inputs(d, data["clean_wh"])
+    assert signals.compute(base, w) != want  # the base alone misses the later days
+    base.close()
+    both = signals.open_inputs(d, data["clean_wh"], extra=data["clean"])
+    try:
+        assert signals.compute(both, w) == want
+    finally:
+        both.close()

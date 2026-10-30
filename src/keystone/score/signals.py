@@ -131,9 +131,41 @@ FROM {src} GROUP BY ALL
 """
 
 
-def open_inputs(rollup: Path, warehouse: Path | None = None) -> Inputs:
+def _extend(con: duckdb.DuckDBPyConnection, extra: Path, actor: bool) -> bool:
+    """Add the whole days of a later rollup file (the daily ingest's) after the base's last
+    day: its hours are unioned and its actor days summed into the base's months, so a day is
+    never counted twice. Returns whether per-actor data is available."""
+    con.execute(f"ATTACH '{extra.as_posix()}' AS x (READ_ONLY)")
+    t = _tables(con, "x")
+    (last,) = con.execute("SELECT max(window_start) FROM repo_hour").fetchone() or (None,)
+    if last is None:
+        raise FileNotFoundError("the base rollup has no repo_hour rows")
+    nxt = "date_trunc('day', TIMESTAMPTZ '" + last.isoformat() + "') + INTERVAL 1 DAY"
+    con.execute("ALTER VIEW repo_hour RENAME TO repo_hour_base")
+    con.execute(
+        "CREATE VIEW repo_hour AS SELECT * FROM repo_hour_base UNION ALL BY NAME "
+        f"SELECT * FROM x.main.repo_hour WHERE window_start >= {nxt}"
+    )
+    if not (actor and "main.repo_actor_day" in t):
+        return actor
+    later = f"(SELECT * FROM x.main.repo_actor_day WHERE window_start >= {nxt})"
+    con.execute("ALTER VIEW repo_actor_month RENAME TO repo_actor_month_base")
+    con.execute(
+        "CREATE VIEW repo_actor_month AS SELECT month, repo_id, actor_key, "
+        "SUM(events) AS events, SUM(pushes) AS pushes, SUM(prs_merged) AS prs_merged, "
+        "SUM(prs_closed) AS prs_closed, SUM(releases) AS releases, "
+        "SUM(issues_closed) AS issues_closed FROM ("
+        "SELECT month, repo_id, actor_key, events, pushes, prs_merged, prs_closed, releases, "
+        "issues_closed FROM repo_actor_month_base UNION ALL BY NAME "
+        f"{ACTOR_MONTH_FROM_DAY.format(src=later)}) GROUP BY ALL"
+    )
+    return True
+
+
+def open_inputs(rollup: Path, warehouse: Path | None = None, extra: Path | None = None) -> Inputs:
     """Views over a rollup DuckDB file or a directory of Parquet (`repo_hour/`, and optionally
-    `repo_actor_month/` or `repo_actor_day/`), plus the warehouse when given."""
+    `repo_actor_month/` or `repo_actor_day/`), plus the warehouse when given. `extra`, a later
+    rollup DuckDB file, adds the days after the base's last day (`_extend`)."""
     con = duckdb.connect()
     con.execute("SET TimeZone = 'UTC'")
     # Bounded memory with spill to disk: the backtest reads every window's Parquet (GBs) and a
@@ -177,6 +209,8 @@ def open_inputs(rollup: Path, warehouse: Path | None = None) -> Inputs:
         elif (ad := pq("repo_actor_day")) is not None:
             con.execute(f"CREATE VIEW repo_actor_month AS {ACTOR_MONTH_FROM_DAY.format(src=ad)}")
             actor = True
+    if extra is not None and extra.is_file():
+        actor = _extend(con, extra, actor)
     vuln = crit = names = False
     if warehouse is not None and warehouse.is_file():
         con.execute(f"ATTACH '{warehouse.as_posix()}' AS w (READ_ONLY)")

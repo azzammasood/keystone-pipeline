@@ -91,7 +91,24 @@ jobs:
         run: uv run keystone resolve fetch --max-minutes 35  # resumes next run (ADR-076)
       - run: uv run keystone warehouse build
       - run: uv run keystone quality contracts --require-all --allow-empty-quarantine  # ADR-078
-      - run: uv run keystone score live
+      - name: Live window from the backfill (ADR-080)
+        # The live score reads the backfill's live window (release data-live) plus the days
+        # the daily rollup holds after it. Actor months are decrypted on the runner only,
+        # never uploaded, and deleted after the score.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          KEYSTONE_ACTOR_DATA_KEY: ${{ secrets.KEYSTONE_ACTOR_DATA_KEY }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/live/repo_hour" "$RUNNER_TEMP/live-enc"
+          gh release download data-live -p 'repo_hour-*.parquet' -D "$RUNNER_TEMP/live/repo_hour"
+          gh release download data-live -p 'repo_actor_month-*.parquet.enc' -D "$RUNNER_TEMP/live-enc"
+          bash .github/scripts/actor-data.sh decrypt "$RUNNER_TEMP/live-enc" "$RUNNER_TEMP/live/repo_actor_month"
+          rm -rf "$RUNNER_TEMP/live-enc"
+          df -h . | tail -1
+      - run: |
+          uv run keystone score live --rollup "$RUNNER_TEMP/live" --extra-rollup data/rollup/rollup.duckdb
+          rm -rf "$RUNNER_TEMP/live"
       - run: uv run keystone score backtest --report data/score/backtest.md
       - run: uv run keystone metadata export --out data/publish/metadata
       - name: Cloud rung stage records (engines[] evidence, ADR-067)
