@@ -87,7 +87,8 @@ jobs:
       - run: uv run keystone warehouse build --select "resource_type:seed resource_type:model"
         env:
           DBT_INDIRECT_SELECTION: empty  # models only; the tests run in the full build
-      - run: uv run keystone resolve fetch --max-minutes 35  # resumes next run (ADR-076)
+      - id: fetch
+        run: uv run keystone resolve fetch --max-minutes 35  # resumes next run (ADR-076)
       - run: uv run keystone warehouse build
       - run: uv run keystone quality contracts --require-all
       - run: uv run keystone score live
@@ -139,10 +140,13 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-      - run: bash .github/scripts/data-cache.sh pack
+      # a later failure still banks the fetched claims; never after a failed unpack (ADR-076)
+      - if: ${{ !cancelled() && steps.fetch.outcome == 'success' }}
+        run: bash .github/scripts/data-cache.sh pack
         env:
           KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}  # encrypts the data cache
-      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      - if: ${{ !cancelled() && steps.fetch.outcome == 'success' }}
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: data-cache
           key: keystone-data-${{ github.run_id }}

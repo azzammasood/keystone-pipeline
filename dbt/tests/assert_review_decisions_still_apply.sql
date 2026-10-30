@@ -17,7 +17,16 @@ WITH d AS (
         ON LOWER(r.candidate) = 'github.com/' || i.repo_name_lower
 )
 
-SELECT d.subject, d.subject_key, d.candidate
+SELECT
+    d.subject,
+    d.subject_key,
+    d.candidate,
+    -- what the marts list now, so a failure shows where the decision went
+    (
+        SELECT STRING_AGG(m.repo_key || ' ' || m.repo_full_name, ', ')
+        FROM {{ ref('map_package_repo') }} AS m
+        WHERE d.subject = 'package_repo' AND m.package_key = d.subject_key
+    ) AS listed
 FROM d
 WHERE
     (
