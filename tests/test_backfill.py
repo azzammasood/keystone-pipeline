@@ -108,8 +108,12 @@ def test_one_chunk_publishes_key_free_files_that_add_up(
     assert ev["in_chunk"] + outside == rec["parse"]["events"]  # every parsed event is counted
     cols = [r[0] for r in con.execute(f"DESCRIBE SELECT * FROM '{co}'").fetchall()]
     assert cols == ["window_start", "repo_id", "era", "human_actors", "human_events",
-                    "top_actor_events"]  # fmt: skip
+                    "top_actor_share"]  # fmt: skip
     assert not any("actor_key" in c for c in cols)
+    few = con.execute(
+        f"SELECT count(*) FROM '{co}' WHERE human_actors < 3 AND top_actor_share IS NOT NULL"
+    ).fetchone()
+    assert few == (0,)  # no share among one or two people (ADR-081)
     assert rec["rows"]["repo_hour"] == con.execute(f"SELECT count(*) FROM '{rh}'").fetchone()[0]  # type: ignore[index]
     # repo_actor_month (salted keys) is written under work/private only, never into out/, for
     # the workflow to encrypt (ADR-045); its sums match the human events of the contributors.
@@ -202,3 +206,22 @@ def test_plan_refuses_chunks_overlapping_published_days() -> None:
         planmod.pending(planmod.chunks(wins, 0), published)  # whole month over a half
     same = planmod.pending(planmod.chunks(wins, 16), published)
     assert [c.name for c in same] == ["20230117-20230201"]
+
+
+def test_share_contributors_rewrites_the_first_layout(tmp_path: Path) -> None:
+    from keystone.backfill.chunk import share_contributors
+
+    f = tmp_path / "contributors-20261001-20261014.parquet"
+    duckdb.execute(
+        "COPY (SELECT * FROM (VALUES (TIMESTAMPTZ '2026-10-01 00:00:00+00', 1, 'E3', 1, 7, 7),"
+        " (TIMESTAMPTZ '2026-10-01 00:00:00+00', 2, 'E3', 4, 10, 4)) AS t(window_start,"
+        " repo_id, era, human_actors, human_events, top_actor_events))"
+        f" TO '{f.as_posix()}' (FORMAT parquet)"
+    )
+    assert share_contributors(f) == 2
+    rows = duckdb.execute(
+        f"SELECT repo_id, human_actors, human_events, top_actor_share FROM '{f.as_posix()}'"
+        " ORDER BY repo_id"
+    ).fetchall()
+    assert rows == [(1, 1, 7, None), (2, 4, 10, 0.4)]
+    assert share_contributors(f) == 2  # already shared: unchanged

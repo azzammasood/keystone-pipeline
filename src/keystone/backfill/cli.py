@@ -179,3 +179,15 @@ def drift(
         added = bd.learn(rev, reg)
         save_registry(reg)
         typer.echo(f"learned {len(added)} entries into the drift registry")
+
+
+@app.command("share-contributors")
+def share_contributors(
+    files: list[Path] = typer.Argument(..., help="Published contributors-*.parquet files."),
+) -> None:
+    """Rewrite contributors files in place: `top_actor_events` becomes `top_actor_share`,
+    withheld below 3 human actors (ADR-081)."""
+    from keystone.backfill.chunk import share_contributors as share
+
+    for f in files:
+        typer.echo(f"{f.name}: {share(f)} rows")

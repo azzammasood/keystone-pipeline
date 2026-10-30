@@ -184,11 +184,11 @@ def _key_free_contributors(
     con: duckdb.DuckDBPyConnection, s: SampleDate, actor_day: Path, tmp: Path
 ) -> None:
     """What may leave a runner from `repo_actor_day` (ADR-039): per repository and day, the
-    number of human actors and the largest one's events. No actor key."""
-    sql = (
-        "SELECT window_start, repo_id, era, count(*) AS human_actors, "
-        "CAST(sum(events) AS BIGINT) AS human_events, max(events) AS top_actor_events "
-        f"FROM read_parquet('{actor_day.as_posix()}') GROUP BY ALL"
+    number of human actors, their events and the largest one's share (ADR-081). No actor key."""
+    from keystone.backfill.chunk import CONTRIBUTORS_SQL
+
+    sql = CONTRIBUTORS_SQL.replace(
+        "FROM repo_actor_day", f"FROM read_parquet('{actor_day.as_posix()}')"
     )
     _measure(con, s, CONTRIBUTORS, sql, tmp / f"{s.date}-contributors.parquet")
 

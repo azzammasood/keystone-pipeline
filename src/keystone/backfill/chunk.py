@@ -40,11 +40,43 @@ from keystone.sources import gharchive as gha
 from keystone.sources import load_sources
 
 ASSET_LIMIT = int(1.5 * 2**30)  # ADR-039: keep a margin under GitHub's 2 GiB per asset
+# Published per repository and day: human actors, human events and the largest actor's share
+# of them, withheld below K_ACTORS actors (ADR-081). A share among one or two people would be
+# one person's activity, not an aggregate (CLAUDE.md privacy rule).
+K_ACTORS = 3
+TOP_SHARE_SQL = (
+    f"CASE WHEN human_actors >= {K_ACTORS} AND human_events > 0 "
+    "THEN round(top_actor_events / human_events, 4) END AS top_actor_share"
+)
 CONTRIBUTORS_SQL = (
+    f"SELECT window_start, repo_id, era, human_actors, human_events, {TOP_SHARE_SQL} FROM ("
     "SELECT window_start, repo_id, era, count(*) AS human_actors, "
     "CAST(sum(events) AS BIGINT) AS human_events, max(events) AS top_actor_events "
-    "FROM repo_actor_day GROUP BY window_start, repo_id, era"
+    "FROM repo_actor_day GROUP BY window_start, repo_id, era)"
 )
+
+
+def share_contributors(path: Path) -> int:
+    """Rewrite a published contributors file of the first layout (with `top_actor_events`)
+    in place to the shared layout (ADR-081); returns its rows. A file already shared is left
+    as it is."""
+    con = duckdb.connect()
+    src = f"read_parquet('{path.as_posix()}')"
+    cols = [r[0] for r in con.execute(f"DESCRIBE SELECT * FROM {src}").fetchall()]
+    (rows,) = con.execute(f"SELECT count(*) FROM {src}").fetchone() or (0,)
+    if "top_actor_events" in cols:
+        tmp = path.with_suffix(".tmp")
+        con.execute(
+            f"COPY (SELECT window_start, repo_id, era, human_actors, human_events, "
+            f"{TOP_SHARE_SQL} FROM {src} ORDER BY window_start, repo_id, era) "
+            f"TO '{tmp.as_posix()}' (FORMAT parquet, COMPRESSION zstd, ROW_GROUP_SIZE 1000000)"
+        )
+        con.close()
+        tmp.replace(path)
+    else:
+        con.close()
+    return int(rows)
+
 
 _SINK: GhArchiveSink | None = None
 _WORK: Path | None = None

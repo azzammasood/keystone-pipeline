@@ -197,7 +197,7 @@ uses the backtest's lookback). Windows that overlap are downloaded once.
 
 What is published (monthly zstd Parquet Release assets): `repo_hour` and a key-free
 contributor table derived inside each job from `repo_actor_day`: per repository and day, the
-number of human actors, their events and the largest actor's events (measured above: 1.8 to
+number of human actors, their events and the largest actor's events (since ADR-081 its share, withheld below 3 actors; measured above: 1.8 to
 1.9 MB per E3 day). `repo_actor_day` itself exists only on the runner's disk during a job.
 The 30-day silver window is sized with and without the actor fields.
 

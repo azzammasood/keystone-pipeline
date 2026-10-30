@@ -2,6 +2,23 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-081 (2026-10-30) Contributors publish the top actor's share, withheld below 3 actors
+- **Context:** Phase 9 review item 3. The published `contributors` assets had
+  `top_actor_events`, the largest single actor's events per repository and day. Where a
+  repository-day has one or two human actors, that is one person's activity, not an aggregate
+  share (CLAUDE.md privacy rule). The owner asked for the recommended option (2026-10-30).
+- **Choice:**
+  - `top_actor_events` becomes `top_actor_share` (`top_actor_events / human_events`, 4
+    decimals), NULL when `human_actors < 3`. `human_actors` and `human_events` stay.
+  - New chunks write this layout (`CONTRIBUTORS_SQL`), and the storage bench measures it.
+  - `keystone backfill share-contributors` rewrites the 78 published files in place. Each
+    rewrite is checked against its chunk's complete record (same row count) before the asset
+    is replaced.
+- **Why:** a share among 3 or more actors is an aggregate. Nothing reads the column (scores
+  use the encrypted `repo_actor_month`), so no result changes.
+- **Known limits:** the chunk records keep the original files' byte counts for
+  `contributors`; row counts are unchanged.
+
 ## ADR-080 (2026-10-30) The live score reads the backfill's live window plus the daily rollup
 - **Context:** the first green publish (run 41022134574) scored nothing. `score live` read
   only the publish cache's rollup, which held 0.0% of the window's hours, while the
@@ -434,7 +451,7 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   (kept by the next), and `*_lost` (filed beyond the overlap; reported per chunk).
 - **Published per chunk** in the release `data-<window>` (prerelease, never "latest"):
   `repo_hour-<start>-<end>.parquet` (zstd, sorted), `contributors-<start>-<end>.parquet` (per
-  repository, day and era: `human_actors`, `human_events`, `top_actor_events`; no key) and
+  repository, day and era: `human_actors`, `human_events`, `top_actor_events`, since ADR-081 `top_actor_share`; no key) and
   `chunk-<start>-<end>.json`: exact counts (hours by status, missing hours, failed hours and
   their errors, bytes downloaded, events parsed and quarantined, edge counts, rows and bytes
   out, eras), wall times, peak RSS, cost $0 and the repository-level fetch manifest (URL,
