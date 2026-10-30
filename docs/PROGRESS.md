@@ -4,7 +4,7 @@ Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
 **2026-10-30: backend fully complete (ADR-065 to ADR-080).** The daily publish is green on
-Actions (run 41027674711, commit 23e5b3a; CI, parity and scorecard green).
+Actions (run 41027674711, commit 23e5b3a); CI and scorecard green on 2ef628b.
 - **Live score:** cut 2026-10-01, 4,421 of 7,792 mapped repositories scored, with 100.0% of
   the window's hours covered. It reads the backfill's `data-live` plus the daily rollup's later
   days (ADR-080).
