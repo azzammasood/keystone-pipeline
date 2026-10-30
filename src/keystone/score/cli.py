@@ -54,19 +54,20 @@ def live_scores(inp: signals.Inputs, cut: datetime) -> list[dict[str, Any]]:
 def score_live(
     month: str = typer.Option(None, help="Cut month YYYY-MM (default: the current UTC month)."),
     rollup: Path = typer.Option(ROLLUP, help="Rollup DuckDB file or directory of Parquet."),
-    extra_rollup: Path | None = typer.Option(
-        None, help="A later rollup DuckDB file: its days after the base's last day are added."
-    ),
     warehouse: Path = typer.Option(WAREHOUSE, help="Warehouse DuckDB file."),
     out: Path = typer.Option(OUT / "live.json", help="Output JSON."),
     allow_partial: bool = typer.Option(
         False, help="Score even when the rollup misses hours of the window (testing only)."
     ),
+    extra_rollup: Path | None = typer.Option(
+        None, help="A later rollup DuckDB file: its days after the base's last day are added."
+    ),
 ) -> None:
     """Score every mapped repository on the 12 months before the cut, with explanations.
     Without --allow-partial, a window the rollup does not cover is reported, not scored."""
     cut = _cut(month)
-    inp = signals.open_inputs(rollup, warehouse, extra_rollup)
+    extra = extra_rollup if isinstance(extra_rollup, Path) else None  # direct calls
+    inp = signals.open_inputs(rollup, warehouse, extra)
     try:
         cov = signals.hour_coverage(inp, signals.Window(cut))
         partial = cov < bt.MIN_HOUR_COVERAGE
