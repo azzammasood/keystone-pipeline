@@ -1,30 +1,30 @@
 subject,subject_key,candidate,decision,decided_on,note
-package_repo,PyPI/future,github.com#11403699,accepted,2026-10-22,registry-declared package repo; rival is CPython (an upstream fix)
-package_repo,PyPI/opencv-python,github.com#55781523,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
-package_repo,PyPI/opencv-contrib-python,github.com#55781523,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
-package_repo,PyPI/opencv-contrib-python-headless,github.com#55781523,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
-package_repo,PyPI/opencv-python-headless,github.com#55781523,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
-package_repo,PyPI/avif,github.com#328416227,accepted,2026-10-22,registry-declared binding repo; rival is the upstream C library
-package_repo,PyPI/bentoml,github.com#178976529,accepted,2026-10-22,registry-declared repo named after the package; rival is a sibling project
-package_repo,PyPI/briefcase,github.com#39841700,accepted,2026-10-22,registry and advisory name it; rivals are template repos
-package_repo,PyPI/casdoor,github.com#395005937,accepted,2026-10-22,the PyPI package is the Python SDK the registry declares; rival is the server
-package_repo,PyPI/late,github.com#717493413,accepted,2026-10-22,registry-declared repo named after the package; rival is an unrelated project
-package_repo,PyPI/libusb,github.com#100568234,accepted,2026-10-22,registry-declared Python binding; rival is the upstream C library
-package_repo,PyPI/numexpr,github.com#14829536,accepted,2026-10-22,registry and advisory name it; rival is a downstream user
-package_repo,PyPI/omero-figure,github.com#13200965,accepted,2026-10-22,registry-declared repo named after the package; rival is a sibling component
-package_repo,PyPI/pcre2,github.com#495927350,accepted,2026-10-22,registry-declared Python binding; rival is the upstream C library
-package_repo,PyPI/pyassimp,github.com#648332,accepted,2026-10-22,registry and advisory name it (bindings live in the main repo); rival is a fork
-package_repo,PyPI/signify,github.com#124762756,accepted,2026-10-22,registry and advisory name it; rival is a different tool
-package_repo,PyPI/sleekxmpp,github.com#463405,accepted,2026-10-22,registry-declared original; rival is its successor fork
-package_repo,PyPI/wabt,github.com#938076544,accepted,2026-10-22,registry-declared Python wrapper; rival is the upstream toolkit
-package_repo,PyPI/xgrammar,github.com#821257066,accepted,2026-10-22,registry and advisory name it; rival is a downstream user
-package_repo,PyPI/zstd,github.com#32665798,accepted,2026-10-22,registry-declared Python binding; rival is the upstream C library
+package_repo,PyPI/future,github.com/pythoncharmers/python-future,accepted,2026-10-22,registry-declared package repo; rival is CPython (an upstream fix)
+package_repo,PyPI/opencv-python,github.com/opencv/opencv-python,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
+package_repo,PyPI/opencv-contrib-python,github.com/opencv/opencv-python,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
+package_repo,PyPI/opencv-contrib-python-headless,github.com/opencv/opencv-python,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
+package_repo,PyPI/opencv-python-headless,github.com/opencv/opencv-python,accepted,2026-10-22,registry-declared packaging repo; rival is the upstream C++ library
+package_repo,PyPI/avif,github.com/julian/avif,accepted,2026-10-22,registry-declared binding repo; rival is the upstream C library
+package_repo,PyPI/bentoml,github.com/bentoml/bentoml,accepted,2026-10-22,registry-declared repo named after the package; rival is a sibling project
+package_repo,PyPI/briefcase,github.com/beeware/briefcase,accepted,2026-10-22,registry and advisory name it; rivals are template repos
+package_repo,PyPI/casdoor,github.com/casdoor/casdoor-python-sdk,accepted,2026-10-22,the PyPI package is the Python SDK the registry declares; rival is the server
+package_repo,PyPI/late,github.com/neogeny/late,accepted,2026-10-22,registry-declared repo named after the package; rival is an unrelated project
+package_repo,PyPI/libusb,github.com/karpierz/libusb,accepted,2026-10-22,registry-declared Python binding; rival is the upstream C library
+package_repo,PyPI/numexpr,github.com/pydata/numexpr,accepted,2026-10-22,registry and advisory name it; rival is a downstream user
+package_repo,PyPI/omero-figure,github.com/ome/omero-figure,accepted,2026-10-22,registry-declared repo named after the package; rival is a sibling component
+package_repo,PyPI/pcre2,github.com/grtetrault/pcre2.py,accepted,2026-10-22,registry-declared Python binding; rival is the upstream C library
+package_repo,PyPI/pyassimp,github.com/assimp/assimp,accepted,2026-10-22,registry and advisory name it (bindings live in the main repo); rival is a fork
+package_repo,PyPI/signify,github.com/ralphje/signify,accepted,2026-10-22,registry and advisory name it; rival is a different tool
+package_repo,PyPI/sleekxmpp,github.com/fritzy/sleekxmpp,accepted,2026-10-22,registry-declared original; rival is its successor fork
+package_repo,PyPI/wabt,github.com/c7a2d9e/wabt.py,accepted,2026-10-22,registry-declared Python wrapper; rival is the upstream toolkit
+package_repo,PyPI/xgrammar,github.com/mlc-ai/xgrammar,accepted,2026-10-22,registry and advisory name it; rival is a downstream user
+package_repo,PyPI/zstd,github.com/sergey-dryabzhinsky/python-zstd,accepted,2026-10-22,registry-declared Python binding; rival is the upstream C library
 package_repo,PyPI/chuanhuchatgpt,github.com/gaizhenbiao/chuanhuchatgpt,accepted,2026-10-22,advisory GIT range and FIX name the original; rival is a fork
-package_repo,PyPI/agixt,github.com#629177820,accepted,2026-10-22,sole-package advisory names the repo named after the package
-package_repo,PyPI/glance-store,github.com#21909965,accepted,2026-10-22,sole-package advisory names the repo named after the package
-package_repo,PyPI/subiquity,github.com#37095216,accepted,2026-10-22,sole-package advisory names the repo named after the package
-package_repo,PyPI/mercurial,github.com#901662,rejected,2026-10-22,FIX link points at a different project (libgit2)
-package_repo,PyPI/torch-npu,github.com#65600975,rejected,2026-10-22,FIX link points at upstream PyTorch; the package is a separate vendor port
+package_repo,PyPI/agixt,github.com/josh-xt/agixt,accepted,2026-10-22,sole-package advisory names the repo named after the package
+package_repo,PyPI/glance-store,github.com/openstack/glance_store,accepted,2026-10-22,sole-package advisory names the repo named after the package
+package_repo,PyPI/subiquity,github.com/canonical/subiquity,accepted,2026-10-22,sole-package advisory names the repo named after the package
+package_repo,PyPI/mercurial,github.com/libgit2/libgit2,rejected,2026-10-22,FIX link points at a different project (libgit2)
+package_repo,PyPI/torch-npu,github.com/pytorch/pytorch,rejected,2026-10-22,FIX link points at upstream PyTorch; the package is a separate vendor port
 package_repo,PyPI/uff,github.com/nvidia/product-security,rejected,2026-10-22,FIX link points at a security-bulletin repo
 package_repo,npm/kiota-typescript,github.com/npm/security-holder,rejected,2026-10-22,npm's placeholder for removed packages; not a source repo
 package_repo,PyPI/jeepney,gitlab.com/takluyver/jeepney,accepted,2026-10-22,registry-declared GitLab repo named after the package

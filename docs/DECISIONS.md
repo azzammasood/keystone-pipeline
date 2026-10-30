@@ -2,6 +2,19 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-077 (2026-10-30) Reviewed package decisions name the repository as claimed
+- **Context:** publish run 41008569270 failed `assert_review_decisions_still_apply` for 3
+  decisions keyed by GitHub id (PyPI/glance-store, PyPI/subiquity, PyPI/mercurial). Their
+  claims are listed by name, because the publish cache's GH Archive hours never saw those
+  repositories, so the names have no known id. An id-keyed decision then matches nothing,
+  and the review is silently lost.
+- **Choice:** the 25 id-keyed `package_repo` decisions are rewritten as the github.com name
+  their claims use. Each id mapped to exactly one claimed name in the 2026-10-22 warehouse.
+  Under ADR-073, a name-keyed decision matches the name while its id is unknown and follows
+  the id once it is known.
+- **Why:** the decision now applies whatever hours the cache holds. Rebuilt locally, the
+  mapping is identical (0 rows differ either way).
+
 ## ADR-076 (2026-10-29) Registry fetch has a time budget in publish
 - **Context:** publish run 40926201899 was cancelled at the 90-minute job timeout inside
   `resolve fetch`, during the per-package npm registry lookups. A cancelled job never reaches
