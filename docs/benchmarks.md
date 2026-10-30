@@ -267,6 +267,9 @@ The uncapped 2021-02 attempt reached 13.6 GB on the 16 GB runner.
 | **all** | **78** | **1,579** | **4,574,059,729** | **1,873.2** | **2,342,977,429** | **846,599,327** | **684,733,178** | **7.42** | **2.39** | **37.88** | **228** |
 
 - Two parse quarantines in the whole backfill (1 colors-faker, 1 xz).
+- Downloaded GB counts each chunk's first fetch pass only. These records (version 1) left out
+  the ADR-072 retry passes, so the true total is a little higher. Records of version 2 include
+  them (`download.retry`, ADR-082).
 - Job hours count the final successful attempt of each chunk; retries and the cancelled
   attempts are not included.
 - Gaps at GH Archive (404 when fetched): 2021-08-25 17h to 08-27 22h, 2021-10-22 05h to 10-29

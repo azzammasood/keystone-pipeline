@@ -2,6 +2,26 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-082 (2026-10-30) Phase 9 review: the remaining minor items and nits
+- **Context:** `docs/reviews/phase-9.md` left items 2, 8 (part), 9 and nits 12-15 open. The
+  owner asked for the recommended approaches (2026-10-30).
+- **Choice:**
+  - **#2:** chunk records (version 2) take `hours.status` from the final manifest, after the
+    retry passes. `download.bytes` and `requests` include those passes, with
+    `download.retry` apart. The published version 1 records are left as they are, and
+    benchmarks section 5 notes the gap.
+  - **#9:** the overlap hours (the next chunk's) go to `hours.overlap_fetch_errors` and
+    `hours.overlap_drift`. They no longer mark a chunk incomplete or count twice in
+    `backfill drift`.
+  - **#8:** a Databricks SQL statement is cancelled after 900 s, and a BigQuery job fails after
+    600 s, instead of polling until the job timeout.
+  - **#12:** the Lakeflow SQL reads `marts.fct_repo_day` in the pipeline's catalog.
+  - **#13:** a BigQuery export stopped by `max_rows` fails; it is never kept partial.
+  - **#14:** a failed `pool.submit` releases its slot and disk reservation. The backfill
+    checks both secrets before a chunk runs.
+  - **#15:** the line continuations in `backfill.yml` and `publish.yml` are restored.
+- **Why:** the recommended fix for each item, each small. No published number changes.
+
 ## ADR-081 (2026-10-30) Contributors publish the top actor's share, withheld below 3 actors
 - **Context:** Phase 9 review item 3. The published `contributors` assets had
   `top_actor_events`, the largest single actor's events per repository and day. Where a

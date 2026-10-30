@@ -25,6 +25,7 @@ FREE_TIER_BYTES = 1_000_000_000_000  # 1 TB of query bytes per month (sandbox an
 MONTH_BUDGET_BYTES = 100_000_000_000  # Keystone's own stop: 10% of the free tier per month
 QUERY_CAP_BYTES = 5_000_000_000  # no single query may bill more than 5 GB
 MIN_BILLED = 10_485_760  # BigQuery bills at least 10 MB per table referenced
+JOB_TIMEOUT_S = 600  # each getQueryResults call waits up to 60 s
 
 # Column sets of the public dataset, from what the rollups need to the full payload.
 COLUMN_SETS: dict[str, str] = {
@@ -140,7 +141,10 @@ class Sandbox:
         if max_rows:
             params["maxResults"] = 50000
         res = self._get(f"queries/{ref['jobId']}", params)
+        deadline = time.monotonic() + JOB_TIMEOUT_S
         while not res.get("jobComplete"):
+            if time.monotonic() > deadline:
+                raise BigQueryError(f"{label}: job not complete after {JOB_TIMEOUT_S} s")
             res = self._get(f"queries/{ref['jobId']}", params)
         rows = [[c["v"] for c in r["f"]] for r in res.get("rows", [])]
         pages = 1
@@ -202,8 +206,11 @@ def rollup_day(sb: Sandbox, day: str, out: Path) -> dict[str, Any]:
     con.execute(f"COPY t TO '{out.as_posix()}' (FORMAT parquet, COMPRESSION zstd)")
     total = con.execute("SELECT count(*), sum(events) FROM t").fetchone()
     con.close()
+    exported = int(total[0]) if total else 0
+    if exported != rec["rows"]:  # max_rows stopped the paging: never a silent partial export
+        raise BigQueryError(f"export has {exported:,} of {rec['rows']:,} rows (max_rows)")
     rec.update(
-        exported_rows=int(total[0]) if total else 0,
+        exported_rows=exported,
         exported_events=int(total[1] or 0) if total else 0,
         export_seconds=round(time.perf_counter() - t0, 2),
         export_bytes=out.stat().st_size,

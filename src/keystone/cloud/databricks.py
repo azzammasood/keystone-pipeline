@@ -29,6 +29,7 @@ LDP_SCHEMA = "keystone_ldp"
 LDP_NAME = "keystone-marts"
 LDP_FILE = "/Workspace/Shared/keystone/marts_pipeline.sql"
 LDP_SQL = Path(__file__).parent / "lakeflow" / "marts_pipeline.sql"
+STATEMENT_TIMEOUT_S = 900  # one statement; the job timeout bounds the rest
 TERMINAL = {"SUCCEEDED", "FAILED", "CANCELED", "CLOSED"}
 
 
@@ -89,7 +90,11 @@ class Workspace:
             "format": "JSON_ARRAY",
         }
         res = self.api("POST", "/api/2.0/sql/statements", json=body)
+        deadline = time.monotonic() + STATEMENT_TIMEOUT_S
         while res["status"]["state"] not in TERMINAL:
+            if time.monotonic() > deadline:
+                self.api("POST", f"/api/2.0/sql/statements/{res['statement_id']}/cancel")
+                raise DatabricksError(f"statement still running after {STATEMENT_TIMEOUT_S} s")
             time.sleep(3)
             res = self.api("GET", f"/api/2.0/sql/statements/{res['statement_id']}")
         state = res["status"]["state"]

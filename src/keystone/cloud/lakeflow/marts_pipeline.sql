@@ -14,5 +14,5 @@ AS SELECT
     CAST(SUM(pushes) AS BIGINT) AS pushes,
     CAST(SUM(releases_published) AS BIGINT) AS releases_published,
     COUNT(*) AS active_days
-FROM workspace.marts.fct_repo_day
+FROM marts.fct_repo_day  -- the pipeline's catalog (DATABRICKS_CATALOG)
 GROUP BY DATE_TRUNC('WEEK', activity_date), repo_id, era;

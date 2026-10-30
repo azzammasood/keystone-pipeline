@@ -118,7 +118,8 @@ jobs:
       - name: Cloud rung stage records (engines[] evidence, ADR-067)
         run: |
           mkdir -p "$RUNNER_TEMP/cloud"
-          gh release download cloud-evidence -p 'runs-*.jsonl' -D "$RUNNER_TEMP/cloud"             || echo "no cloud evidence yet"
+          gh release download cloud-evidence -p 'runs-*.jsonl' -D "$RUNNER_TEMP/cloud" \
+            || echo "no cloud evidence yet"
           shopt -s nullglob
           files=("$RUNNER_TEMP"/cloud/runs-*.jsonl)
           if [ ${#files[@]} -gt 0 ]; then uv run keystone metrics import-runs "${files[@]}"; fi
@@ -152,7 +153,8 @@ jobs:
           done
           # index.json last, so a reader never sees an index naming files not yet uploaded;
           # then assets no longer in the index are deleted.
-          find "$RUNNER_TEMP/site" -name '*.json' ! -name index.json -print0             | xargs -0 gh release upload site-data --clobber
+          find "$RUNNER_TEMP/site" -name '*.json' ! -name index.json -print0 \
+            | xargs -0 gh release upload site-data --clobber
           gh release upload site-data "$RUNNER_TEMP/site/index.json" --clobber
           keep=$(jq -r '.rows[].asset, "index.json"' data/publish/site/index.json)
           gh release view site-data --json assets --jq '.assets[].name' | while read -r a; do

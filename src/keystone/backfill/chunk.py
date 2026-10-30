@@ -17,6 +17,7 @@ import shutil
 import sys
 import threading
 import time
+from collections import Counter
 from concurrent.futures import Future, ProcessPoolExecutor
 from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
@@ -283,7 +284,12 @@ def run_chunk(window: str, start: date, end: date, work: Path, out: Path, *,
     def on_file(path: Path, rec: FileRecord) -> None:
         slots.acquire()  # backpressure: blocks the fetch loop while the pool is full
         size = rec.bytes or 0
-        fut = pool.submit(parse_hour, path, rec)
+        try:
+            fut = pool.submit(parse_hour, path, rec)
+        except BaseException:
+            disk.release(size)
+            slots.release()  # a failed submit must not keep its slot (review #14)
+            raise
 
         def done(_: Future[dict[str, Any]]) -> None:
             disk.release(size)
@@ -291,6 +297,8 @@ def run_chunk(window: str, start: date, end: date, work: Path, out: Path, *,
 
         fut.add_done_callback(done)
         futures.append(fut)
+
+    retry = {"passes_hours": 0, "bytes": 0, "requests": 0}  # the ADR-072 passes (review #2)
 
     async def fetch() -> gha.RunSummary:
         manifest = Manifest(work / "manifest.duckdb")
@@ -313,10 +321,13 @@ def run_chunk(window: str, start: date, end: date, work: Path, out: Path, *,
                 await asyncio.sleep(pause)
                 async with PoliteClient(policy, max_retries=6, backoff_seconds=15.0) as client:
                     for h in errored:
-                        await gha.ingest_hours(
+                        again = await gha.ingest_hours(
                             client, manifest, cfg, h, h + timedelta(hours=1), raw, disk,
                             keep=True, on_file=on_file, now=now,
                         )  # fmt: skip
+                        retry["passes_hours"] += 1
+                        retry["bytes"] += again.downloaded_bytes
+                        retry["requests"] += again.requests
             return summary
         finally:
             manifest.close()
@@ -333,19 +344,26 @@ def run_chunk(window: str, start: date, end: date, work: Path, out: Path, *,
         records = manifest.records(gha.SOURCE, begin, overlap_end)
     finally:
         manifest.close()
+
+    # The overlap hours belong to the next chunk; read here only for late events. Their errors
+    # and drift are listed apart, so they neither mark this chunk incomplete nor count twice
+    # in `backfill drift` (review #9).
+    def own(hour: datetime) -> bool:
+        return hour < finish
+
     failed = sorted(r["hour"] for r in results if r["error"])
-    fetch_errors = sorted(h.isoformat() for h, r in records.items() if r.status == "error")
-    fetch_error_reasons = {
-        h.isoformat(): (r.error or "unknown")[:200]
-        for h, r in records.items()
-        if r.status == "error"
-    }
+    errored = {h: r for h, r in records.items() if r.status == "error"}
+    fetch_errors = sorted(h.isoformat() for h in errored if own(h))
+    overlap_fetch_errors = sorted(h.isoformat() for h in errored if not own(h))
+    fetch_error_reasons = {h.isoformat(): (r.error or "unknown")[:200] for h, r in errored.items()}
+    in_chunk = [r for r in results if own(datetime.fromisoformat(r["hour"]))]
+    overlap = [r for r in results if not own(datetime.fromisoformat(r["hour"]))]
     merged = merge(work, out, name, begin, finish, overlap_end)
     total_s = time.monotonic() - t0
     hours_in_chunk = int((finish - begin).total_seconds() // 3600)
     complete = not failed and not fetch_errors and summary.skipped_unpublished == 0
     record: dict[str, Any] = {
-        "record_version": 1,
+        "record_version": 2,  # 2: final status, retry totals, overlap hours apart
         "window": window,
         "chunk": name,
         "start": begin.isoformat(),
@@ -359,18 +377,25 @@ def run_chunk(window: str, start: date, end: date, work: Path, out: Path, *,
         "hours": {
             "in_chunk": hours_in_chunk,
             "fetched": len(records),
-            "status": dict(summary.counts),
+            # final state per hour, after the retry passes (review #2)
+            "status": dict(sorted(Counter(r.status for r in records.values()).items())),
             "skipped_unpublished": summary.skipped_unpublished,
             "parse_failed": failed,
             "parse_errors": sorted({r["error"] for r in results if r["error"]})[:20],
             # Tolerated drift (ADR-051): per finding, the hours it was seen in; reviewed and
             # learned into contracts/drift/gharchive.yml after the backfill.
-            "drift": _drift_summary(results),
+            "drift": _drift_summary(in_chunk),
+            "overlap_drift": _drift_summary(overlap),
             "fetch_errors": fetch_errors,
+            "overlap_fetch_errors": overlap_fetch_errors,
             "fetch_error_reasons": fetch_error_reasons,
             "missing": sorted(h.isoformat() for h, r in records.items() if r.status == "missing"),
         },
-        "download": {"bytes": summary.downloaded_bytes, "requests": summary.requests},
+        "download": {
+            "bytes": summary.downloaded_bytes + retry["bytes"],
+            "requests": summary.requests + retry["requests"],
+            "retry": retry,
+        },
         "parse": {
             "events": sum(r["events"] for r in results),
             "quarantined": sum(r["quarantined"] for r in results),

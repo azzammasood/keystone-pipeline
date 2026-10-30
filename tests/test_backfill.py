@@ -94,6 +94,10 @@ def test_one_chunk_publishes_key_free_files_that_add_up(
     rec = chunkmod.run_chunk("t", date(2026, 10, 19), date(2026, 10, 20), tmp_path / "work", out,
                              workers=1)  # fmt: skip
     assert rec["complete"] and rec["hours"]["parse_failed"] == []
+    assert rec["record_version"] == 2
+    assert rec["hours"]["status"] == {"new": rec["hours"]["fetched"]}  # final state per hour
+    assert rec["hours"]["overlap_fetch_errors"] == [] and "overlap_drift" in rec["hours"]
+    assert rec["download"]["retry"] == {"passes_hours": 0, "bytes": 0, "requests": 0}
     assert sorted(p.name for p in out.iterdir()) == [
         "contributors-20261019-20261020.parquet",
         "repo_hour-20261019-20261020.parquet",
