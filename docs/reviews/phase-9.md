@@ -109,3 +109,12 @@ later, at the owner's choice.
 
 Verdict after fixes: clean for the gate. The only major finding is fixed; the open items are
 minor or nits, and one privacy item awaits the owner.
+
+## Resolution of the open items (2026-10-30, owner: "do the recommended approaches")
+
+- 3: done (ADR-081). `top_actor_share`, withheld below 3 human actors, replaces
+  `top_actor_events`. The published contributors assets of all four windows were rewritten
+  in place, each checked against its chunk's complete record (row count) before upload.
+- 2, 9, 12, 13, 14, 15 and the rest of 8: done (ADR-082).
+
+No item from this review is open.

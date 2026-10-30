@@ -24,11 +24,15 @@ Actions (run 41027674711, commit 23e5b3a); CI and scorecard green on 2ef628b.
   - ADR-078: an empty quarantine counts as clean.
   - ADR-079: a refused npm name goes to quarantine.
   - ADR-080: the live window is read.
-- **Open (not blocking):**
-  - **Owner decision (privacy):** `top_actor_events` in the published `contributors` assets
-    (review item 3). The suggestion is a share, or suppression below k=3.
-  - Review items 2 (retry counts in records) and 9 (overlap-hour accounting), and nits 12-15.
-  - Each publish downloads about 5 GB from `data-live`.
+- **Phase 9 review fully resolved (2026-10-30, ADR-081, ADR-082):**
+  - `top_actor_events` is replaced by `top_actor_share`, withheld below 3 human actors.
+    All 78 published contributors assets were rewritten (78 ok, 0 failed, rows checked
+    against each chunk's record).
+  - Retry totals and overlap hours are counted apart in version 2 chunk records.
+  - Polling deadlines, the Lakeflow catalog, the BigQuery truncation guard, the slot release,
+    the secrets check and the line continuations are fixed. The Databricks rung is green
+    after the change (run 41049631604, Lakeflow COMPLETED, 178 rows).
+- **Known cost:** each publish downloads about 5 GB from `data-live` (ADR-080).
 
 **2026-10-27 (ADR-069, ADR-070):**
 - **Backtest on Actions works** (run 40454178871, `docs/backtest.md`). Three runs failed on
