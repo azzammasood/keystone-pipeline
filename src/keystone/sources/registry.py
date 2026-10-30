@@ -16,6 +16,7 @@ Only allow-listed fields reach silver; every row keeps its lineage. A package fe
 import asyncio
 import hashlib
 import json
+import time
 from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -261,6 +262,15 @@ async def critical_names(client: PoliteClient, ecosystem: str) -> list[str]:
         page += 1
 
 
+class TimeBudget(Exception):
+    """The run's time budget is spent: stop between requests, keeping what was written."""
+
+
+def _check(deadline: float | None) -> None:
+    if deadline is not None and time.monotonic() >= deadline:
+        raise TimeBudget("time budget spent")
+
+
 BODY_RETRIES = 3  # a large bulk body can drop mid-read; the client retries only the response
 
 
@@ -282,10 +292,12 @@ async def bulk_lookup(
     wanted: Sequence[Wanted],
     stats: FetchStats,
     on_batch: Any,
+    deadline: float | None = None,
 ) -> None:
     """Look packages up 100 at a time; `on_batch(packages, names, quarantine)` after each."""
     url = f"{ECOSYSTEMS}/packages/bulk_lookup"
     for start in range(0, len(wanted), BULK_MAX):
+        _check(deadline)
         batch = list(wanted[start : start + BULK_MAX])
         body, status = await _post_batch(client, url, [w.purl for w in batch])
         stats.requests += 1
@@ -351,10 +363,14 @@ async def npm_lookup(
     stats: FetchStats,
     on_rows: Any,
     flush_every: int = 200,
+    deadline: float | None = None,
 ) -> None:
     """`/<name>/latest` per package; a 304 keeps the previous claim with a new `fetched_at`."""
     rows: list[RegistryPackageRow] = []
     for w in wanted:
+        if deadline is not None and time.monotonic() >= deadline:
+            on_rows(rows, [])  # keep what this run fetched
+            raise TimeBudget("time budget spent")
         url = f"{NPM}/{npm_path(w.name)}/latest"
         prev = etags.get(w.key)
         headers = {"If-None-Match": prev[0]} if prev else {}
@@ -483,9 +499,13 @@ async def fetch(
     refresh_days: int = 7,
     npm: bool = True,
     limit: int | None = None,
+    max_minutes: float | None = None,
 ) -> FetchStats:
-    """Fetch what is missing or stale; write each batch as it arrives (a stop keeps the work)."""
+    """Fetch what is missing or stale; write each batch as it arrives (a stop keeps the work).
+    With `max_minutes`, stop between requests once it is spent: the rest waits for the next
+    run, which skips what is fresh (a job cancelled at its timeout would save nothing)."""
     stats = FetchStats()
+    deadline = None if max_minutes is None else time.monotonic() + max_minutes * 60
     ensure_tables(paths)
     cutoff = datetime.now(UTC) - timedelta(days=refresh_days)
 
@@ -522,7 +542,7 @@ async def fetch(
         wanted = universe(warehouse_db, critical)
         if limit is not None:
             wanted = wanted[:limit]
-        await bulk_lookup(client, stale("ecosystems", wanted), stats, write_batch)
+        await bulk_lookup(client, stale("ecosystems", wanted), stats, write_batch, deadline)
         if npm:
             npm_wanted = [w for w in wanted if w.ecosystem == "npm"]
             todo = stale("npm_registry", npm_wanted)
@@ -538,8 +558,8 @@ async def fetch(
                 if q:
                     write_rows(q, QUARANTINE_SCHEMA, paths.quarantine / f"npm-{stamp}.parquet")
 
-            await npm_lookup(client, todo, etags, stats, write_npm)
-    except QuotaExhausted as exc:
+            await npm_lookup(client, todo, etags, stats, write_npm, deadline=deadline)
+    except (QuotaExhausted, TimeBudget) as exc:
         stats.stopped = str(exc)
     return stats
 

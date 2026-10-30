@@ -2,6 +2,16 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-076 (2026-10-29) Registry fetch has a time budget in publish
+- **Context:** publish run 40926201899 was cancelled at the 90-minute job timeout inside
+  `resolve fetch`, during the per-package npm registry lookups. A cancelled job never reaches
+  the data-cache save, so each rerun would start the fetch from nothing and never finish.
+- **Choice:** `resolve fetch --max-minutes N` stops between requests once N minutes are spent.
+  It writes what it has fetched, records `stopped` in the stage record, and exits 0. Publish
+  passes 35. The next run skips fresh claims and carries on.
+- **Why:** each run banks its progress (the cache is saved at the end of the job). Data tests
+  that need claims not yet fetched show up in that run's build, never as a timeout.
+
 ## ADR-075 (2026-10-29) Registry bulk lookups retry a dropped body read
 - **Context:** the first production `resolve fetch` (publish run 40925231971) died on
   `httpx.ReadError` while reading an ecosyste.ms bulk response. Those bodies are large (664 MB

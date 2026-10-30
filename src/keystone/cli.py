@@ -1247,6 +1247,9 @@ def resolve_fetch(
     refresh_days: int = typer.Option(7, help="Refetch a package claim older than this."),
     npm: bool = typer.Option(True, help="Cross-check npm packages in the npm registry."),
     limit: int | None = typer.Option(None, help="Only the first N packages (smoke runs)."),
+    max_minutes: float | None = typer.Option(
+        None, help="Stop between requests after this long; the next run resumes."
+    ),
     replay: Path | None = typer.Option(
         None, help="Serve recorded responses from this folder (CI fixtures; never data/)."
     ),
@@ -1277,6 +1280,7 @@ def resolve_fetch(
             refresh_days=refresh_days,
             npm=npm,
             limit=limit,
+            max_minutes=max_minutes,
         )
         stage.records_out = sum(stats.requested.values())
         stage.bytes_in = stats.bytes

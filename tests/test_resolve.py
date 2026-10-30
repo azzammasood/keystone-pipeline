@@ -202,6 +202,15 @@ def test_fetch_stops_at_the_quota_floor(tmp_path: Path) -> None:
     assert not any("bulk_lookup" in c for c in host.calls)
 
 
+def test_fetch_stops_at_its_time_budget_and_resumes(tmp_path: Path) -> None:
+    host = Registries()
+    stats = _fetch(tmp_path, host, max_minutes=0)
+    assert stats.stopped == "time budget spent"
+    assert not any("bulk_lookup" in c for c in host.calls)
+    again = _fetch(tmp_path, host)  # the next run does the rest
+    assert again.stopped is None and again.requested == {"ecosystems": 2, "npm_registry": 1}
+
+
 class Fake:
     model = "fake"
 

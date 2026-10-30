@@ -87,7 +87,7 @@ jobs:
       - run: uv run keystone warehouse build --select "resource_type:seed resource_type:model"
         env:
           DBT_INDIRECT_SELECTION: empty  # models only; the tests run in the full build
-      - run: uv run keystone resolve fetch
+      - run: uv run keystone resolve fetch --max-minutes 35  # resumes next run (ADR-076)
       - run: uv run keystone warehouse build
       - run: uv run keystone quality contracts --require-all
       - run: uv run keystone score live
