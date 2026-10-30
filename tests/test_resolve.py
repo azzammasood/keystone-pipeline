@@ -107,6 +107,7 @@ class Registries:
     def __init__(self) -> None:
         self.calls: list[str] = []
         self.quota = 4000
+        self.npm_status = 200
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -123,6 +124,8 @@ class Registries:
             items = [ECO_ITEM] if "pkg:pypi/requests" in purls else []
             return httpx.Response(200, json=items, headers=headers)
         if request.url.host == "registry.npmjs.org":
+            if self.npm_status != 200:
+                return httpx.Response(self.npm_status)
             if request.headers.get("if-none-match") == '"v1"':
                 return httpx.Response(304, headers={"etag": '"v1"'})
             doc = {
@@ -209,6 +212,21 @@ def test_fetch_stops_at_its_time_budget_and_resumes(tmp_path: Path) -> None:
     assert not any("bulk_lookup" in c for c in host.calls)
     again = _fetch(tmp_path, host)  # the next run does the rest
     assert again.stopped is None and again.requested == {"ecosystems": 2, "npm_registry": 1}
+
+
+def test_a_refused_npm_name_is_quarantined_not_fatal(tmp_path: Path) -> None:
+    host = Registries()
+    host.npm_status = 405  # what registry.npmjs.org answers for a scope without its @
+    stats = _fetch(tmp_path, host)
+    assert stats.stopped is None
+    q = duckdb.sql(
+        f"SELECT source, package_key, reason FROM read_parquet("
+        f"'{(tmp_path / 'quarantine/registry').as_posix()}/*.parquet')"
+    ).fetchall()
+    assert q == [("npm_registry", "npm/left-pad", "HTTP 405")]
+    host.npm_status = 503
+    with pytest.raises(registry.FetchError):
+        _fetch(tmp_path, host, refresh_days=-1)
 
 
 class Fake:

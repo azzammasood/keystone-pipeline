@@ -2,6 +2,16 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-079 (2026-10-30) A refused npm name is quarantined, not fatal
+- **Context:** publish run 41020707685 failed when `registry.npmjs.org` answered HTTP 405 for
+  `novu/api`, an OSV package name that looks like a scope missing its `@`. Any status other
+  than 200, 304 or 404 stopped the whole fetch.
+- **Choice:** another 4xx (except 429) quarantines that package's npm claim with reason
+  `HTTP <status>`. A 429 or 5xx still fails the fetch.
+- **Why:** an unusable record goes to quarantine with a reason (CLAUDE.md). It is not guessed,
+  and one bad name no longer stops the daily publish. It is asked again each run, at one
+  request.
+
 ## ADR-078 (2026-10-30) Publish treats an empty quarantine as clean
 - **Context:** publish run 41016250223 passed every contract (no violations) but exited 1
   under `--require-all`. The three quarantine contracts (GH Archive, OSV, registry) had no

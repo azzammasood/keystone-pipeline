@@ -406,6 +406,18 @@ async def npm_lookup(
                         )
                     ],
                 )
+        elif 400 <= status < 500 and status != 429:
+            # the registry refuses the name itself (an invalid name, such as a scope without
+            # its @): quarantined with the reason, never a guess and never a failed run
+            lineage = Lineage(source_file=url, source_sha256=_sha(body), fetched_at=now)
+            on_rows(
+                [],
+                [
+                    RegistryQuarantineRow(
+                        **lineage, source="npm_registry", package_key=w.key, reason=f"HTTP {status}"
+                    )
+                ],
+            )
         else:
             raise FetchError(f"GET {url}: HTTP {status}")
         if len(rows) >= flush_every:
