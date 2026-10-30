@@ -479,6 +479,9 @@ def _glob(root: Path, rel: str) -> tuple[str, bool]:
 def quality_contracts(
     root: Path = typer.Option(DATA_DIR, help="Data directory holding silver/ and quarantine/."),
     require_all: bool = typer.Option(False, help="Fail if any contract's table has no rows (CI)."),
+    allow_empty_quarantine: bool = typer.Option(
+        False, help="With --require-all, an empty quarantine is clean, not missing (publish)."
+    ),
     generated: bool = typer.Option(
         True, help="Also test the generated contracts in metadata/contracts/ (Phase 6)."
     ),
@@ -514,7 +517,8 @@ def quality_contracts(
                 target = {"rows_glob": rows}
             if not present:
                 typer.echo(f"{path.name}: no data at {next(iter(target.values()))} (skipped)")
-                missing += 1
+                if not (allow_empty_quarantine and "quarantine" in path.name):
+                    missing += 1
                 continue
             result = run_contract(path, **target)
             tested += 1

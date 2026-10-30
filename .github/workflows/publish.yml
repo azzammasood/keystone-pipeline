@@ -90,7 +90,7 @@ jobs:
       - id: fetch
         run: uv run keystone resolve fetch --max-minutes 35  # resumes next run (ADR-076)
       - run: uv run keystone warehouse build
-      - run: uv run keystone quality contracts --require-all
+      - run: uv run keystone quality contracts --require-all --allow-empty-quarantine  # ADR-078
       - run: uv run keystone score live
       - run: uv run keystone score backtest --report data/score/backtest.md
       - run: uv run keystone metadata export --out data/publish/metadata

@@ -2,6 +2,16 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-078 (2026-10-30) Publish treats an empty quarantine as clean
+- **Context:** publish run 41016250223 passed every contract (no violations) but exited 1
+  under `--require-all`. The three quarantine contracts (GH Archive, OSV, registry) had no
+  files, because nothing in the cached data was quarantined.
+- **Choice:** with `--allow-empty-quarantine` (passed by publish only), a quarantine contract
+  with no data is reported as skipped and does not count as missing. CI keeps plain
+  `--require-all`, so its fixtures still exercise every quarantine contract.
+- **Why:** an empty quarantine is the clean outcome, not missing data. Every data table still
+  has to be present.
+
 ## ADR-077 (2026-10-30) Reviewed package decisions name the repository as claimed
 - **Context:** publish run 41008569270 failed `assert_review_decisions_still_apply` for 3
   decisions keyed by GitHub id (PyPI/glance-store, PyPI/subiquity, PyPI/mercurial). Their
