@@ -17,6 +17,10 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
 - **Why:** the live score covers the backfill now and keeps covering the window as months
   pass, fed by the daily ingest. No day is counted twice (test: base plus later days equals
   the full rollup's signals).
+- **Follow-up (run 41026614651):** the first version grouped the merged actor months, which
+  overran the 10 GB spill limit. The view is now a plain union (compute() sums each actor
+  over months anyway), and the step uses the backtest's DuckDB limits (11 GB memory, 40 GB
+  spill, 2 threads).
 - **Known limits:** each publish downloads about 5 GB from the project's own release. If the
   daily rollup misses days after 2026-10-27, coverage shows it and the score is withheld
   below 90%.

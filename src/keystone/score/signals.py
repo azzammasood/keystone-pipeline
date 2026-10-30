@@ -133,8 +133,9 @@ FROM {src} GROUP BY ALL
 
 def _extend(con: duckdb.DuckDBPyConnection, extra: Path, actor: bool) -> bool:
     """Add the whole days of a later rollup file (the daily ingest's) after the base's last
-    day: its hours are unioned and its actor days summed into the base's months, so a day is
-    never counted twice. Returns whether per-actor data is available."""
+    day: its hours are unioned and its actor days added as month rows (the boundary month has
+    rows from both, which compute() sums), so a day is never counted twice. Returns whether
+    per-actor data is available."""
     con.execute(f"ATTACH '{extra.as_posix()}' AS x (READ_ONLY)")
     t = _tables(con, "x")
     (last,) = con.execute("SELECT max(window_start) FROM repo_hour").fetchone() or (None,)
@@ -150,14 +151,13 @@ def _extend(con: duckdb.DuckDBPyConnection, extra: Path, actor: bool) -> bool:
         return actor
     later = f"(SELECT * FROM x.main.repo_actor_day WHERE window_start >= {nxt})"
     con.execute("ALTER VIEW repo_actor_month RENAME TO repo_actor_month_base")
+    # The boundary month has rows in both parts. No GROUP BY here: compute() sums each actor
+    # over months, so duplicate keys add up the same, and grouping every repository of a
+    # 12-month window first overran the spill limit (publish run 41026614651).
     con.execute(
-        "CREATE VIEW repo_actor_month AS SELECT month, repo_id, actor_key, "
-        "SUM(events) AS events, SUM(pushes) AS pushes, SUM(prs_merged) AS prs_merged, "
-        "SUM(prs_closed) AS prs_closed, SUM(releases) AS releases, "
-        "SUM(issues_closed) AS issues_closed FROM ("
-        "SELECT month, repo_id, actor_key, events, pushes, prs_merged, prs_closed, releases, "
-        "issues_closed FROM repo_actor_month_base UNION ALL BY NAME "
-        f"{ACTOR_MONTH_FROM_DAY.format(src=later)}) GROUP BY ALL"
+        "CREATE VIEW repo_actor_month AS SELECT month, repo_id, actor_key, events, pushes, "
+        "prs_merged, prs_closed, releases, issues_closed FROM repo_actor_month_base "
+        f"UNION ALL BY NAME {ACTOR_MONTH_FROM_DAY.format(src=later)}"
     )
     return True
 
