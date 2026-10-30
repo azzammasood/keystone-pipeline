@@ -3,6 +3,33 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
+**2026-10-30: backend fully complete (ADR-065 to ADR-080).** The daily publish is green on
+Actions (run 41027674711, commit 23e5b3a; CI, parity and scorecard green).
+- **Live score:** cut 2026-10-01, 4,421 of 7,792 mapped repositories scored, with 100.0% of
+  the window's hours covered. It reads the backfill's `data-live` plus the daily rollup's later
+  days (ADR-080).
+- **Brief:** written on Actions with the free OpenRouter model (2026-W44, every number checked).
+- **engines[]:** lists BigQuery, databricks-sql, dbt-databricks and databricks-lakeflow
+  (imported from `cloud-evidence`). The README names them with measured numbers only.
+- **Backfill:** 78 of 78 chunks, 4,574,059,729 events, 1,873.2 GB downloaded, 37.88 job hours
+  (`docs/benchmarks.md` section 5).
+- **Backtest** (`docs/backtest.md`): event-stream a miss (18.4th percentile); xz a miss
+  (4.0th); colors-faker not scored (30% of the weight available); leakage check passes.
+- **Drift:** learned for E2 and E3 into `contracts/drift/gharchive.yml`. **Review:**
+  `docs/reviews/phase-9.md`, clean for the gate.
+- **Publish fixes made on the way:**
+  - ADR-074/075: registry claims fetched in publish, with retries on a dropped body.
+  - ADR-076: the fetch has a 35-minute budget, and the cache is kept after a failed step.
+  - ADR-077: reviewed decisions name the claimed repository.
+  - ADR-078: an empty quarantine counts as clean.
+  - ADR-079: a refused npm name goes to quarantine.
+  - ADR-080: the live window is read.
+- **Open (not blocking):**
+  - **Owner decision (privacy):** `top_actor_events` in the published `contributors` assets
+    (review item 3). The suggestion is a share, or suppression below k=3.
+  - Review items 2 (retry counts in records) and 9 (overlap-hour accounting), and nits 12-15.
+  - Each publish downloads about 5 GB from `data-live`.
+
 **2026-10-27 (ADR-069, ADR-070):**
 - **Backtest on Actions works** (run 40454178871, `docs/backtest.md`). Three runs failed on
   memory first; fixed by bounded DuckDB plus the reference filter pushed into SQL (ADR-070).
