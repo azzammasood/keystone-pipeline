@@ -33,7 +33,8 @@ Actions (run 41027674711, commit 23e5b3a); CI and scorecard green on 2ef628b.
     the secrets check and the line continuations are fixed. The Databricks rung is green
     after the change (run 41049631604, Lakeflow COMPLETED, 178 rows).
 - **Radar names (2026-10-31, ADR-083):** a scored repository missing from `dim_repo` takes the
-  unique name of its accepted package mapping. Before: 6,363 of 7,792 radar rows had no name.
+  unique name of its accepted package mapping. Before: 6,363 of 7,792 radar rows had no name;
+  after (publish run 41179922737): 0 of 7,798 (radar and project pages).
 - **Known cost:** each publish downloads about 5 GB from `data-live` (ADR-080).
 
 **2026-10-27 (ADR-069, ADR-070):**
