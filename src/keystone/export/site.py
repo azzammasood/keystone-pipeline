@@ -44,6 +44,7 @@ BENCH_SOURCES = [
 ]
 SIGNAL_KEYS = ("name", "available", "sub", "weight", "reason")
 VERSION = "v1"
+RADAR_VERSION = "v2"  # v2: scored, unscored_reason, rank (ADR-084)
 
 
 @dataclass(frozen=True)
@@ -126,10 +127,14 @@ def _rank(row: dict[str, Any]) -> tuple[float, float, int]:
     )
 
 
-def _status(note: str, scored: int) -> tuple[str, str]:
+def _status(note: str, scored: int, repos: int, mapped: int | None) -> tuple[str, str]:
     if note.startswith("partial data"):
         return ("partial data", note)
-    return ("ok", f"{scored} repositories scored; {note}")
+    of = f" of {mapped} mapped" if mapped is not None else ""
+    return (
+        "ok",
+        f"{scored} of {repos} repositories scored ({repos}{of} had activity in the window); {note}",
+    )
 
 
 def radar_and_pages(
@@ -147,6 +152,14 @@ def radar_and_pages(
             }
         )
     radar.sort(key=_rank)
+    # Scored rows (a fragility) are ranked 1..N in that order; the rest carry the reason
+    # instead (radar v2, ADR-084), so "N scored of M" reads straight from the rows.
+    n = 0
+    for row in radar:
+        row["scored"] = row["fragility"] is not None
+        row["unscored_reason"] = None if row["scored"] else row["note"]
+        n += int(row["scored"])
+        row["rank"] = n if row["scored"] else None
     pages.sort(key=lambda r: r["repo_id"])
     return radar, pages
 
@@ -277,12 +290,12 @@ def build(
     radar, pages = radar_and_pages(live, repo_facts(warehouse, ids))
     cut = datetime.fromisoformat(live["cut"])
     start = cut.replace(year=cut.year - 1)  # cuts are month starts: never 29 February
-    status = _status(live["note"], int(live["scored"]))
+    status = _status(live["note"], int(live["scored"]), int(live["repos"]), live.get("mapped"))
     common: dict[str, Any] = {"produced": produced, "now": now}
     docs = {
         "radar.json": envelope.wrap(
             "radar",
-            VERSION,
+            RADAR_VERSION,
             radar,
             sources=SCORE_SOURCES,
             window_start=start,

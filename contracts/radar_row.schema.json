@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/azzammasood/keystone-pipeline/contracts/radar_row.schema.json",
   "title": "Keystone radar row",
-  "description": "One repository on the radar (dataset radar, v1): its score and its three heaviest signals. Signals, not predictions; repository level only.",
+  "description": "One repository on the radar (dataset radar, v2; v2 adds scored, unscored_reason and rank, ADR-084): its score and its three heaviest signals. A row is scored when it has a fragility; scored rows are ranked 1..N by risk, then fragility, then repo_id, and unscored rows carry the reason and no rank. Signals, not predictions; repository level only.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -16,7 +16,10 @@
     "risk",
     "coverage",
     "note",
-    "top_signals"
+    "top_signals",
+    "scored",
+    "unscored_reason",
+    "rank"
   ],
   "properties": {
     "repo_id": {
@@ -124,6 +127,62 @@
           }
         }
       }
+    },
+    "scored": {
+      "type": "boolean",
+      "description": "True when the repository has a fragility score."
+    },
+    "unscored_reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Why the repository is not scored (the score's note); null when scored."
+    },
+    "rank": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1,
+      "description": "Position among the scored rows (1 = highest risk); null when not scored."
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "scored": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "rank": {
+            "type": "integer"
+          },
+          "unscored_reason": {
+            "type": "null"
+          },
+          "fragility": {
+            "type": "number"
+          }
+        }
+      },
+      "else": {
+        "properties": {
+          "rank": {
+            "type": "null"
+          },
+          "unscored_reason": {
+            "type": "string"
+          },
+          "fragility": {
+            "type": "null"
+          }
+        }
+      }
+    }
+  ]
 }

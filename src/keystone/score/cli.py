@@ -72,6 +72,11 @@ def score_live(
         cov = signals.hour_coverage(inp, signals.Window(cut))
         partial = cov < bt.MIN_HOUR_COVERAGE
         rows = [] if partial and not allow_partial else live_scores(inp, cut)
+        mapped = (
+            int(inp.con.execute("SELECT count(DISTINCT repo_id) FROM mapped").fetchone()[0])  # type: ignore[index]
+            if inp.vuln_data
+            else None
+        )
     finally:
         inp.close()
     scored = [r for r in rows if r["fragility"] is not None]
@@ -79,6 +84,9 @@ def score_live(
         "score_version": model.SCORE_VERSION,
         "cut": cut.isoformat(),
         "hour_coverage": cov,
+        # mapped: repositories a package maps to; repos: those with activity in the window
+        # (one row each); scored: those with a fragility (ADR-084)
+        "mapped": mapped,
         "repos": len(rows),
         "scored": len(scored),
         "note": "signals only; not a prediction"
@@ -91,7 +99,7 @@ def score_live(
     out.write_text(jsonlib.dumps(res, indent=2, default=str) + "\n", encoding="utf-8")
     typer.echo(
         f"{model.SCORE_VERSION} cut {cut:%Y-%m-%d}: {len(scored)} of {len(rows)} repositories "
-        f"scored; window hours covered {cov:.1%}; {res['note']} -> {out}"
+        f"scored ({mapped} mapped); window hours covered {cov:.1%}; {res['note']} -> {out}"
     )
 
 

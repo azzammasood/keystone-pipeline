@@ -215,7 +215,50 @@ def produced_by(records: list[StageRecord]) -> dict[str, Any] | None:
     }
 
 
-def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[str, Any]:
+METRICS_VERSION = 2  # 2: lifetime totals from the backfill chunk records (ADR-084)
+
+
+def lifetime(records_dir: Path | None) -> dict[str, Any] | None:
+    """Lifetime totals of the history backfill, summed from its chunk records (a redone
+    chunk counts once). None when no records are present; `totals` and `last_run` stay the
+    daily runs' own."""
+    if records_dir is None or not records_dir.is_dir():
+        return None
+    from keystone.backfill import drift as bd
+    from keystone.backfill.cli import totals_of
+
+    recs = bd.load_records(records_dir)
+    if not recs:
+        return None
+    t = totals_of(recs)
+
+    def part(v: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "chunks": v["chunks"],
+            "complete_chunks": v["complete_chunks"],
+            "days": v["days"],
+            "first": v["first"],
+            "last": v["last"],
+            "events": v["events_in_chunk"],
+            "bytes_downloaded": v["downloaded_bytes"],
+            "job_hours": round(v["job_seconds"] / 3600, 2),
+            "hours_missing_at_source": v["hours_missing"],
+        }
+
+    windows = sorted((k for k in t if k != "all"), key=lambda k: t[k]["first"])
+    return {
+        "source": "history backfill chunk records (chunk-*.json, releases data-<window>)",
+        **part(t["all"]),
+        "windows": [{"name": k, **part(t[k])} for k in windows],
+    }
+
+
+def build(
+    root: Path,
+    metadata_dir: Path,
+    now: datetime | None = None,
+    backfill_records: Path | None = None,
+) -> dict[str, Any]:
     now = now or datetime.now(UTC)
     records = read(root)
     runs = list(iter_runs(records))
@@ -267,6 +310,7 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
     data_bytes = sum(p.stat().st_size for p in root.rglob("*") if p.is_file())
     produced = produced_by(records)
     return {
+        "metrics_version": METRICS_VERSION,
         "generated_at": now.isoformat(),
         # The recorded decision when there is one; else inferred from the services that ran.
         "profile": produced["profile"]
@@ -292,6 +336,7 @@ def build(root: Path, metadata_dir: Path, now: datetime | None = None) -> dict[s
             },
             "backfill_window": sources,
         },
+        "lifetime": lifetime(backfill_records),
         "last_run": {
             "run_id": last_id,
             "stages": [_stage(r) for r in _last_per_stage(last)],

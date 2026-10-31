@@ -6,6 +6,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
+    "metrics_version",
     "generated_at",
     "profile",
     "produced_by",
@@ -16,9 +17,14 @@
     "freshness",
     "quality",
     "cost",
-    "lineage_summary"
+    "lineage_summary",
+    "lifetime"
   ],
   "properties": {
+    "metrics_version": {
+      "const": 2,
+      "description": "Document layout version: 2 adds lifetime (ADR-084)."
+    },
     "generated_at": {
       "type": "string",
       "format": "date-time"
@@ -558,6 +564,146 @@
           "maximum": 100
         }
       }
+    },
+    "lifetime": {
+      "description": "Lifetime totals of the history backfill, summed from its chunk records (a redone chunk counts once); null when no records were read. totals and last_run stay the daily runs' own.",
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source",
+            "chunks",
+            "complete_chunks",
+            "days",
+            "first",
+            "last",
+            "events",
+            "bytes_downloaded",
+            "job_hours",
+            "hours_missing_at_source",
+            "windows"
+          ],
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "chunks": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "complete_chunks": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "days": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "first": {
+              "type": "string",
+              "format": "date-time",
+              "description": "First hour covered (UTC, inclusive)."
+            },
+            "last": {
+              "type": "string",
+              "format": "date-time",
+              "description": "End of the covered range (UTC, exclusive)."
+            },
+            "events": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "GH Archive events inside the chunks' own hours."
+            },
+            "bytes_downloaded": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Bytes fetched from GH Archive (first fetch pass; ADR-082)."
+            },
+            "job_hours": {
+              "type": "number",
+              "minimum": 0
+            },
+            "hours_missing_at_source": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "windows": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "chunks",
+                  "complete_chunks",
+                  "days",
+                  "first",
+                  "last",
+                  "events",
+                  "bytes_downloaded",
+                  "job_hours",
+                  "hours_missing_at_source"
+                ],
+                "properties": {
+                  "name": {
+                    "enum": [
+                      "event-stream",
+                      "colors-faker",
+                      "xz",
+                      "live"
+                    ]
+                  },
+                  "chunks": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "complete_chunks": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "days": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "first": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "First hour covered (UTC, inclusive)."
+                  },
+                  "last": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "End of the covered range (UTC, exclusive)."
+                  },
+                  "events": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "GH Archive events inside the chunks' own hours."
+                  },
+                  "bytes_downloaded": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "description": "Bytes fetched from GH Archive (first fetch pass; ADR-082)."
+                  },
+                  "job_hours": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "hours_missing_at_source": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                }
+              }
+            }
+          }
+        }
+      ]
     }
   }
 }

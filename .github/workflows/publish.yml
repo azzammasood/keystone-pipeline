@@ -115,6 +115,15 @@ jobs:
           rm -rf "$RUNNER_TEMP/live"
       - run: uv run keystone score backtest --report data/score/backtest.md
       - run: uv run keystone metadata export --out data/publish/metadata
+      - name: Backfill chunk records (lifetime totals, ADR-084)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for w in event-stream colors-faker xz live; do
+            mkdir -p "data/backfill/records/$w"
+            gh release download "data-$w" -p 'chunk-*.json' -D "data/backfill/records/$w" --clobber
+          done
       - name: Cloud rung stage records (engines[] evidence, ADR-067)
         run: |
           mkdir -p "$RUNNER_TEMP/cloud"

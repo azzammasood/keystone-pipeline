@@ -2,6 +2,32 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-084 (2026-10-31) Lifetime totals in pipeline_metrics; the radar says what is scored
+- **Context:** site QA (2026-10-31) found two gaps.
+  - `pipeline_metrics.json` `totals` describe only the daily runs (2.2M events, 69 files).
+    Brief 9c asks for lifetime totals with the date range and backfill windows.
+  - The site ranked all 7,798 radar rows, but only 4,425 have a score.
+- **Choice:**
+  - **Metrics:** `metrics_version: 2` adds `lifetime`, summed from the backfill chunk
+    records (a redone chunk counts once), or null without records. It holds chunks, days,
+    first and last, events in the chunks' own hours, bytes downloaded (first pass, ADR-082),
+    job hours and hours missing at source, overall and per window. Publish downloads the
+    records from the `data-<window>` releases. `totals` and `last_run` are unchanged.
+    Measured: 78 chunks, 4,574,059,729 events, 1,873,190,290,497 bytes, 37.88 job hours,
+    2017-11-01 to 2026-10-27.
+  - **Radar:** radar rows v2 add `scored` (a fragility exists), `unscored_reason` (the
+    score's note) and `rank`, numbered 1..N over scored rows only. `live.json` gains
+    `mapped`, the repositories a package maps to. The status reads "N of M scored (M of K
+    mapped had activity in the window)".
+- **Why 7,798 and 7,792 differ:** they come from two publishes. 7,792 is run 41027674711
+  (2026-10-30, 4,421 scored); 7,798 is run 41179922737 (2026-10-31, 4,425 scored). The
+  mapping and the claims are rebuilt every day from fresh OSV and registry data. A radar row
+  is a mapped repository with activity in the window, so mapped repositories with no activity
+  have no row. From this change the gap to all mapped repositories is in `live.json`
+  (`mapped`).
+- **Why:** the site shows lifetime numbers from evidence and an honest "N scored of M",
+  without ranking unscored rows.
+
 ## ADR-083 (2026-10-31) Radar names fall back to the accepted package mapping
 - **Context:** the published `radar.json` and `project_pages.json` had `repo_name: null` on
   6,363 of 7,792 rows (80 of the top 100). The live score covers the backfill's 12-month

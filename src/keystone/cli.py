@@ -979,12 +979,21 @@ def metrics_emit(
     out: Path = typer.Option(
         None, help="Output file (default <root>/metrics/pipeline_metrics.json)."
     ),
+    backfill_records: Path = typer.Option(
+        None,
+        help="Backfill chunk records for the lifetime totals (default <root>/backfill/records).",
+    ),
 ) -> None:
     """Build pipeline_metrics.json from measured runs, validate it, export its gauges."""
     from keystone.paths import METADATA_DIR
     from keystone.telemetry import metrics as tm
 
-    doc = tm.build(root, metadata_dir or METADATA_DIR)
+    records = backfill_records if isinstance(backfill_records, Path) else None
+    doc = tm.build(
+        root,
+        metadata_dir or METADATA_DIR,
+        backfill_records=records or root / "backfill" / "records",
+    )
     tm.validate(doc)
     target = out or root / "metrics" / "pipeline_metrics.json"
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -993,7 +1002,8 @@ def metrics_emit(
     stages = len(doc["last_run"]["stages"])
     typer.echo(
         f"valid pipeline_metrics.json: profile={doc['profile']} engines={len(doc['engines'])} "
-        f"last_run_stages={stages} events_processed={doc['totals']['events_processed']} -> {target}"
+        f"last_run_stages={stages} events_processed={doc['totals']['events_processed']} "
+        f"lifetime_events={(doc['lifetime'] or {}).get('events')} -> {target}"
     )
 
 

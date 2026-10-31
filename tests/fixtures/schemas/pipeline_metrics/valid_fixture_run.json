@@ -1,4 +1,5 @@
 {
+ "metrics_version": 2,
  "generated_at": "2026-10-21T17:19:27.456840+00:00",
  "profile": "free",
  "produced_by": {
@@ -163,5 +164,67 @@
   "nodes": 103,
   "edges": 118,
   "documented_pct": 100.0
+ },
+ "lifetime": {
+  "source": "history backfill chunk records (chunk-*.json, releases data-<window>)",
+  "chunks": 78,
+  "complete_chunks": 78,
+  "days": 1579,
+  "first": "2017-11-01T00:00:00+00:00",
+  "last": "2026-10-27T00:00:00+00:00",
+  "events": 4574059729,
+  "bytes_downloaded": 1873190290497,
+  "job_hours": 37.88,
+  "hours_missing_at_source": 228,
+  "windows": [
+   {
+    "name": "event-stream",
+    "chunks": 13,
+    "complete_chunks": 13,
+    "days": 395,
+    "first": "2017-11-01T00:00:00+00:00",
+    "last": "2018-12-01T00:00:00+00:00",
+    "events": 517146065,
+    "bytes_downloaded": 200932863437,
+    "job_hours": 3.97,
+    "hours_missing_at_source": 3
+   },
+   {
+    "name": "colors-faker",
+    "chunks": 13,
+    "complete_chunks": 13,
+    "days": 396,
+    "first": "2021-01-01T00:00:00+00:00",
+    "last": "2022-02-01T00:00:00+00:00",
+    "events": 1121147780,
+    "bytes_downloaded": 604861529152,
+    "job_hours": 10.22,
+    "hours_missing_at_source": 225
+   },
+   {
+    "name": "xz",
+    "chunks": 26,
+    "complete_chunks": 26,
+    "days": 397,
+    "first": "2023-03-01T00:00:00+00:00",
+    "last": "2024-04-01T00:00:00+00:00",
+    "events": 1678142834,
+    "bytes_downloaded": 781099547536,
+    "job_hours": 15.15,
+    "hours_missing_at_source": 0
+   },
+   {
+    "name": "live",
+    "chunks": 26,
+    "complete_chunks": 26,
+    "days": 391,
+    "first": "2025-10-01T00:00:00+00:00",
+    "last": "2026-10-27T00:00:00+00:00",
+    "events": 1257623050,
+    "bytes_downloaded": 286296350372,
+    "job_hours": 8.54,
+    "hours_missing_at_source": 0
+   }
+  ]
  }
 }

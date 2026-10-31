@@ -59,10 +59,18 @@ def test_radar_ranks_by_risk_and_keeps_raw_internal() -> None:
     live = {"scores": [_score(1, None, 40.0), _score(2, 30.0, 60.0), _score(3, 45.0, 70.0)]}
     radar, pages = site.radar_and_pages(live, {2: site.Repo("o/two", ["npm/two"])})
     assert [r["repo_id"] for r in radar] == [3, 2, 1]
+    # only scored rows are ranked; an unscored row carries its reason (radar v2, ADR-084)
+    assert [(r["scored"], r["rank"]) for r in radar] == [(True, 1), (True, 2), (True, 3)]
+    none = {**_score(4, None, None), "note": "insufficient data: 30% of the weight available"}
+    more, _ = site.radar_and_pages({"scores": [*live["scores"], none]}, {})
+    assert [(r["repo_id"], r["rank"]) for r in more] == [(3, 1), (2, 2), (1, 3), (4, None)]
+    assert more[3]["scored"] is False and more[3]["unscored_reason"] == none["note"]
+    assert more[0]["unscored_reason"] is None
+    envelope.wrap("radar", "v2", more, produced=PRODUCED, sources=site.SCORE_SOURCES)
     assert [s["name"] for s in radar[0]["top_signals"]] == ["concentration", "churn", "trend"]
     assert radar[1]["repo_name"] == "o/two" and radar[1]["packages"] == ["npm/two"]
     assert "raw" not in json.dumps(radar + pages)
-    doc = envelope.wrap("radar", "v1", radar, produced=PRODUCED, sources=site.SCORE_SOURCES)
+    doc = envelope.wrap("radar", "v2", radar, produced=PRODUCED, sources=site.SCORE_SOURCES)
     assert doc["row_count"] == 3
     with pytest.raises(jsonschema.ValidationError, match="radar row 0"):
         envelope.wrap(

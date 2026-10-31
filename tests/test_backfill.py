@@ -229,3 +229,40 @@ def test_share_contributors_rewrites_the_first_layout(tmp_path: Path) -> None:
     ).fetchall()
     assert rows == [(1, 1, 7, None), (2, 4, 10, 0.4)]
     assert share_contributors(f) == 2  # already shared: unchanged
+
+
+def test_lifetime_totals_count_a_redone_chunk_once(tmp_path: Path) -> None:
+    import json
+
+    from keystone.telemetry.metrics import lifetime
+
+    def rec(window: str, start: str, end: str, events: int, complete: bool) -> dict[str, object]:
+        return {
+            "window": window, "complete": complete, "start": start, "end": end,
+            "hours": {"fetched": 24, "missing": [], "parse_failed": [], "fetch_errors": []},
+            "download": {"bytes": 1000}, "parse": {"events": events, "quarantined": 0},
+            "events": {"in_chunk": events, "before_start_lost": 0, "after_end_lost": 0},
+            "rows": {}, "bytes": {}, "seconds": {"total": 1800.0},
+        }  # fmt: skip
+
+    for window, name, r in (
+        ("xz", "chunk-20240101-20240102.incomplete.json",
+         rec("xz", "2024-01-01T00:00:00+00:00", "2024-01-02T00:00:00+00:00", 5, False)),
+        ("xz", "chunk-20240101-20240102.json",
+         rec("xz", "2024-01-01T00:00:00+00:00", "2024-01-02T00:00:00+00:00", 7, True)),
+        ("live", "chunk-20251001-20251002.json",
+         rec("live", "2025-10-01T00:00:00+00:00", "2025-10-02T00:00:00+00:00", 11, True)),
+    ):  # fmt: skip
+        (tmp_path / window).mkdir(exist_ok=True)
+        (tmp_path / window / name).write_text(json.dumps(r))
+    lt = lifetime(tmp_path)
+    assert lt is not None
+    assert (lt["chunks"], lt["events"], lt["bytes_downloaded"], lt["job_hours"]) == (
+        2,
+        18,
+        2000,
+        1.0,
+    )
+    assert [(w["name"], w["events"]) for w in lt["windows"]] == [("xz", 7), ("live", 11)]
+    assert (lt["first"], lt["last"]) == ("2024-01-01T00:00:00+00:00", "2025-10-02T00:00:00+00:00")
+    assert lifetime(tmp_path / "none") is None

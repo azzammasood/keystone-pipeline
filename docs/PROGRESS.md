@@ -200,46 +200,25 @@ encrypted asset 2026-10-22; secret `KEYSTONE_ACTOR_DATA_KEY`). **Phase 8 complet
   checked with gh as azzammasood.
 
 ## Next
-1. **Backtest rerun on backfilled data** (one command, see Now); the first real publish follows.
-   Phase 10 leftovers (showcase-only, ADR-064): warehouse reading the `full` rollup, atomic
-   Iceberg publish, OpenLineage log push to a data branch; brief on Actions needs the secret.
-   Phase 8 leftovers: first-response time and OSV time to fix need inputs the rollups lack;
-   bot-free opens and closes in `repo_hour` would be a new metric version. Phase 7 leftovers: re-run
-   the 3,976 names still suggested may resolve once Phase 9 loads the missing hours (re-run
-   `warehouse build` and `resolve report` then);
-   fold resolved E1/E0 events into activity metrics as a new metric version (Phase 8).
-   Earlier leftovers: Phase 6 leftovers: push of the compressed OpenLineage log to a data branch with the live refresh
-   (Phase 10); the site export adds one hop to the lineage graph (Phase 8); Databricks and
-   Unity Catalog lineage when a token exists. Phase 5 leftovers: Databricks target when a token exists
-   (ADR-030); atomic Iceberg publish (ADR-029); E1 2012 repositories without ids are resolved by
-   name in Phase 7 (done, ADR-037). Known Phase 4 limit: a re-parsed hour already streamed needs a
-   Flink batch rebuild (ADR-026).
-2. Owner: set the production `KEYSTONE_ACTOR_SALT` as a secret before any non-sample parse (the
-   local one in `.env` is for samples only; changing it changes every actor key). Owner
-   2026-10-21: deferred to Phase 9; ask then and give the one-line command.
-3. Backfill (Phase 9) still waits on the owner (disk below 50 GB; owner 2026-10-21: continue
-   with Phases 7-8, decide storage before Phase 9). **Owner decisions 2026-10-21:** keep a
-   30-day silver window plus aggregates for all downloaded history; download only the
-   minimum history (about 24 months before each backtest incident, plus the live trailing
-   window); the backfill runs on GitHub Actions; the owner makes the repo public
-   themselves; curated data is stored as GitHub Release assets. Silver for the whole archive is an
-   estimated ~490 GB (estimate: 85 MB for 2026-10-19 x ~5,700 days; earlier years are smaller,
-   so it is an upper-side figure). Measure silver per year from the sample hours first, then
-   design for the space there is: the owner cannot attach another drive (2026-10-21) and
-   asks to use GitHub's storage where possible. Phase 9 options to measure and decide (ADR):
-   keep silver only for a rolling window and the rollups for all of history (stream, roll up,
-   delete); curated Parquet snapshots as GitHub Release assets (under 2 GiB each; check
-   GitHub's terms on Releases as data storage first); never bulk data in the git history (repo
-   size limits). Credentials: the owner provides them when a phase needs them; ask then.
-   Do not start it. Before it:
-   learn drift from a stratified sample, measure late pushes (ADR-022), parallelise parsing.
-   *2026-10-21 (Phase 9 prep branch):* measured. `keystone bench run|storage`,
-   `docs/benchmarks.md`, proposal ADR-039. Silver for
-   the full archive is an estimated ~760 GB (635 GB to 1.03 TB), so the 490 GB figure above
-   was low; no 24-month window fits the disk either. Owner decided 2026-10-21 (incident
-   windows + live window only, 30-day silver, Actions, Release assets); ADR-039 sizes it:
-   3.8 TB downloaded, ~51 GB published, 138 jobs of at most 5 h (estimates). Open: the
-   30-day silver window as public rows without actor fields (privacy check with the owner).
+Rewritten 2026-10-31. The salt and the data-key secrets are set, storage is decided (incident
+windows plus the live window as Release assets, no 30-day silver window), and the backfill,
+backtests, brief and cloud rungs are done. What remains, none of it blocking the site:
+1. **Showcase leftovers (`full` profile, ADR-064):**
+   - the warehouse reading the `full` rollup;
+   - an atomic Iceberg publish (ADR-029);
+   - the compressed OpenLineage log pushed to a data branch;
+   - a re-parsed hour already streamed needs a Flink batch rebuild (ADR-026, known limit).
+2. **Metric versions not built (inputs missing):**
+   - first-response time and OSV time to fix: the rollups lack the inputs;
+   - bot-free opens and closes in `repo_hour`;
+   - resolved E1/E0 events folded into the activity metrics.
+3. **Resolution:** re-run `resolve report` on the backfilled data for the 3,976 names that
+   were still suggested (Phase 7). Some may now resolve.
+4. **Lineage:** the site export adds one hop to the lineage graph (Phase 8 note).
+5. **Running cost to watch:**
+   - each publish downloads about 5 GB from `data-live` (ADR-080);
+   - after 2026-10-27 the live window is fed by the daily ingest only. Coverage under 90%
+     withholds the score, so a long ingest outage shows as "partial data".
 
 ## Blockers (hard stops)
 - GH Archive completeness after 2025-05-23 (ADR-012): the owner should know activity signals end there.
