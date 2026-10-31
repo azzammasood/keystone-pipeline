@@ -2,6 +2,21 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-083 (2026-10-31) Radar names fall back to the accepted package mapping
+- **Context:** the published `radar.json` and `project_pages.json` had `repo_name: null` on
+  6,363 of 7,792 rows (80 of the top 100). The live score covers the backfill's 12-month
+  window, but `dim_repo` holds only the repositories the publish warehouse's GH Archive data
+  has seen, so most scored ids had no name there. Every one of those rows had mapped packages.
+- **Options:** (a) keep null; (b) widen `dim_repo` to non-GH Archive ids (changes its grain and
+  every reader of it); (c) in the export, take the name `map_package_repo` resolved for the id.
+- **Choice:** (c). `dim_repo`'s name stays first. Else the name of the id's accepted or
+  auto_exact github.com mapping rows, only when they hold exactly one distinct name; else null.
+  That name is the ecosyste.ms current name for the id (or the claimed name the id rules
+  resolved), in lower case, since the registry stores names lower case. GitHub names are case
+  insensitive, so the lower-case name is the same repository.
+- **Why:** uses data the pipeline already has, reads only accepted mappings (the same filter as
+  `packages`), and never picks between two names. No score or published number changes.
+
 ## ADR-082 (2026-10-30) Phase 9 review: the remaining minor items and nits
 - **Context:** `docs/reviews/phase-9.md` left items 2, 8 (part), 9 and nits 12-15 open. The
   owner asked for the recommended approaches (2026-10-30).

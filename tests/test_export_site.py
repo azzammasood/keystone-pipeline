@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+import duckdb
 import jsonschema
 import pytest
 
@@ -71,6 +72,37 @@ def test_radar_ranks_by_risk_and_keeps_raw_internal() -> None:
             produced=PRODUCED,
             sources=site.SCORE_SOURCES,
         )
+
+
+def test_repo_facts_fall_back_to_the_mapped_name_never_a_guess(tmp_path: Path) -> None:
+    wh = tmp_path / "w.duckdb"
+    con = duckdb.connect(str(wh))
+    con.execute("CREATE SCHEMA marts")
+    con.execute("CREATE TABLE marts.dim_repo (repo_id BIGINT, repo_name VARCHAR)")
+    con.execute("INSERT INTO marts.dim_repo VALUES (1, 'Owner/One')")
+    con.execute(
+        "CREATE TABLE marts.map_package_repo (package_key VARCHAR, repo_host VARCHAR, "
+        "repo_full_name VARCHAR, repo_id BIGINT, status VARCHAR)"
+    )
+    con.execute(
+        "INSERT INTO marts.map_package_repo VALUES "
+        "('npm/one', 'github.com', 'owner/one-old', 1, 'accepted'),"  # GH Archive name wins
+        "('npm/two', 'github.com', 'o/two', 2, 'auto_exact'),"  # not in GH Archive: mapped
+        "('npm/two-b', 'github.com', 'o/two', 2, 'accepted'),"
+        "('npm/three', 'github.com', 'o/three', 3, 'accepted'),"  # two names: stays null
+        "('npm/three-b', 'github.com', 'o/three-b', 3, 'accepted'),"
+        "('npm/four', 'github.com', 'o/four', 4, 'suggested')"  # not accepted: stays null
+    )
+    con.close()
+    facts = site.repo_facts(wh, [1, 2, 3, 4, 5])
+    assert {i: f.name for i, f in facts.items()} == {
+        1: "Owner/One",
+        2: "o/two",
+        3: None,
+        4: None,
+        5: None,
+    }
+    assert facts[2].packages == ["npm/two", "npm/two-b"] and facts[4].packages == []
 
 
 FACTS = {
