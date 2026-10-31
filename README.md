@@ -38,7 +38,7 @@ Not affiliated with GitHub, GH Archive, OSV or any project maintainer.
 | One day (2026-10-19) | 1,042,693 events; DuckDB rollup 2.7 s; Flink stream and batch match it row for row |
 | Rollup, 1 day, three engines (wall s, run 1) | DuckDB 4.7, Spark 64.9, Flink 92.5 (`docs/benchmarks.md`) |
 | Package-to-repository match rate | 94.1% (4,456 of 4,736 critical PyPI and npm packages) |
-| Lineage graph | 103 nodes, 118 edges, 294 column edges |
+| Lineage graph (to the site exports) | 121 nodes, 140 edges, 294 column edges |
 | Docs coverage of the warehouse | 100% (gate 95%) |
 | Simulated full outage | 5 of 5 probes down; free rollup; all site exports validate (`produced_by: free, fallback: true`) |
 | Backfill (GitHub Actions, 78 chunks) | 4,574,059,729 events, 1,873.2 GB downloaded, 37.88 job hours |

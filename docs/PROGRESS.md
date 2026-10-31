@@ -104,6 +104,12 @@ encrypted asset 2026-10-22; secret `KEYSTONE_ACTOR_DATA_KEY`). **Phase 8 complet
 39769357851, 39769357770, 39769357745; checked with gh as azzammasood).
 
 ## Done
+- 2026-10-31: the old blockers are cleared and moved here. Tokens arrived and the
+  Databricks, BigQuery and OpenRouter rungs ran (ADR-067, ADR-068). The disk shortfall
+  (28.2, 20 and 17.8 GB free) was designed around: the backfill ran on Actions with
+  Release assets (ADR-039, ADR-065). Completeness after 2025-05-23 (ADR-012) is a data
+  caveat carried by the completeness periods; the live score's window is 100% covered.
+  Issues #2, #3 and #4 are closed with links to green runs.
 - 2026-10-20 Phase 0 local: repo initialised (`main`), identity set repo-local (ADR-002/003),
   uv project with `keystone` CLI (`info`, `machine`), policy config, tests (6 pass), ruff + mypy
   strict clean, pre-commit, CI, Scorecard, Dependabot, CLAUDE.md, PLAN, DECISIONS, Roshni patterns.
@@ -200,47 +206,30 @@ encrypted asset 2026-10-22; secret `KEYSTONE_ACTOR_DATA_KEY`). **Phase 8 complet
   checked with gh as azzammasood.
 
 ## Next
-Rewritten 2026-10-31. The salt and the data-key secrets are set, storage is decided (incident
-windows plus the live window as Release assets, no 30-day silver window), and the backfill,
-backtests, brief and cloud rungs are done. What remains, none of it blocking the site:
-1. **Showcase leftovers (`full` profile, ADR-064):**
-   - the warehouse reading the `full` rollup;
-   - an atomic Iceberg publish (ADR-029);
-   - the compressed OpenLineage log pushed to a data branch;
-   - a re-parsed hour already streamed needs a Flink batch rebuild (ADR-026, known limit).
-2. **Metric versions not built (inputs missing):**
-   - first-response time and OSV time to fix: the rollups lack the inputs;
-   - bot-free opens and closes in `repo_hour`;
-   - resolved E1/E0 events folded into the activity metrics.
-3. **Resolution:** re-run `resolve report` on the backfilled data for the 3,976 names that
-   were still suggested (Phase 7). Some may now resolve.
-4. **Lineage:** the site export adds one hop to the lineage graph (Phase 8 note).
-5. **Running cost to watch:**
+Updated 2026-10-31 (ADR-085, ADR-086). Done from the earlier list: the lineage hop to the
+site, the atomic Iceberg publish, the OpenLineage log on `lineage-log`, the warehouse reading
+the `full` rollup, and the match-rate report on the backfilled warehouse (measured in
+publish). What remains:
+1. **Deferred metric versions (ADR-086):** first-response time, OSV time to fix, bot-free
+   opens and closes, E0/E1 folding. Each is a new metric version; three need a full
+   re-backfill.
+2. **Showcase limit:** `rollup flink --rebuild` for a re-parsed hour already streamed
+   (ADR-026). Skipped: it needs the streaming stack, and `full` never runs on Actions.
+3. **Running cost to watch:**
    - each publish downloads about 5 GB from `data-live` (ADR-080);
    - after 2026-10-27 the live window is fed by the daily ingest only. Coverage under 90%
-     withholds the score, so a long ingest outage shows as "partial data".
+     withholds the score.
 
 ## Blockers (hard stops)
-- GH Archive completeness after 2025-05-23 (ADR-012): the owner should know activity signals end there.
-- **Disk: 28.2 GB free on C: (below the brief's 50 GB threshold).** Phase 1 spike is fine; any
-  backfill or full Compose stack needs more space or another drive.
-- **RAM: 16.8 GB total, ~4.4 GB available at measurement.** Full-profile stacks must run one
-  Compose profile at a time.
-- Owner 2026-10-21: will provide a Databricks Free Edition token, a BigQuery sandbox project
-  and an OpenRouter key (values go in `.env` only, never in chat or git). Until they appear:
-- Optional rungs skipped until tokens exist: Databricks (Phase 5 rung: dbt-databricks, Unity
-  Catalog, Lakeflow pipeline; logged 2026-10-20, ADR-030), BigQuery sandbox, OpenRouter.
-- **Disk: 17.8 GB free on C: (2026-10-21, after cleanup and compaction).** Removed (owner
-  asked): the DataHub images, containers and volumes (re-created from the pinned digests by
-  `docker compose --profile datahub up` and `keystone lineage datahub`), three untagged
-  Flink/Spark builds and the Phase 4 replay copy of 2026-10-19 (`data/replay`, also in
-  `data/silver`). Docker's WSL disk was then trimmed and compacted (`Optimize-VHD`, elevated
-  with the owner's UAC approval): 33.1 GB to 26.9 GB. Images of other projects (roshni,
-  mqtt-rawevent-batch, bigqueryjob*, SAM build, Redpanda Console) were not touched. No other
-  drive can be attached (owner): Phase 9 designs for this space (Next, item 3).
-- **Owner: disk.** 20 GB free after Phase 5 (Spark and Trino images 2.5 GB). An untagged
-  1.07 GB Flink image from an earlier build is reclaimable (`docker image prune`); freeing disk
-  is the owner's call.
+None open (2026-10-31). Production runs on GitHub Actions at $0, and every credential the
+phases needed is set: Databricks, BigQuery WIF, OpenRouter, the salt and the data key.
+Standing constraints, not blockers:
+- **Local disk:** 15.5 GB free of 261 GB (keystone machine, 2026-10-31), budget 10.8 GB. Bulk
+  data stays on Actions and in Release assets. Freeing disk is the owner's call.
+- **Local RAM:** 16.8 GB total, 8.3 GB available. The `full` showcase runs one Compose
+  profile at a time.
+- **`full` on Actions:** not reachable from a hosted runner. Issue #7 is the designed
+  standing notice (ADR-062); scheduled jobs run `free` and say so in `produced_by`.
 
 ## Measured
 | When | What | Value |
@@ -277,6 +266,7 @@ backtests, brief and cloud rungs are done. What remains, none of it blocking the
 | 2026-10-20 | Reader RAM (docker stats) | Trino 0.91 GB idle, 1.45 GB peak (limit 1.5 GB); Flink TM 1.08 GB, JM 0.62 GB |
 | 2026-10-20 | Disk free after Phase 5 (C:) | 20 GB; spark 1.1 GB + trino 1.38 GB images; data/warehouse 403 MB |
 | 2026-10-21 | Final gate run (local data, one run id, 14 stages) | parse 8 kept hours 294,072 events 34.5 s (8.5k/s); rollup 832,958 rows 4.2 s; dbt build 19.9 s; produce 2,363,426 records 46.1 s (51k/s); Flink batch + fold 93.6 s (records not reported); publish 3,399,621 rows 7.8 s |
+| 2026-10-31 | Lineage graph with the score and site hops (ADR-085) | 121 nodes, 140 edges, 294 column edges |
 | 2026-10-21 | Lineage graph (metadata/lineage.json) | 103 nodes, 118 edges, 294 column edges; dbt-ol 76 events, column lineage on 17 models, 61 unresolved column inputs dropped |
 | 2026-10-21 | Gate path present | static JSON (column chain complete), Marquez (13 of 13 nodes, 6 of 6 fields), DataHub (5 of 5 upstream datasets, 5 of 5 column hops) |
 | 2026-10-21 | Completeness | 19/19 models, 483/483 columns, 44/44 datasets, 0 owners missing |

@@ -25,6 +25,7 @@ class Outcome:
     full_healthy: bool
     reason: str
     probes: list[ProbeResult] = field(default_factory=list)
+    namespace: str | None = None  # the full rollup's Iceberg namespace (warehouse input, ADR-085)
 
     @property
     def fallback(self) -> bool:
@@ -37,6 +38,7 @@ class Outcome:
             "fallback": self.fallback,
             "reason": self.reason,
             "probes": [asdict(p) for p in self.probes],
+            "namespace": self.namespace if self.produced_by == "full" else None,
         }
 
 
@@ -59,12 +61,13 @@ def run(
     free_job: Job,
     want: ProfileName = "full",
     probes: Sequence[Probe] = FULL_PROBES,
+    namespace: str | None = None,
 ) -> Outcome:
     """Run the job once, in the best profile available, and record which one produced it."""
     with Stage(root, "profile", "keystone", __version__) as st:
         results = check(probes) if want == "full" else []
         down = _unhealthy(results)
-        out = Outcome("free", want == "full" and not down, "requested", results)
+        out = Outcome("free", want == "full" and not down, "requested", results, namespace)
         if want == "full" and down:
             out.reason = down
         elif want == "full":

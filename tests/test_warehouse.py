@@ -280,3 +280,15 @@ def test_published_columns_avoid_flink_reserved_words() -> None:
                 if c["name"].lower() in FLINK_RESERVED
             ]
     assert bad == []
+
+
+def test_free_decision_keeps_the_free_rollup(tmp_path: Path) -> None:
+    from keystone.profile import run as prun
+    from keystone.warehouse import dbt as w
+
+    paths = w.WarehousePaths(tmp_path)
+    assert w.full_rollup(paths) is None  # no decision yet
+    out = prun.run(tmp_path, lambda: None, lambda: None, want="free", probes=[], namespace="x")
+    assert out.as_dict()["namespace"] is None  # a free run never names a full namespace
+    assert w.full_rollup(paths) is None
+    assert paths.env()["KEYSTONE_ROLLUP_PATH"].endswith("rollup/rollup.duckdb")

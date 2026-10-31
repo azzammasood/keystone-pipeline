@@ -212,6 +212,7 @@ def produced_by(records: list[StageRecord]) -> dict[str, Any] | None:
         "decided_at": r.ended_at,
         "status": r.status,
         "probes": [{"name": p["name"], "ok": p["ok"]} for p in r.detail.get("probes", [])],
+        "namespace": r.detail.get("namespace"),
     }
 
 

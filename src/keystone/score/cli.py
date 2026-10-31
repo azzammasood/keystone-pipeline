@@ -65,8 +65,36 @@ def score_live(
 ) -> None:
     """Score every mapped repository on the 12 months before the cut, with explanations.
     Without --allow-partial, a window the rollup does not cover is reported, not scored."""
+    from keystone import __version__
+    from keystone.lineage import datasets as lds
+    from keystone.telemetry.runlog import Stage
+
     cut = _cut(month)
     extra = extra_rollup if isinstance(extra_rollup, Path) else None  # direct calls
+    # the run log and lineage go to the data root that holds score/ (ADR-085)
+    stage = Stage(
+        out.parent.parent,
+        "score-live",
+        "keystone-score",
+        __version__,
+        inputs=lds.score_inputs(),
+        outputs=[lds.score_live()],
+    )
+    with stage:
+        res = _score_live(cut, rollup, warehouse, extra, allow_partial)
+        stage.records_out = int(res["repos"])
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(jsonlib.dumps(res, indent=2, default=str) + "\n", encoding="utf-8")
+    typer.echo(
+        f"{model.SCORE_VERSION} cut {cut:%Y-%m-%d}: {res['scored']} of {res['repos']} "
+        f"repositories scored ({res['mapped']} mapped); window hours covered "
+        f"{res['hour_coverage']:.1%}; {res['note']} -> {out}"
+    )
+
+
+def _score_live(
+    cut: datetime, rollup: Path, warehouse: Path, extra: Path | None, allow_partial: bool
+) -> dict[str, Any]:
     inp = signals.open_inputs(rollup, warehouse, extra)
     try:
         cov = signals.hour_coverage(inp, signals.Window(cut))
@@ -95,12 +123,7 @@ def score_live(
         + ("" if allow_partial else "; not scored"),
         "scores": rows,
     }
-    out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(jsonlib.dumps(res, indent=2, default=str) + "\n", encoding="utf-8")
-    typer.echo(
-        f"{model.SCORE_VERSION} cut {cut:%Y-%m-%d}: {len(scored)} of {len(rows)} repositories "
-        f"scored ({mapped} mapped); window hours covered {cov:.1%}; {res['note']} -> {out}"
-    )
+    return res
 
 
 @score_app.command("explain")

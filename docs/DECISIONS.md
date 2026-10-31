@@ -2,6 +2,62 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-086 (2026-10-31) Deferred: first-response time, OSV time to fix, bot-free opens and closes, E0/E1 folding
+- **Context:** PROGRESS "Next" item 2. Each needs inputs the published rollups do not hold.
+  Most would mean re-parsing the 1.9 TB backfill (ADR-084: 1,873.2 GB downloaded, 37.88 job
+  hours). The owner said not to do it now (2026-10-31).
+- **Choice:** deferred to a future metric version (score_v2 or a new rollup version). No
+  current metric changes. What each would take:
+  - **First-response time:** a new per-item rollup keyed by repository and issue or PR number.
+    It needs the open time and the first comment time from a non-author (`IssueCommentEvent`,
+    `PullRequestReviewEvent`, by `author_association`, never by actor), and it must check the
+    E3 payloads (after 2025-10-07) for those fields first. Then a re-parse of every window: a
+    full backfill rerun, about 38 job hours on Actions.
+  - **OSV time to fix:** no re-parse. It needs each package's release dates per version
+    (ecosyste.ms versions or the registries) joined to OSV's `fixed` versions. That is a new
+    registry fetch and a point-in-time rule (only releases before the cut).
+  - **Bot-free opens and closes:** `repo_hour` counts `opened` and `closed` with bots included;
+    `human_events` is the only bot-free count. It needs `human_opened` and `human_closed` in
+    the rollup SQL (portable, both engines, parity test), so a new `repo_hour` version and a
+    full re-parse.
+  - **E0/E1 folding:** events without a repository id (E1 2012, some E0) are resolved by name
+    (Phase 7, `map_repo_name_id`). No backfill window starts before 2017-11 (all E2/E3), so
+    folding changes no backtest and no live score today. It matters only if a pre-2015
+    window is added, and then it is a new activity metric version (ADR-012 eras).
+- **Why:** each is a metric version at a break, not a silent change (CLAUDE.md). Three of
+  the four cost a full re-backfill, out of proportion with what they would add now.
+
+## ADR-085 (2026-10-31) Lineage to the site, match rate on the backfill, showcase leftovers
+- **Context:** the owner asked for the open PROGRESS items (2026-10-31).
+- **Choice:**
+  - **Lineage hop to the site:** `score live` and `export site` run as stages with OpenLineage
+    inputs and outputs. The rollup and warehouse marts feed `score/live.json`, which with
+    `pipeline_metrics.json` feeds `publish/site/*`. The static `metadata/lineage.json` was
+    regenerated: 121 nodes, 140 edges, 294 column edges (was 109, 123, 294).
+  - **Match rate on the backfilled warehouse:** publish runs `resolve report
+    --require-registry` after the contracts and writes the report to the run summary.
+  - **OpenLineage log on a data branch:** publish runs `lineage compact --max-mb 20`, then
+    `.github/scripts/lineage-branch.sh`. The script copies the gzipped day files and the
+    summary to the orphan branch `lineage-log`. It refuses a tree over 25 MB, adds one commit
+    per run and never force-pushes. Tested against a bare repository (push, no change,
+    refused over the cap).
+  - **Atomic Iceberg publish (ADR-029):** a table that exists with the same columns is
+    replaced in one transaction (DELETE plus INSERT, one catalog commit). Otherwise it is
+    dropped and re-created, and `mode` says which. Measured on the fixtures with the catalog
+    profile: the second publish was `replace` for every table. The `snapshot-log` went from
+    snapshot 1 straight to 3, so the delete snapshot was never current. `warehouse verify
+    --engine duckdb` matches.
+  - **The warehouse reads the `full` rollup:** the profile decision records the full run's
+    Iceberg namespace. When the latest decision is `full`, `warehouse build` copies that
+    namespace's folded rollup tables into `rollup/rollup_full.duckdb`, once per decision,
+    and dbt reads them. A `free` decision (every production run) is unchanged. Measured on
+    the fixtures: 123 nodes passed, and `fct_repo_day` is equal to the free build (178 rows,
+    197 events).
+- **Skipped:** `keystone rollup flink --rebuild` for re-parsed hours (ADR-026). It needs
+  Redpanda and Flink (the streaming profile, the heaviest, with 8 GB of RAM free). `full`
+  never runs on Actions (ADR-040), and the free engine already rebuilds a re-parsed hour.
+  It stays a known limit of the showcase.
+
 ## ADR-084 (2026-10-31) Lifetime totals in pipeline_metrics; the radar says what is scored
 - **Context:** site QA (2026-10-31) found two gaps.
   - `pipeline_metrics.json` `totals` describe only the daily runs (2.2M events, 69 files).

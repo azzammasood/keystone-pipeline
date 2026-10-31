@@ -91,6 +91,11 @@ jobs:
         run: uv run keystone resolve fetch --max-minutes 35  # resumes next run (ADR-076)
       - run: uv run keystone warehouse build
       - run: uv run keystone quality contracts --require-all --allow-empty-quarantine  # ADR-078
+      - name: Match-rate report on the backfilled warehouse (ADR-085)
+        run: |
+          uv run keystone resolve report --require-registry --out "$RUNNER_TEMP/match-rate.md"
+          cat "$RUNNER_TEMP/match-rate.md" >> "$GITHUB_STEP_SUMMARY"
+          head -c 6000 "$RUNNER_TEMP/match-rate.md"
       - name: Live window from the backfill (ADR-080)
         # The live score reads the backfill's live window (release data-live) plus the days
         # the daily rollup holds after it. Actor months are decrypted on the runner only,
@@ -115,6 +120,12 @@ jobs:
           rm -rf "$RUNNER_TEMP/live"
       - run: uv run keystone score backtest --report data/score/backtest.md
       - run: uv run keystone metadata export --out data/publish/metadata
+      - name: OpenLineage log to the data branch lineage-log (ADR-085)
+        run: |
+          uv run keystone lineage compact --max-mb 20
+          bash .github/scripts/lineage-branch.sh data/lineage 25
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: Backfill chunk records (lifetime totals, ADR-084)
         env:
           GH_TOKEN: ${{ github.token }}

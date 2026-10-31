@@ -813,7 +813,7 @@ def warehouse_publish(
                 engine=("duckdb-iceberg", duckdb.__version__),
             ).finish(True)
     for p in done:
-        typer.echo(f"published {p.table.label}: rows={p.rows}")
+        typer.echo(f"published {p.table.label}: rows={p.rows} mode={p.mode}")
 
 
 @warehouse_app.command("verify")

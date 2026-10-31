@@ -123,3 +123,36 @@ def published(schema: str, model: str, columns: list[tuple[str, str]], namespace
 
 def warehouse_model(schema: str, model: str, columns: list[tuple[str, str]]) -> Ds:
     return Ds(*naming.duck(f"keystone.{schema}.{model}"), columns=columns)
+
+
+SITE_FILES = ("radar.json", "project_pages.json", "backtests.json", "benchmarks.json")
+
+
+def score_inputs() -> list[Ds]:
+    """What `score live` reads: the rollup and the warehouse's mapped repositories (ADR-085)."""
+    marts = ("map_package_repo", "fct_vuln", "dim_repo_name_history")
+    return [
+        *(t for t in rollup_tables() if t.name.endswith(("repo_hour", "repo_actor_day"))),
+        *(Ds(*naming.duck(f"keystone.marts.{m}")) for m in marts),
+        Ds(*naming.duck("keystone.staging.stg_registry__packages")),
+    ]
+
+
+def score_live() -> Ds:
+    return Ds(*naming.silver("score/live.json"))
+
+
+def site_inputs() -> list[Ds]:
+    """What `export site` reads: the scores, the warehouse names and pipeline_metrics.json."""
+    return [
+        score_live(),
+        Ds(*naming.silver("score/backtest.json")),
+        Ds(*naming.duck("keystone.marts.dim_repo")),
+        Ds(*naming.duck("keystone.marts.map_package_repo")),
+        Ds(*naming.silver("metrics/pipeline_metrics.json")),
+    ]
+
+
+def site_outputs() -> list[Ds]:
+    """The site exports uploaded to the pre-release `site-data` (the last hop, ADR-085)."""
+    return [Ds(*naming.silver(f"publish/site/{n}")) for n in (*SITE_FILES, "index.json")]

@@ -26,7 +26,16 @@ def export_site(
 ) -> None:
     """Radar, project pages, backtests, benchmarks, pipeline_metrics.json and the metadata
     export, each validated by its JSON Schema, plus index.json with checksums."""
-    with Stage(root, "export", "keystone", __version__) as st:
+    from keystone.lineage import datasets as lds
+
+    with Stage(
+        root,
+        "export",
+        "keystone",
+        __version__,
+        inputs=lds.site_inputs(),
+        outputs=lds.site_outputs(),
+    ) as st:
         index = site.build(
             out,
             root=root,

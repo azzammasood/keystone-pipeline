@@ -51,7 +51,7 @@ def profile_check(
     if run:
         ns = namespace or f"full_{datetime.now(UTC):%Y%m%d%H%M}"
         full, free = _rollup_jobs(root, ns, topic)
-        out = prun.run(root, full, free, want="full" if want == "full" else "free")
+        out = prun.run(root, full, free, want="full" if want == "full" else "free", namespace=ns)
     else:
         out = prun.check_only(root)
     if json:

@@ -7,6 +7,7 @@ DuckDB globs and dbt Jinja both accept them on Windows and Linux.
 
 import json
 import os
+import re
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -33,11 +34,15 @@ class WarehousePaths:
     def target_dir(self) -> Path:
         return self.root / "warehouse" / "dbt-target"
 
-    def env(self) -> dict[str, str]:
+    @property
+    def rollup_full_db(self) -> Path:
+        return self.root / "rollup" / "rollup_full.duckdb"
+
+    def env(self, rollup: Path | None = None) -> dict[str, str]:
         return {
             "KEYSTONE_DATA_ROOT": self.root.resolve().as_posix(),
             "KEYSTONE_WAREHOUSE_PATH": self.warehouse_db.resolve().as_posix(),
-            "KEYSTONE_ROLLUP_PATH": self.rollup_db.resolve().as_posix(),
+            "KEYSTONE_ROLLUP_PATH": (rollup or self.rollup_db).resolve().as_posix(),
             "DBT_TARGET_PATH": self.target_dir.resolve().as_posix(),
             "DBT_LOG_PATH": (self.target_dir / "logs").resolve().as_posix(),
             "DBT_SEND_ANONYMOUS_USAGE_STATS": "false",
@@ -58,11 +63,46 @@ def _environ(values: dict[str, str]) -> Iterator[None]:
                 os.environ[k] = v
 
 
+def full_rollup(paths: WarehousePaths) -> Path | None:
+    """When the latest profile decision is `full`, copy that run's folded rollup tables from
+    its Iceberg namespace into `rollup/rollup_full.duckdb` and return it, so the warehouse
+    reads what the full engine produced (ADR-085). None for a `free` decision (production)."""
+    from keystone.telemetry.metrics import produced_by
+    from keystone.telemetry.runlog import read
+
+    decided = produced_by(read(paths.root))
+    ns = (decided or {}).get("namespace")
+    if not decided or decided["profile"] != "full" or not ns:
+        return None
+    from keystone.rollup.compare import iceberg_connection
+    from keystone.rollup.spec import rollups
+
+    if not re.fullmatch(r"[a-z][a-z0-9_]{0,62}", ns):
+        raise ValueError(f"not a safe namespace: {ns!r}")
+    dest = paths.rollup_full_db
+    stamp = dest.with_suffix(".run_id")
+    if dest.exists() and stamp.exists() and stamp.read_text("utf-8") == decided["run_id"]:
+        return dest  # already copied for this decision (dbt keeps the file open in-process)
+    dest.unlink(missing_ok=True)
+    con = iceberg_connection()
+    try:
+        con.execute(f"ATTACH '{dest.as_posix()}' AS full_rollup")
+        for r in rollups():
+            con.execute(
+                f'CREATE TABLE full_rollup.main.{r.name} AS SELECT * FROM ice."{ns}".{r.name}'
+            )
+    finally:
+        con.close()
+    stamp.write_text(str(decided["run_id"]), "utf-8")
+    return dest
+
+
 def run_dbt(args: list[str], paths: WarehousePaths, target: str = "duckdb") -> bool:
     """`dbt <args>` in the project directory; True when every node succeeded."""
     from dbt.cli.main import dbtRunner  # heavy import, only when dbt is used
 
-    missing = [p for p in (paths.rollup_db,) if not p.exists()]
+    rollup = full_rollup(paths) if target == "duckdb" else None
+    missing = [p for p in (rollup or paths.rollup_db,) if not p.exists()]
     if missing:
         raise FileNotFoundError(f"run `keystone rollup run` first: {missing[0]} is missing")
     paths.warehouse_db.parent.mkdir(parents=True, exist_ok=True)
@@ -72,7 +112,7 @@ def run_dbt(args: list[str], paths: WarehousePaths, target: str = "duckdb") -> b
     ensure_tables(RegistryPaths(paths.root))  # Phase 7 sources read as empty until fetched
     ensure_choices(paths.root)
     common = ["--project-dir", str(DBT_DIR), "--profiles-dir", str(DBT_DIR), "--target", target]
-    with _environ(paths.env()):
+    with _environ(paths.env(rollup)):
         result = dbtRunner().invoke([*args, *common])
     return bool(result.success)
 

@@ -2,7 +2,10 @@
 
 `publish` copies each dbt model tagged `publish` (marts and metrics) from the DuckDB warehouse
 into the Lakekeeper catalog (namespace = `<prefix><schema>`), written by DuckDB's Iceberg
-extension. A table is dropped and re-created, so a reader can briefly miss it during a publish.
+extension. A table that exists with the same columns is replaced atomically: its rows are
+deleted and re-inserted in one transaction, which DuckDB commits to the catalog as one update,
+so a reader sees the old rows or the new ones, never a missing table (ADR-085). A new table, or
+one whose columns changed, is dropped and re-created (`Published.mode` says which).
 
 `verify` runs one fingerprint query per table in each engine and compares the results, all
 exact integers: the row count, and per column the non-null count, plus the sum of an integer or
@@ -20,6 +23,7 @@ import subprocess
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import duckdb
 
@@ -52,12 +56,22 @@ class Published:
     rows: int
     schema: str = ""  # dbt schema of the source model
     columns: tuple[tuple[str, str], ...] = ()  # (name, DuckDB type)
+    mode: str = "create"  # create (new or columns changed) or replace (atomic, ADR-085)
 
 
 def _check(name: str) -> str:
     if not NAME.fullmatch(name):
         raise ValueError(f"not a safe identifier: {name!r}")
     return name
+
+
+def _same_columns(con: duckdb.DuckDBPyConnection, target: str, described: list[Any]) -> bool:
+    """True when `target` exists with the source's column names and types, in order."""
+    try:
+        have = con.execute(f"DESCRIBE {target}").fetchall()
+    except duckdb.CatalogException:
+        return False
+    return [(str(r[0]), str(r[1])) for r in have] == [(str(r[0]), str(r[1])) for r in described]
 
 
 def published_models(target_dir: Path) -> list[tuple[str, str]]:
@@ -84,15 +98,28 @@ def publish(warehouse_db: Path, target_dir: Path, prefix: str = "") -> list[Publ
         if bad:
             raise ValueError(f"{schema}.{model}: person-like columns {bad}; not published")
         con.execute(f'CREATE SCHEMA IF NOT EXISTS ice."{ns}"')
-        con.execute(f'DROP TABLE IF EXISTS ice."{ns}".{model}')
-        con.execute(f'CREATE TABLE ice."{ns}".{model} AS SELECT * FROM wh.{schema}.{model}')
-        rows = con.execute(f'SELECT COUNT(*) FROM ice."{ns}".{model}').fetchone()
+        target = f'ice."{ns}".{model}'
+        mode = "replace" if _same_columns(con, target, described) else "create"
+        if mode == "replace":
+            con.execute("BEGIN TRANSACTION")
+            try:
+                con.execute(f"DELETE FROM {target}")
+                con.execute(f"INSERT INTO {target} SELECT * FROM wh.{schema}.{model}")
+                con.execute("COMMIT")
+            except duckdb.Error:
+                con.execute("ROLLBACK")
+                raise
+        else:
+            con.execute(f"DROP TABLE IF EXISTS {target}")
+            con.execute(f"CREATE TABLE {target} AS SELECT * FROM wh.{schema}.{model}")
+        rows = con.execute(f"SELECT COUNT(*) FROM {target}").fetchone()
         out.append(
             Published(
                 Table(ns, model),
                 int(rows[0]) if rows else 0,
                 schema,
                 tuple((str(r[0]), str(r[1])) for r in described),
+                mode,
             )
         )
     con.close()
