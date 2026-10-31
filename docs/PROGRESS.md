@@ -209,7 +209,8 @@ encrypted asset 2026-10-22; secret `KEYSTONE_ACTOR_DATA_KEY`). **Phase 8 complet
 Updated 2026-10-31 (ADR-085, ADR-086). Done from the earlier list: the lineage hop to the
 site, the atomic Iceberg publish, the OpenLineage log on `lineage-log`, the warehouse reading
 the `full` rollup, and the match-rate report on the backfilled warehouse (measured in
-publish). What remains:
+publish 41186539823: names suggested 3,976 to 0; packages 80.0% of a wider 17,186 scope).
+What remains:
 1. **Deferred metric versions (ADR-086):** first-response time, OSV time to fix, bot-free
    opens and closes, E0/E1 folding. Each is a new metric version; three need a full
    re-backfill.
@@ -266,6 +267,7 @@ Standing constraints, not blockers:
 | 2026-10-20 | Reader RAM (docker stats) | Trino 0.91 GB idle, 1.45 GB peak (limit 1.5 GB); Flink TM 1.08 GB, JM 0.62 GB |
 | 2026-10-20 | Disk free after Phase 5 (C:) | 20 GB; spark 1.1 GB + trino 1.38 GB images; data/warehouse 403 MB |
 | 2026-10-21 | Final gate run (local data, one run id, 14 stages) | parse 8 kept hours 294,072 events 34.5 s (8.5k/s); rollup 832,958 rows 4.2 s; dbt build 19.9 s; produce 2,363,426 records 46.1 s (51k/s); Flink batch + fold 93.6 s (records not reported); publish 3,399,621 rows 7.8 s |
+| 2026-10-31 | Match rate on the backfilled warehouse (publish 41186539823, ADR-085) | packages: 17,186 in scope (every ecosystem's critical list plus full OSV, not the 4,736 PyPI and npm of 2026-10-22, so the rates are not comparable), 13,743 decided (80.0%), auto_exact 273, 650 package candidates and 38 ties left; names: the 3,976 suggested are now 0 suggested (ids: ecosystems_current 9,146, ecosystems_previous_name 654, gharchive_unique_name 8, not_seen 223, ambiguous 1) |
 | 2026-10-31 | Lineage graph with the score and site hops (ADR-085) | 121 nodes, 140 edges, 294 column edges |
 | 2026-10-21 | Lineage graph (metadata/lineage.json) | 103 nodes, 118 edges, 294 column edges; dbt-ol 76 events, column lineage on 17 models, 61 unresolved column inputs dropped |
 | 2026-10-21 | Gate path present | static JSON (column chain complete), Marquez (13 of 13 nodes, 6 of 6 fields), DataHub (5 of 5 upstream datasets, 5 of 5 column hops) |

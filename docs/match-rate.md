@@ -89,3 +89,17 @@ Repository ids of claimed names:
 ## Review and the language-model rung
 
 Review CSVs: 25 package candidates, 3,976 names (suggested rows). Ties waiting for the language-model rung: 2 packages.
+
+## Measured on the backfilled warehouse (2026-10-31, publish 41186539823, ADR-085)
+
+This adds a measurement; the 2026-10-22 numbers above are kept as the Phase 7 oracle. The
+scope is wider: every ecosystem's critical list and the full OSV, not 4,736 PyPI and npm
+packages, so the rates are not comparable.
+
+- In scope: 17,186 packages. Decided (auto_exact or accepted): 13,743 (80.0%), of which
+  auto_exact 273. Decided with a GitHub id: 13,719; that id seen in the loaded GH Archive
+  data: 3,647.
+- Review CSVs: 650 package candidates and 0 names (was 3,976 suggested names). Ties waiting
+  for the language-model rung: 38 packages.
+- Ids of claimed names: ecosystems_current 9,146, ecosystems_previous_name 654,
+  gharchive_unique_name 8, not_seen 223, ambiguous 1.
