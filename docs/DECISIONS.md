@@ -25,6 +25,8 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   is a mapped repository with activity in the window, so mapped repositories with no activity
   have no row. From this change the gap to all mapped repositories is in `live.json`
   (`mapped`).
+  Measured on publish run 41182397110: 9,618 mapped, 7,798 with activity in the window,
+  4,425 scored.
 - **Why:** the site shows lifetime numbers from evidence and an honest "N scored of M",
   without ranking unscored rows.
 
