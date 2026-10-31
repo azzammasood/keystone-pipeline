@@ -26,7 +26,7 @@
       "minimum": 1
     },
     "repo_name": {
-      "description": "Latest owner/name seen in GH Archive; null when the warehouse has no name.",
+      "description": "Latest owner/name seen in GH Archive, else the unique name the accepted package mapping resolved for this id (lower case, ADR-083); null when neither holds one.",
       "type": [
         "string",
         "null"

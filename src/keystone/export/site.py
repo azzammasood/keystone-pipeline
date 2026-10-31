@@ -64,7 +64,12 @@ def top_signals(components: list[dict[str, Any]], n: int = 3) -> list[dict[str, 
 
 
 def repo_facts(warehouse: Path, ids: list[int]) -> dict[int, Repo]:
-    """Latest name and mapped packages per repository; empty facts without a warehouse."""
+    """Name and mapped packages per repository; empty facts without a warehouse.
+
+    The name is the latest one GH Archive saw (`dim_repo`). A repository the warehouse's GH
+    Archive window has not seen takes the name its accepted package mapping resolved for that
+    id (ecosyste.ms current name, lower case; ADR-083), only when that name is unique. Else
+    the name stays null: never guessed."""
     if not ids or not warehouse.exists():
         return {i: Repo(None, []) for i in ids}
     con = duckdb.connect(str(warehouse), read_only=True)
@@ -75,6 +80,15 @@ def repo_facts(warehouse: Path, ids: list[int]) -> dict[int, Repo]:
                 [ids],
             ).fetchall()
         )
+        for rid, name in con.execute(
+            "SELECT repo_id, MIN(repo_full_name) FROM marts.map_package_repo "
+            "WHERE status IN ('accepted', 'auto_exact') AND repo_host = 'github.com' "
+            "AND repo_full_name IS NOT NULL AND list_contains(?, repo_id) "
+            "GROUP BY repo_id HAVING COUNT(DISTINCT repo_full_name) = 1",
+            [ids],
+        ).fetchall():
+            if names.get(rid) is None:
+                names[rid] = name
         pkgs: dict[int, list[str]] = {}
         for rid, key in con.execute(
             "SELECT repo_id, package_key FROM marts.map_package_repo "
