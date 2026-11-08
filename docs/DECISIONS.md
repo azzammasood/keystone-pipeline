@@ -15,6 +15,11 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   `::warning::` carrying the reason instead of failing every week.
 - Tested with a mocked workspace: a stopped warehouse is started and the statement runs; a
   400 from compute is tolerated; a 401 fails.
+- Measured on Actions (run 42490011807, 2026-11-08): the account is active (control-plane calls
+  succeed) and the warehouse is STOPPED; starting it returns HTTP 400 `DENY_NEW_AND_EXISTING_
+  RESOURCES` from Databricks' resource gatekeeper, i.e. Free Edition has blocked compute (its
+  quota enforcement, brief section 9). The job now passes with that warning. If it persists past
+  a month, the owner checks the account page; the published data never depended on Databricks.
 
 ## ADR-086 (2026-10-31) Deferred: first-response time, OSV time to fix, bot-free opens and closes, E0/E1 folding
 - **Context:** PROGRESS "Next" item 2. Each needs inputs the published rollups do not hold.
