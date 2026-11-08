@@ -90,12 +90,15 @@ def databricks_run(
 
 @databricks_app.command("keepalive")
 def databricks_keepalive() -> None:
-    """One trivial statement on the serverless warehouse, so the account counts as active."""
+    """Keep the account active: control-plane calls, then one statement if compute allows."""
     from keystone.cloud import databricks as dbx
 
-    ws = dbx.Workspace.from_env()
-    rows = ws.sql("SELECT current_date()")
-    typer.echo(f"databricks keepalive ok: {rows[0][0] if rows else '?'}")
+    res = dbx.keepalive(dbx.Workspace.from_env())
+    typer.echo(f"databricks keepalive: account active; warehouse {res.warehouse_state}")
+    if res.sql_ok:
+        typer.echo(f"databricks keepalive ok: {res.note}")
+    else:  # compute unavailable (quota or warehouse state): not an account problem, ADR-087
+        typer.echo(f"::warning::databricks warehouse refused the statement: {res.note}")
 
 
 @bigquery_app.command("run")

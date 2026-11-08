@@ -2,6 +2,20 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-087 (2026-11-08) Databricks keepalive: control-plane activity, compute best effort
+- Context: the weekly keepalive (ADR-067) failed on 2026-11-02 and again on a manual rerun
+  (run 42488830125): the SQL statements API answered HTTP 400 "The request could not be
+  processed by the warehouse". It ran one statement and failed on any error, so unavailable
+  Free Edition compute (daily quota used, warehouse stopped or refusing) looked the same as a
+  dead account.
+- Choice: `keystone cloud databricks keepalive` first makes authenticated control-plane calls
+  (current user, warehouse list); an HTTP 401 or 403 still fails the job, since an expired or
+  revoked token is the real risk. It then starts a stopped warehouse, waits up to 5 minutes for
+  RUNNING and runs `SELECT current_date()`. If compute refuses, the job passes with a
+  `::warning::` carrying the reason instead of failing every week.
+- Tested with a mocked workspace: a stopped warehouse is started and the statement runs; a
+  400 from compute is tolerated; a 401 fails.
+
 ## ADR-086 (2026-10-31) Deferred: first-response time, OSV time to fix, bot-free opens and closes, E0/E1 folding
 - **Context:** PROGRESS "Next" item 2. Each needs inputs the published rollups do not hold.
   Most would mean re-parsing the 1.9 TB backfill (ADR-084: 1,873.2 GB downloaded, 37.88 job

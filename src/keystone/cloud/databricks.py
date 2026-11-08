@@ -47,6 +47,7 @@ class Workspace:
     host: str
     token: str
     catalog: str = "workspace"  # Free Edition's default catalog
+    transport: httpx.BaseTransport | None = None  # tests only
 
     @classmethod
     def from_env(cls) -> "Workspace":
@@ -60,6 +61,7 @@ class Workspace:
             base_url=f"https://{self.host}",
             headers={"Authorization": f"Bearer {self.token}"},
             timeout=httpx.Timeout(120.0),
+            transport=self.transport,
         )
 
     def api(self, method: str, path: str, **kw: Any) -> Any:
@@ -75,6 +77,20 @@ class Workspace:
         if not found:
             raise DatabricksError("no SQL warehouse in the workspace")
         return str(found[0]["id"])
+
+    def warehouse_state(self, warehouse: str) -> str:
+        return str(self.api("GET", f"/api/2.0/sql/warehouses/{warehouse}").get("state", "UNKNOWN"))
+
+    def ensure_running(self, warehouse: str, timeout_s: float = 300, poll_s: float = 10) -> str:
+        """Start a stopped warehouse and wait for RUNNING; returns the last state seen."""
+        state = self.warehouse_state(warehouse)
+        if state in ("STOPPED", "STOPPING"):
+            self.api("POST", f"/api/2.0/sql/warehouses/{warehouse}/start")
+        deadline = time.monotonic() + timeout_s
+        while state != "RUNNING" and time.monotonic() < deadline:
+            time.sleep(poll_s)
+            state = self.warehouse_state(warehouse)
+        return state
 
     def http_path(self) -> str:
         return f"/sql/1.0/warehouses/{self.warehouse_id()}"
@@ -238,3 +254,32 @@ def lineage(ws: Workspace) -> dict[str, Any]:
         return {"available": False, "reason": str(exc)[:300]}
     edges, targets = (int(x) for x in rows[0]) if rows else (0, 0)
     return {"available": True, "edges_7d": edges, "target_tables_7d": targets}
+
+
+@dataclass(frozen=True)
+class Keepalive:
+    user: str
+    warehouse_state: str
+    sql_ok: bool
+    note: str
+
+
+def keepalive(ws: Workspace, poll_s: float = 10) -> Keepalive:
+    """Keep a Free Edition account active (ADR-087).
+
+    Authenticated control-plane calls (current user, warehouse list) are the activity; an
+    auth or permission error raises, since that is a real problem (expired token). The SQL
+    statement is a best effort: Free Edition stops or refuses serverless compute when its
+    daily quota is used or the warehouse is unavailable, which is not an account problem.
+    """
+    me = ws.api("GET", "/api/2.0/preview/scim/v2/Me") or {}
+    user = str(me.get("userName") or me.get("id") or "?")
+    warehouse = ws.warehouse_id()
+    try:
+        state = ws.ensure_running(warehouse, poll_s=poll_s)
+        rows = ws.sql("SELECT current_date()", warehouse)
+        return Keepalive(user, state, True, f"sql ok: {rows[0][0] if rows else '?'}")
+    except DatabricksError as exc:
+        if re.search(r"HTTP 40[13]", str(exc)):
+            raise
+        return Keepalive(user, ws.warehouse_state(warehouse), False, str(exc)[:300])
