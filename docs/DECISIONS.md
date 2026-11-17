@@ -50,6 +50,18 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   retired (2,950,267 events), 412 silver files and 234,582,318 bytes deleted, 993,670 name
   runs; 170 older hours kept (not rolled up yet: the ADR-088 catch-up). Entry 1,141,055,350 ->
   956,437,254 bytes; pruning deleted 9 entries, 2 left (2,097,492,604 bytes in all).
+- After the catch-up merged (publish run 44075916915: changed=122, late_merged=122, late_skipped
+  0) the next ingest (run 44077033901) retired the 170 remaining hours: 376 retired in all
+  (3,737,850 events), 1,196,101 name runs. The data directory was then: warehouse 762M,
+  raw 338M (OSV zips), rollup 167M, silver 116M, the rest under 50M. The dbt warehouse is
+  derived and rebuilt by publish before any step reads it (no incremental models), so
+  `data-cache.sh pack` now leaves it out.
+- Final, measured on Actions (ingest 44078083451, publish 44078312716, 2026-11-17): one entry is
+  516,683,754 bytes (from 1,141,055,350, -55%), 2 entries, 1,033,282,612 bytes in all (from
+  about 11.1 GB). Publish rebuilt the warehouse from the slimmer cache and passed;
+  pipeline_metrics keeps `source_hours` at 554 (retired hours still count) and reports
+  `retention` (376 retired hours, 0 late-skipped). Silver is now bounded at about 7 days; what
+  still grows is the rollup (aggregates) and `repo_name_runs`, slowly; `raw/` (OSV) is flat.
 - Found on the way: the first version skipped every changed hour in a frozen window. The
   publish right after (run 44073330529) skipped 122 caught-up hours (never rolled up) whose
   days had just been retired. They were still in silver, so the merge rule above (shipped
