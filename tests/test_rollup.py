@@ -227,35 +227,50 @@ def test_retire_keeps_rollup_totals(tmp_path: Path) -> None:
     assert not list(silver.rglob("*.parquet"))
 
 
-def test_late_hour_in_a_retired_window_is_skipped(tmp_path: Path) -> None:
+def test_late_hour_in_a_retired_window_is_merged(tmp_path: Path) -> None:
+    """A new hour in a retired (frozen) window is merged exactly; a re-parse is skipped."""
     hours = dict(scenario.hours())
     late = "2026-01-01-22"
     silver, ref = tmp_path / "silver", tmp_path / "ref"
     for name, rows in scenario.hours():
         if name != late:
             scenario.write_hour(silver, name, rows)
-            scenario.write_hour(ref, name, rows)
+        scenario.write_hour(ref, name, rows)
     db = tmp_path / "r.duckdb"
     duck = DuckRollup(db, silver)
     duck.run()
     assert duck.retire(_retire_cut("2026-01-02")).retired_files == 4
-    scenario.write_hour(silver, late, hours[late])  # touches the retired 2026-01-01 day
+    scenario.write_hour(silver, late, hours[late])  # never rolled up: touches the 01-01 day
     stats = duck.run()
-    assert (stats.late_skipped, stats.changed_files) == (1, 0)
+    assert (stats.late_merged, stats.late_skipped, stats.changed_files) == (1, 0, 1)
+    assert duck.run().changed_files == 0
+    duck.close()
+    assert _rows(db) == _full(tmp_path, ref)  # as if it had arrived on time
+
+    # A retired hour parsed again (different content) cannot be taken out of its windows.
+    duck = DuckRollup(db, silver)
+    assert duck.retire(_retire_cut("2026-01-02")).retired_files == 1  # the merged late hour
+    duck.close()
+    before = _rows(db)
+    duck = DuckRollup(db, silver)
+    again = "2026-01-01-23"
+    scenario.write_hour(silver, again, hours[again][:30])
+    stats = duck.run()
+    assert (stats.late_skipped, stats.late_merged, stats.changed_files) == (1, 0, 0)
     assert duck.run().late_skipped == 0  # recorded once, not retried
     assert duck.retention()["late_skipped_hours"] == 1
     # A re-parse of a live hour outside the frozen windows still rolls up.
     target = "2026-01-02-2"
     scenario.write_hour(silver, target, hours[target][:40])
-    scenario.write_hour(ref, target, hours[target][:40])
     assert duck.run().changed_files == 1
-    # The late-skipped hour is retired with the others and its file deleted.
+    # The skipped re-parse is retired with the others and its file deleted.
     stats = duck.retire(_retire_cut("2026-01-02"))
     assert (stats.retired_files, stats.retired_skipped) == (0, 1)
-    assert not list(silver.glob(f"*/*/{late}.parquet"))
+    assert not list(silver.glob(f"*/*/{again}.parquet"))
     duck.close()
-    # Totals: as a full rollup without the skipped hour.
-    assert _rows(db) == _full(tmp_path, ref)
+    after = _rows(db)
+    day = [r for r in after["repo_actor_day"] if str(r[0]).startswith("2026-01-01")]
+    assert day == [r for r in before["repo_actor_day"] if str(r[0]).startswith("2026-01-01")]
     from keystone.rollup.duck import retired_sources
 
-    assert f"synthetic-{late}.json.gz" in retired_sources(db)
+    assert f"synthetic-{again}.json.gz" in retired_sources(db)

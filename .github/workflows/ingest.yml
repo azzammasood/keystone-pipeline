@@ -103,7 +103,7 @@ jobs:
       # Retention (ADR-089): silver hours rolled up by publish and older than 7 whole UTC days
       # leave the cache; their aggregates and name history stay in the rollup file.
       - run: uv run keystone rollup retire --older-than-days 7
-      - run: du -sh data data/silver data/rollup 2>/dev/null || true
+      - run: du -sh data/* 2>/dev/null || true  # per directory (du counts nested dirs once)
       - run: bash .github/scripts/data-cache.sh pack
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
