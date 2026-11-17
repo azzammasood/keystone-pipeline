@@ -3,6 +3,18 @@
 Resume point for any new session. Updated at every gate and before long runs.
 
 ## Now
+**2026-11-17: silver retention and a bounded data cache (ADR-089, PRs 12-14).**
+- Ingest runs `keystone rollup retire --older-than-days 7` before packing the cache. Retired hours stay
+  in `rollup_files` (`retired_at`), so their aggregates are kept.
+- A new late hour in a retired window is merged (SUM/MAX), and a re-parsed one is skipped and
+  counted (`pipeline_metrics.totals.retention`).
+- Name history lives in the rollup file (`repo_name_runs`, `repo_name_hour_max_id`).
+- The dbt warehouse is no longer cached, and ingest and publish keep only the newest 2 entries.
+- Measured: entry 1,141,055,350 -> 516,683,754 bytes; 11 entries (about 11.1 GB) -> 2 (1.03 GB).
+- First run: 376 hours retired; the 122 ADR-088 catch-up hours were merged, none lost.
+- Watch: the rollup and `repo_name_runs` still grow slowly; `data/raw` (OSV zips, 338 MB) is
+  the next-largest item if the entry ever needs to shrink again.
+
 **2026-10-30: backend fully complete (ADR-065 to ADR-080).** The daily publish is green on
 Actions (run 41027674711, commit 23e5b3a); CI and scorecard green on 2ef628b.
 - **Live score:** cut 2026-10-01, 4,421 of 7,792 mapped repositories scored, with 100.0% of
