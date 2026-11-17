@@ -13,7 +13,9 @@ enc=(openssl enc -aes-256-cbc -pbkdf2 -iter 600000 -salt -pass env:KEYSTONE_ACTO
 case "${1:-}" in
   pack)
     mkdir -p data-cache
-    tar -C data -czf - . | "${enc[@]}" -e -out "$blob"
+    # data/warehouse is left out (ADR-089): publish rebuilds it from silver and the rollup
+    # (no incremental models) before any step reads it, so caching it only adds size.
+    tar -C data --exclude=./warehouse -czf - . | "${enc[@]}" -e -out "$blob"
     echo "packed $(stat -c %s "$blob") bytes"
     ;;
   unpack)
