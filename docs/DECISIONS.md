@@ -72,6 +72,10 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   copy. `parse osv` parses any zip on disk as before; with no zip and current silver it
   succeeds ("current"), so only changed zips are downloaded and parsed. A parser change to
   OSV therefore needs a re-download (delete `silver/osv` once) to take effect on Actions.
+- Measured on Actions (ingest 44083455351, publish 44083908288, 2026-11-17): one entry is
+  237,996,384 bytes (1,141,055,350 this morning, -79%), 2 entries, 477,498,629 bytes in all.
+  Publish fetched all 8 zips conditionally without local copies (all `unchanged`, no body) and
+  `parse osv` reported silver current for 8 ecosystems.
 - Found on the way: the first version skipped every changed hour in a frozen window. The
   publish right after (run 44073330529) skipped 122 caught-up hours (never rolled up) whose
   days had just been retired. They were still in silver, so the merge rule above (shipped

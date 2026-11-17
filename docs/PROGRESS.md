@@ -9,11 +9,11 @@ Resume point for any new session. Updated at every gate and before long runs.
 - A new late hour in a retired window is merged (SUM/MAX), and a re-parsed one is skipped and
   counted (`pipeline_metrics.totals.retention`).
 - Name history lives in the rollup file (`repo_name_runs`, `repo_name_hour_max_id`).
-- The dbt warehouse is no longer cached, and ingest and publish keep only the newest 2 entries.
-- Measured: entry 1,141,055,350 -> 516,683,754 bytes; 11 entries (about 11.1 GB) -> 2 (1.03 GB).
+- The dbt warehouse, the OSV zips and other raw files are no longer cached. Zip fetches stay
+  conditional on the parsed zip's SHA. Ingest and publish keep only the newest 2 entries.
+- Measured: entry 1,141,055,350 -> 237,996,384 bytes; 11 entries (about 11.1 GB) -> 2 (477 MB).
 - First run: 376 hours retired; the 122 ADR-088 catch-up hours were merged, none lost.
-- Watch: the rollup and `repo_name_runs` still grow slowly; `data/raw` (OSV zips, 338 MB) is
-  the next-largest item if the entry ever needs to shrink again.
+- Watch: the rollup (167 MB) and `repo_name_runs` still grow slowly; silver is about 7 days.
 
 **2026-10-30: backend fully complete (ADR-065 to ADR-080).** The daily publish is green on
 Actions (run 41027674711, commit 23e5b3a); CI and scorecard green on 2ef628b.
