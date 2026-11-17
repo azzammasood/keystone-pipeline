@@ -12,6 +12,7 @@
 import hashlib
 import json
 import re
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -287,14 +288,25 @@ async def fetch_zips(
     ecosystems: list[str],
     out_dir: Path,
     disk: DiskGuard,
+    parsed: Callable[[str, str], bool] | None = None,
 ) -> list[ZipResult]:
-    """Conditional, MD5-verified download of `<ecosystem>/all.zip`; files are kept."""
+    """Conditional, MD5-verified download of `<ecosystem>/all.zip`. The request is conditional
+    when the verified zip is on disk, or when `parsed(ecosystem, sha256)` says silver already
+    holds that zip's records (the Actions cache keeps no zips, ADR-089): a 304 then needs no
+    local copy, and `parse osv` keeps that ecosystem's silver."""
     results: list[ZipResult] = []
     for ecosystem in ecosystems:
         url = zip_url(cfg, ecosystem)
         dest = out_dir / "zips" / safe_dir(ecosystem) / "all.zip"
         previous = manifest.get(url)
-        conditional = previous is not None and previous.sha256 is not None and dest.exists()
+        verified = previous is not None and previous.sha256 is not None
+        have = dest.exists() or (
+            parsed is not None
+            and previous is not None
+            and previous.sha256 is not None
+            and parsed(ecosystem, previous.sha256)
+        )
+        conditional = verified and have
         fetched_at = datetime.now(UTC)
         record = FileRecord(url=url, source=SOURCE, fetched_at=fetched_at, status="error")
         try:
@@ -328,6 +340,24 @@ async def fetch_zips(
         manifest.upsert(record)
         results.append(ZipResult(ecosystem, record.status, record.bytes, got.path or dest))
     return results
+
+
+def silver_sha256(silver_dir: Path, ecosystem: str) -> str | None:
+    """SHA-256 of the zip the ecosystem's silver was parsed from (`vulns` is written last)."""
+    path = silver_dir / "vulns" / f"{safe_dir(ecosystem)}.parquet"
+    if not path.exists():
+        return None
+    con = duckdb.connect()
+    try:
+        row = con.execute(
+            "SELECT min(source_sha256), max(source_sha256) FROM read_parquet(?)",
+            [path.as_posix()],
+        ).fetchone()
+    finally:
+        con.close()
+    if not row or row[0] is None or row[0] != row[1]:
+        return None
+    return str(row[0])
 
 
 def zip_url(cfg: OsvConfig, ecosystem: str) -> str:

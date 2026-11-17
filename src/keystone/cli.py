@@ -337,12 +337,18 @@ def parse_osv(
     else:
         cfg = load_sources().osv
         manifest = Manifest(MANIFEST_PATH)
+        current = 0  # ecosystems whose silver already holds the manifest's zip (ADR-089)
         try:
             for eco in ecosystem or cfg.ecosystems:
                 name = osv.safe_dir(eco)
                 path = OSV_DIR / "zips" / name / "all.zip"
                 rec = manifest.get(osv.zip_url(cfg, eco))
-                if not path.exists() or rec is None or rec.sha256 is None:
+                if rec is None or rec.sha256 is None:
+                    continue
+                if not path.exists():
+                    # No zip on disk (the cache keeps none): fine if silver holds this one.
+                    if osv.silver_sha256(root / "silver" / "osv", eco) == rec.sha256:
+                        current += 1
                     continue
                 if gha.sha256_file(path) != rec.sha256:
                     typer.echo(f"skip {eco}: local zip differs from the manifest", err=True)
@@ -351,6 +357,9 @@ def parse_osv(
                 jobs.append((name, path, osvparse.ZipContext(source, rec.sha256, rec.fetched_at)))
         finally:
             manifest.close()
+    if not jobs and zip_file is None and current:
+        typer.echo(f"OSV silver current for {current} ecosystem(s); no new zips")
+        return
     if not jobs:
         typer.echo("no kept, verified OSV zips", err=True)
         raise typer.Exit(1)
@@ -431,8 +440,15 @@ def ingest_osv(
                     f"quarantined={inc.quarantined} cursor={inc.cursor}"
                 )
                 if zips:
+                    silver = DATA_DIR / "silver" / "osv"
                     for z in await osv.fetch_zips(
-                        client, manifest, cfg, ecosystem or cfg.ecosystems, OSV_DIR, disk
+                        client,
+                        manifest,
+                        cfg,
+                        ecosystem or cfg.ecosystems,
+                        OSV_DIR,
+                        disk,
+                        parsed=lambda eco, sha: osv.silver_sha256(silver, eco) == sha,
                     ):
                         typer.echo(f"{z.ecosystem}/all.zip: {z.status} bytes={z.bytes}")
                         ok = ok and z.status != "error"

@@ -25,6 +25,7 @@ from keystone.fetch.client import (
 )
 from keystone.fetch.manifest import Manifest
 from keystone.fetch.robots import Robots
+from keystone.paths import REPO_ROOT
 from keystone.policy import HostLimits, Policy
 from keystone.sources import gharchive as gha
 from keystone.sources import load_sources, osv
@@ -457,7 +458,7 @@ def test_osv_zips_are_conditional(manifest: Manifest, tmp_path: Path) -> None:
     host = FakeHost({"PyPI/all.zip": b"PK" + b"z" * 5000, "crates.io/all.zip": b"PK" + b"c" * 9})
     cfg = osv_cfg()
 
-    def go() -> list[osv.ZipResult]:
+    def go(parsed: Callable[[str, str], bool] | None = None) -> list[osv.ZipResult]:
         async def inner() -> list[osv.ZipResult]:
             async with PoliteClient(policy(), httpx.MockTransport(host)) as c:
                 return await osv.fetch_zips(
@@ -467,13 +468,37 @@ def test_osv_zips_are_conditional(manifest: Manifest, tmp_path: Path) -> None:
                     ["PyPI", "crates.io", "Nope"],
                     tmp_path,  # type: ignore[arg-type]
                     DiskGuard(10**6),
+                    parsed=parsed,
                 )
 
         return asyncio.run(inner())
 
     assert [z.status for z in go()] == ["new", "new", "missing"]
     assert [z.status for z in go()] == ["unchanged", "unchanged", "missing"]
-    assert (tmp_path / "zips" / "PyPI" / "all.zip").stat().st_size == 5002
+    pypi = tmp_path / "zips" / "PyPI" / "all.zip"
+    assert pypi.stat().st_size == 5002
+    # The Actions cache keeps no zips (ADR-089): with silver parsed from the manifest's zip the
+    # request stays conditional (304, nothing downloaded); without, the zip is fetched again.
+    pypi.unlink()
+    (tmp_path / "zips" / "crates.io" / "all.zip").unlink()
+    host.calls.clear()
+    statuses = [z.status for z in go(parsed=lambda eco, sha: eco == "PyPI")]
+    assert statuses == ["unchanged", "unchanged", "missing"]
+    assert not pypi.exists()  # 304: no body
+    assert (tmp_path / "zips" / "crates.io" / "all.zip").exists()  # full GET
+
+
+def test_osv_silver_sha256(tmp_path: Path) -> None:
+    from keystone.parsers import osv as osvparse
+    from keystone.parsers.parquet import write_osv
+
+    zip_path = REPO_ROOT / "tests" / "fixtures" / "osv" / "PyPI" / "all.zip"
+    sha = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+    ctx = osvparse.ZipContext("osv/PyPI/all.zip", sha, datetime(2026, 10, 20, tzinfo=UTC))
+    silver = tmp_path / "silver" / "osv"
+    assert osv.silver_sha256(silver, "PyPI") is None
+    write_osv("PyPI", osvparse.parse_zip(zip_path, ctx), silver, tmp_path / "q")
+    assert osv.silver_sha256(silver, "PyPI") == sha
 
 
 def test_cli_gaps_on_empty_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -564,3 +589,36 @@ def test_on_file_failure_is_recorded_and_retried(manifest: Manifest, tmp_path: P
 
     assert run_day(host, manifest, tmp_path, on_file=explode).counts == {"new": 23, "error": 1}
     assert run_day(host, manifest, tmp_path).counts == {"new": 1, "unchanged": 23}
+
+
+def test_parse_osv_without_zips_keeps_current_silver(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ADR-089: no zip on disk (not cached) and silver parsed from the manifest's zip: done."""
+    from keystone.fetch.manifest import FileRecord
+    from keystone.parsers import osv as osvparse
+    from keystone.parsers.parquet import write_osv
+
+    zip_path = REPO_ROOT / "tests" / "fixtures" / "osv" / "PyPI" / "all.zip"
+    sha = hashlib.sha256(zip_path.read_bytes()).hexdigest()
+    root = tmp_path / "data"
+    ctx = osvparse.ZipContext("osv/PyPI/all.zip", sha, datetime(2026, 10, 20, tzinfo=UTC))
+    write_osv("PyPI", osvparse.parse_zip(zip_path, ctx), root / "silver" / "osv", tmp_path / "q")
+    m = Manifest(tmp_path / "m.duckdb")
+    url = osv.zip_url(load_sources().osv, "PyPI")
+    m.upsert(FileRecord(url=url, source="osv", fetched_at=ctx.fetched_at, status="new", sha256=sha))
+    m.close()
+    monkeypatch.setattr(cli, "MANIFEST_PATH", tmp_path / "m.duckdb")
+    monkeypatch.setattr(cli, "OSV_DIR", tmp_path / "raw" / "osv")
+    args = ["parse", "osv", "--ecosystem", "PyPI", "--root", str(root)]
+    result = CliRunner().invoke(cli.app, args)
+    assert result.exit_code == 0, result.output
+    assert "current for 1 ecosystem" in result.output
+    m = Manifest(tmp_path / "m.duckdb")  # a different zip than silver's: nothing to parse
+    m.upsert(
+        FileRecord(
+            url=url, source="osv", fetched_at=ctx.fetched_at, status="changed", sha256="0" * 64
+        )
+    )
+    m.close()
+    assert CliRunner().invoke(cli.app, args).exit_code == 1

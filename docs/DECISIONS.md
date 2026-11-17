@@ -62,6 +62,16 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   pipeline_metrics keeps `source_hours` at 554 (retired hours still count) and reports
   `retention` (376 retired hours, 0 late-skipped). Silver is now bounded at about 7 days; what
   still grows is the rollup (aggregates) and `repo_name_runs`, slowly; `raw/` (OSV) is flat.
+- Raw data left out too (owner, 2026-11-17: "drop the OSV zips from the cache"): `data/raw`
+  was 338 MB, almost all OSV zips (8 ecosystems, about 306 MB; npm 222 MB). `data-cache.sh`
+  no longer packs `raw/osv/zips`, `raw/osv/modified` (copies of the `modified_id.csv`
+  increment that nothing reads; the cursor is `modified_state.json`, still cached) or
+  `raw/gharchive` (ingest deletes each hour after parsing). To stay conditional (polite
+  client), `fetch_zips` sends the stored ETag when the zip is on disk or when that
+  ecosystem's silver was parsed from the manifest's zip (`silver_sha256`). A 304 then needs no
+  copy. `parse osv` parses any zip on disk as before; with no zip and current silver it
+  succeeds ("current"), so only changed zips are downloaded and parsed. A parser change to
+  OSV therefore needs a re-download (delete `silver/osv` once) to take effect on Actions.
 - Found on the way: the first version skipped every changed hour in a frozen window. The
   publish right after (run 44073330529) skipped 122 caught-up hours (never rolled up) whose
   days had just been retired. They were still in silver, so the merge rule above (shipped
