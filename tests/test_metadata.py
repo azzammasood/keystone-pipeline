@@ -87,6 +87,13 @@ def test_pipeline_metrics_valid_and_measured(run: tuple[Path, Path]) -> None:
     tm.validate(doc)
     assert doc["profile"] == "free"
     assert doc["totals"]["events_processed"] == doc["totals"]["events_stored"] == 303
+    retention = doc["totals"]["retention"]  # nothing retired in this run (ADR-089)
+    assert retention == {
+        "retired_hours": 0,
+        "retired_events": 0,
+        "late_skipped_hours": 0,
+        "name_runs": 0,
+    }
     stages = {s["name"]: s for s in doc["last_run"]["stages"]}
     assert {"parse", "rollup", "parse-osv", "warehouse", "metadata-export"} <= set(stages)
     parse = stages["parse"]

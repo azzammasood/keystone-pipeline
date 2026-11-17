@@ -55,6 +55,7 @@ jobs:
     timeout-minutes: 120  # a catch-up dispatch (hours=500) parses a few hundred hours
     permissions:
       contents: read
+      actions: write  # deletes the older data-cache entries (ADR-089)
       issues: write  # failure issue only
     env:
       KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}
@@ -99,11 +100,19 @@ jobs:
       - run: uv run keystone machine
       - run: uv run keystone ingest gharchive --start "$START" --end "$END"
       - run: uv run keystone ingest gaps --start "$START" --end "$END"
+      # Retention (ADR-089): silver hours rolled up by publish and older than 7 whole UTC days
+      # leave the cache; their aggregates and name history stay in the rollup file.
+      - run: uv run keystone rollup retire --older-than-days 7
+      - run: du -sh data data/silver data/rollup 2>/dev/null || true
       - run: bash .github/scripts/data-cache.sh pack
       - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: data-cache
           key: keystone-data-${{ github.run_id }}
+      - run: bash .github/scripts/cache-prune.sh 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
       - if: failure()
         run: bash .github/scripts/failure-issue.sh
         env:

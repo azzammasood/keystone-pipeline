@@ -165,6 +165,7 @@ def _data_facts(root: Path) -> dict[str, Any]:
     con.close()
     rollup = root / "rollup" / "rollup.duckdb"
     facts["rollup_rows"] = None
+    facts["retention"] = None
     if rollup.exists():
         c = duckdb.connect(str(rollup), read_only=True)
         try:
@@ -173,9 +174,40 @@ def _data_facts(root: Path) -> dict[str, Any]:
                 row = c.execute(f"SELECT COUNT(*) FROM {t}").fetchone()
                 total += int(row[0]) if row else 0
             facts["rollup_rows"] = total
+            facts["retention"] = _retention(c)
+            if facts["retention"]:
+                # Hours retired from silver (ADR-089) still cover the date range.
+                row = c.execute(
+                    "SELECT MIN(created_min), COUNT(*) FROM rollup_files "
+                    "WHERE retired_at IS NOT NULL"
+                ).fetchone()
+                if row and row[1]:
+                    old = _utc(row[0])
+                    first = facts["first_event"]
+                    facts["first_event"] = min(old, first) if first and old else old or first
+                    facts["hours"] += int(row[1])
         finally:
             c.close()
     return facts
+
+
+def _retention(con: duckdb.DuckDBPyConnection) -> dict[str, int] | None:
+    """Silver retention counts (ADR-089); None for a rollup file from before it."""
+    tables = {r[0] for r in con.execute("SELECT table_name FROM duckdb_tables()").fetchall()}
+    if "rollup_late_skipped" not in tables:
+        return None
+    row = con.execute(
+        """SELECT COUNT(*), COALESCE(SUM(events), 0) FROM rollup_files
+        WHERE retired_at IS NOT NULL"""
+    ).fetchone()
+    skipped = con.execute("SELECT COUNT(*) FROM rollup_late_skipped").fetchone()
+    runs = con.execute("SELECT COUNT(*) FROM repo_name_runs").fetchone()
+    return {
+        "retired_hours": int(row[0]) if row else 0,
+        "retired_events": int(row[1]) if row else 0,
+        "late_skipped_hours": int(skipped[0]) if skipped else 0,
+        "name_runs": int(runs[0]) if runs else 0,
+    }
 
 
 def _lineage_summary(metadata_dir: Path) -> dict[str, Any]:
@@ -336,6 +368,8 @@ def build(
                 "source_hours": facts["hours"],
             },
             "backfill_window": sources,
+            # silver hours retired after the rollup (ADR-089); null before the first retire
+            "retention": facts["retention"],
         },
         "lifetime": lifetime(backfill_records),
         "last_run": {

@@ -8,6 +8,15 @@ event-time range overlaps those windows (from the `hour_types` table, so a late 
 earlier windows), then deletes and re-inserts those windows in one transaction. Recomputing
 from silver, never adding deltas, makes a re-run a no-op and the result independent of arrival
 order.
+
+Retention (ADR-089): `retire` deletes silver hours older than a cutoff once they are rolled up.
+Their `rollup_files` rows stay, flagged `retired_at`, so a retired hour is never taken for a
+removed one: the windows it touched keep their aggregates and are frozen. A later hour (late or
+re-parsed) that touches a frozen window cannot be recomputed without the retired hours, so it is
+skipped and recorded in `rollup_late_skipped`. Before silver goes, the name history the warehouse
+needs (`stg_gharchive__repo_names`) is kept in compact form, in the same transaction:
+`repo_name_runs` (consecutive sightings of one exact name per repository id merged) and
+`repo_name_hour_max_id` (the largest repository id seen per hour).
 """
 
 from dataclasses import dataclass, field
@@ -29,7 +38,34 @@ CREATE TABLE IF NOT EXISTS rollup_files (
     rolled_at TIMESTAMPTZ NOT NULL
 );
 ALTER TABLE rollup_files ADD COLUMN IF NOT EXISTS fingerprint VARCHAR;
+ALTER TABLE rollup_files ADD COLUMN IF NOT EXISTS retired_at TIMESTAMPTZ;
+ALTER TABLE rollup_files ADD COLUMN IF NOT EXISTS events BIGINT;
+CREATE TABLE IF NOT EXISTS rollup_late_skipped (
+    source_file VARCHAR PRIMARY KEY,
+    source_sha256 VARCHAR NOT NULL,
+    fingerprint VARCHAR NOT NULL,
+    created_min TIMESTAMPTZ NOT NULL,
+    created_max TIMESTAMPTZ NOT NULL,
+    skipped_at TIMESTAMPTZ NOT NULL,
+    retired_at TIMESTAMPTZ
+);
+CREATE TABLE IF NOT EXISTS repo_name_runs (
+    repo_id BIGINT NOT NULL,
+    repo_name VARCHAR NOT NULL,
+    first_seen_at TIMESTAMPTZ NOT NULL,
+    last_seen_at TIMESTAMPTZ NOT NULL,
+    era_min VARCHAR NOT NULL,
+    era_max VARCHAR NOT NULL,
+    events BIGINT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS repo_name_hour_max_id (
+    seen_hour TIMESTAMPTZ PRIMARY KEY,
+    max_id BIGINT NOT NULL
+);
 """
+
+# The overlap rule of ADR-020, as the name-history models apply it (int_repo_name_hours).
+_E1_OVERLAP = "era = 'E1' AND created_at >= TIMESTAMPTZ '2015-01-01 00:00:00+00'"
 
 
 @dataclass
@@ -40,7 +76,21 @@ class RunStats:
     windows: dict[str, int] = field(default_factory=dict)
     rows_deleted: dict[str, int] = field(default_factory=dict)
     rows_written: dict[str, int] = field(default_factory=dict)
+    late_skipped: int = 0  # changed hours not recomputed: they touch a retired window
     seconds: float = 0.0
+
+
+@dataclass
+class RetireStats:
+    cutoff: datetime
+    retired_files: int = 0  # rolled-up hours retired now
+    retired_skipped: int = 0  # late-skipped hours retired now (never in the aggregates)
+    retired_events: int = 0
+    kept_unrolled: int = 0  # older than the cutoff but not rolled up yet: kept
+    kept_unresolved: int = 0  # names without a repository id (E0, E1): kept in silver
+    name_runs: int = 0
+    deleted_files: int = 0
+    deleted_bytes: int = 0
 
 
 def _sql_list(values: list[str]) -> str:
@@ -130,14 +180,22 @@ class DuckRollup:
             UNION ALL
             SELECT f.source_file, f.created_min, f.created_max FROM rollup_files f
             LEFT JOIN silver_hours s USING (source_file)
-            WHERE s.source_file IS NULL OR f.fingerprint IS DISTINCT FROM s.fingerprint"""
+            WHERE f.retired_at IS NULL
+              AND (s.source_file IS NULL OR f.fingerprint IS DISTINCT FROM s.fingerprint)"""
         )
+        con.execute(
+            """DELETE FROM changed WHERE source_file IN (
+                SELECT k.source_file FROM rollup_late_skipped k JOIN silver_hours s
+                USING (source_file) WHERE k.fingerprint = s.fingerprint)"""
+        )
+        stats.late_skipped = self._skip_frozen(started)
         stats.changed_files = con.execute(
             "SELECT count(DISTINCT source_file) FROM changed WHERE source_file IN "
             "(SELECT source_file FROM silver_hours)"
         ).fetchone()[0]  # type: ignore[index]
         stats.removed_files = con.execute(
-            "SELECT count(*) FROM rollup_files WHERE source_file NOT IN "
+            "SELECT count(*) FROM rollup_files WHERE retired_at IS NULL AND source_file IN "
+            "(SELECT source_file FROM changed) AND source_file NOT IN "
             "(SELECT source_file FROM silver_hours)"
         ).fetchone()[0]  # type: ignore[index]
         if stats.changed_files == 0 and stats.removed_files == 0:
@@ -155,7 +213,8 @@ class DuckRollup:
                 "DELETE FROM rollup_files WHERE source_file IN (SELECT source_file FROM changed)"
             )
             con.execute(
-                """INSERT INTO rollup_files
+                """INSERT INTO rollup_files (source_file, source_sha256, events_path, created_min,
+                    created_max, rolled_at, fingerprint)
                 SELECT source_file, source_sha256, events_path, created_min, created_max, ?,
                        fingerprint
                 FROM silver_hours WHERE source_file IN (SELECT source_file FROM changed)""",
@@ -168,6 +227,41 @@ class DuckRollup:
         stats.input_files = len(inputs)
         stats.seconds = (datetime.now(UTC) - started).total_seconds()
         return stats
+
+    def _skip_frozen(self, now: datetime) -> int:
+        """Drop from `changed` every hour whose windows (any rollup) overlap a retired hour:
+        those windows cannot be recomputed without the retired silver. A skipped hour still in
+        silver is recorded in `rollup_late_skipped` (its fingerprint, so it is not retried); a
+        rolled-up hour gone from silver is retired in place, its aggregates kept."""
+        con = self.con
+        hits = " UNION ".join(
+            f"""SELECT c.source_file FROM (
+                SELECT source_file, unnest(generate_series(
+                    date_trunc('{r.unit}', created_min), date_trunc('{r.unit}', created_max),
+                    INTERVAL 1 {r.unit})) AS w FROM changed) c
+            JOIN rollup_files f ON f.retired_at IS NOT NULL
+                AND f.created_min < c.w + INTERVAL 1 {r.unit} AND f.created_max >= c.w"""
+            for r in rollups()
+        )
+        con.execute(f"CREATE OR REPLACE TEMP TABLE frozen_hit AS {hits}")
+        con.execute(
+            """INSERT OR REPLACE INTO rollup_late_skipped
+            SELECT source_file, source_sha256, fingerprint, created_min, created_max, ?, NULL
+            FROM silver_hours WHERE source_file IN (SELECT source_file FROM frozen_hit)""",
+            [now],
+        )
+        con.execute(
+            """UPDATE rollup_files SET retired_at = ? WHERE retired_at IS NULL
+            AND source_file IN (SELECT source_file FROM frozen_hit)
+            AND source_file NOT IN (SELECT source_file FROM silver_hours)""",
+            [now],
+        )
+        n = con.execute(
+            "SELECT count(*) FROM frozen_hit WHERE source_file IN "
+            "(SELECT source_file FROM silver_hours)"
+        ).fetchone()
+        con.execute("DELETE FROM changed WHERE source_file IN (SELECT source_file FROM frozen_hit)")
+        return int(n[0]) if n else 0
 
     def _recompute(self, r: Rollup, stats: RunStats) -> tuple[int, list[str]]:
         con = self.con
@@ -183,6 +277,9 @@ class DuckRollup:
             for row in con.execute(
                 f"""SELECT DISTINCT s.events_path FROM silver_hours s, affected a
                 WHERE s.created_min < a.w + {step} AND s.created_max >= a.w
+                AND s.source_file NOT IN (
+                    SELECT k.source_file FROM rollup_late_skipped k JOIN silver_hours h
+                    USING (source_file) WHERE k.fingerprint = h.fingerprint)
                 ORDER BY 1"""
             ).fetchall()
         ]
@@ -208,3 +305,193 @@ class DuckRollup:
         row = self.con.execute("SELECT count(*) FROM rollup_files").fetchone()
         out["rollup_files"] = int(row[0]) if row else 0
         return out
+
+    def retire(self, cutoff: datetime) -> RetireStats:
+        """Retire the silver hours whose events all precede `cutoff` (ADR-089): rolled-up hours
+        (fingerprint unchanged) and late-skipped ones. Their name history goes into
+        `repo_name_runs` and `repo_name_hour_max_id` and they are flagged `retired_at`, in one
+        transaction; then their silver files are deleted (a crash before that leaves files the
+        next call deletes). Hours with names lacking a repository id stay in silver: the name
+        resolution (map_repo_name_id) needs them per event hour."""
+        stats = RetireStats(cutoff=cutoff)
+        self._silver_hours()
+        con = self.con
+        con.execute(
+            """CREATE OR REPLACE TEMP TABLE retire_cand AS
+            SELECT s.source_file, s.events_path, FALSE AS skipped FROM silver_hours s
+            JOIN rollup_files f USING (source_file)
+            WHERE f.retired_at IS NULL AND f.fingerprint = s.fingerprint AND s.created_max < ?
+            UNION ALL
+            SELECT s.source_file, s.events_path, TRUE FROM silver_hours s
+            JOIN rollup_late_skipped k USING (source_file)
+            WHERE k.retired_at IS NULL AND k.fingerprint = s.fingerprint AND s.created_max < ?""",
+            [cutoff, cutoff],
+        )
+        n_old = _one(con, "SELECT count(*) FROM silver_hours WHERE created_max < ?", [cutoff])
+        paths = [r[0] for r in con.execute("SELECT events_path FROM retire_cand").fetchall()]
+        paths = [p for p in paths if Path(p).exists()]
+        n_cand = 0
+        if paths:
+            con.execute(
+                f"""CREATE OR REPLACE TEMP VIEW retire_events AS
+                SELECT source_file, era, created_at, repo_id, repo_name
+                FROM read_parquet({_sql_list(paths)}, union_by_name = true)"""
+            )
+            con.execute(
+                f"""CREATE OR REPLACE TEMP TABLE retire_unresolved AS
+                SELECT DISTINCT source_file FROM retire_events
+                WHERE repo_id IS NULL AND repo_name IS NOT NULL AND NOT ({_E1_OVERLAP})"""
+            )
+            con.execute(
+                "DELETE FROM retire_cand WHERE source_file IN "
+                "(SELECT source_file FROM retire_unresolved)"
+            )
+            stats.kept_unresolved = _one(con, "SELECT count(*) FROM retire_unresolved")
+            n_cand = _one(con, "SELECT count(*) FROM retire_cand")
+        stats.kept_unrolled = n_old - n_cand - stats.kept_unresolved
+        if n_cand:
+            self._retire_names(stats)
+        stats.name_runs = _one(con, "SELECT count(*) FROM repo_name_runs")
+        self._delete_retired(stats)
+        return stats
+
+    def _retire_names(self, stats: RetireStats) -> None:
+        con = self.con
+        now = datetime.now(UTC)
+        con.execute("BEGIN TRANSACTION")
+        try:
+            con.execute(
+                """CREATE OR REPLACE TEMP TABLE retire_rows AS
+                SELECT * FROM retire_events
+                WHERE source_file IN (SELECT source_file FROM retire_cand)"""
+            )
+            # The hourly rows of int_repo_name_hours, for the retiring hours only.
+            con.execute(
+                f"""CREATE OR REPLACE TEMP TABLE retire_name_hours AS
+                SELECT repo_id, repo_name, min(created_at) AS first_seen_at,
+                       max(created_at) AS last_seen_at, min(era) AS era_min,
+                       max(era) AS era_max, CAST(count(*) AS BIGINT) AS events
+                FROM retire_rows
+                WHERE repo_id IS NOT NULL AND repo_name IS NOT NULL AND NOT ({_E1_OVERLAP})
+                GROUP BY repo_id, repo_name, date_trunc('hour', created_at)"""
+            )
+            # Merge consecutive sightings (per id, in the order dim_repo_name_history uses) of
+            # one exact name into a run: min, max and sum carry over, so the spells match.
+            con.execute(
+                """CREATE OR REPLACE TEMP TABLE merged_runs AS
+                WITH touched AS (
+                    SELECT * FROM repo_name_runs
+                    WHERE repo_id IN (SELECT repo_id FROM retire_name_hours)
+                    UNION ALL SELECT * FROM retire_name_hours
+                ), flagged AS (
+                    SELECT *, CASE WHEN lag(repo_name) OVER (PARTITION BY repo_id
+                        ORDER BY first_seen_at, repo_name) = repo_name THEN 0 ELSE 1 END AS s
+                    FROM touched
+                ), grouped AS (
+                    SELECT *, sum(s) OVER (PARTITION BY repo_id ORDER BY first_seen_at,
+                        repo_name ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS g
+                    FROM flagged
+                )
+                SELECT repo_id, any_value(repo_name) AS repo_name,
+                       min(first_seen_at) AS first_seen_at, max(last_seen_at) AS last_seen_at,
+                       min(era_min) AS era_min, max(era_max) AS era_max,
+                       CAST(sum(events) AS BIGINT) AS events
+                FROM grouped GROUP BY repo_id, g"""
+            )
+            con.execute(
+                "DELETE FROM repo_name_runs WHERE repo_id IN (SELECT repo_id FROM merged_runs)"
+            )
+            con.execute("INSERT INTO repo_name_runs SELECT * FROM merged_runs")
+            con.execute(
+                """INSERT INTO repo_name_hour_max_id
+                SELECT date_trunc('hour', created_at), max(repo_id) FROM retire_rows
+                WHERE repo_id IS NOT NULL AND repo_name IS NOT NULL GROUP BY 1
+                ON CONFLICT (seen_hour) DO UPDATE
+                SET max_id = greatest(max_id, excluded.max_id)"""
+            )
+            con.execute(
+                """CREATE OR REPLACE TEMP TABLE retire_counts AS
+                SELECT c.source_file, c.skipped, CAST(count(r.source_file) AS BIGINT) AS events
+                FROM retire_cand c LEFT JOIN retire_rows r USING (source_file)
+                GROUP BY c.source_file, c.skipped"""
+            )
+            con.execute(
+                """UPDATE rollup_files f SET retired_at = ?, events = c.events
+                FROM retire_counts c
+                WHERE c.source_file = f.source_file AND f.retired_at IS NULL""",
+                [now],
+            )
+            con.execute(
+                """UPDATE rollup_late_skipped SET retired_at = ? WHERE retired_at IS NULL
+                AND source_file IN (SELECT source_file FROM retire_counts WHERE skipped)""",
+                [now],
+            )
+            stats.retired_files = _one(con, "SELECT count(*) FROM retire_counts WHERE NOT skipped")
+            stats.retired_skipped = _one(con, "SELECT count(*) FROM retire_counts WHERE skipped")
+            stats.retired_events = _one(
+                con, "SELECT coalesce(sum(events), 0) FROM retire_counts WHERE NOT skipped"
+            )
+            con.execute("COMMIT")
+        except BaseException:
+            con.execute("ROLLBACK")
+            raise
+
+    def _delete_retired(self, stats: RetireStats) -> None:
+        """Delete the silver files of every retired hour still on disk."""
+        rows = self.con.execute(
+            """SELECT events_path FROM silver_hours WHERE source_file IN (
+                SELECT source_file FROM rollup_files WHERE retired_at IS NOT NULL
+                UNION SELECT source_file FROM rollup_late_skipped WHERE retired_at IS NOT NULL)
+            AND source_file NOT IN (
+                SELECT source_file FROM rollup_late_skipped WHERE retired_at IS NULL)"""
+        ).fetchall()
+        for (events_path,) in rows:
+            events = Path(events_path)
+            types = self.silver_dir / "hour_types" / events.parent.name / events.name
+            for f in (events, types):  # events first: `is_done` then says not done
+                if f.exists():
+                    stats.deleted_bytes += f.stat().st_size
+                    f.unlink()
+                    stats.deleted_files += 1
+            for d in (events.parent, types.parent):
+                if d.is_dir() and not any(d.iterdir()):
+                    d.rmdir()
+
+    def retention(self) -> dict[str, int]:
+        """Retention counts for pipeline_metrics (ADR-089)."""
+        con = self.con
+        return {
+            "retired_hours": _one(
+                con, "SELECT count(*) FROM rollup_files WHERE retired_at IS NOT NULL"
+            ),
+            "retired_events": _one(
+                con,
+                "SELECT coalesce(sum(events), 0) FROM rollup_files WHERE retired_at IS NOT NULL",
+            ),
+            "late_skipped_hours": _one(con, "SELECT count(*) FROM rollup_late_skipped"),
+            "name_runs": _one(con, "SELECT count(*) FROM repo_name_runs"),
+        }
+
+
+def _one(con: duckdb.DuckDBPyConnection, sql: str, params: list[object] | None = None) -> int:
+    row = con.execute(sql, params or []).fetchone()
+    return int(row[0]) if row and row[0] is not None else 0
+
+
+def retired_sources(db_path: Path) -> set[str]:
+    """Source files of retired hours (rolled up or late-skipped): `is_done` for the ingest, so
+    a long re-check never downloads and parses them again."""
+    if not db_path.exists():
+        return set()
+    con = duckdb.connect(str(db_path), read_only=True)
+    try:
+        tables = {r[0] for r in con.execute("SELECT table_name FROM duckdb_tables()").fetchall()}
+        if "rollup_late_skipped" not in tables:
+            return set()
+        rows = con.execute(
+            """SELECT source_file FROM rollup_files WHERE retired_at IS NOT NULL
+            UNION SELECT source_file FROM rollup_late_skipped WHERE retired_at IS NOT NULL"""
+        ).fetchall()
+    finally:
+        con.close()
+    return {r[0] for r in rows}

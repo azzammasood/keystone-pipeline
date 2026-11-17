@@ -108,6 +108,8 @@ class GhArchiveSink:
         # allow-list projection never reads them; era-shape drift still fails the hour.
         self.drift_mode = "fail"
         self.last_drift: list[str] = []
+        # Source files of hours retired from silver (ADR-089): done, never parsed again.
+        self.retired: set[str] = set()
 
     def context(self, record: FileRecord) -> FileContext:
         if record.hour is None or record.sha256 is None:
@@ -123,7 +125,9 @@ class GhArchiveSink:
         )
 
     def is_done(self, hour: datetime) -> bool:
-        """The hour's events file exists (an earlier run parsed it)."""
+        """The hour's events file exists (an earlier run parsed it), or the hour is retired."""
+        if "gharchive/" + hour_name(hour) in self.retired:
+            return True
         stem = hour_name(hour).removesuffix(".json.gz")
         return (self.silver_dir / "events" / f"date={hour:%Y-%m-%d}" / f"{stem}.parquet").exists()
 

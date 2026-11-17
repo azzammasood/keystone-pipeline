@@ -10,7 +10,8 @@
 --                       says nothing about the name the repository had then
 --   unique_name_far     one id ever carried the name, newer than every id seen by then: suggested
 --   several_ids         more than one id carried it (a name taken again): suggested, nearest
--- Hours with no candidate are not rows; the match-rate report counts them.
+-- Hours with no candidate are not rows; the match-rate report counts them. Hours with
+-- unresolved names are never retired from silver (ADR-089), so `unresolved` stays complete.
 WITH unresolved AS (
     SELECT
         LOWER(repo_name) AS repo_name_lower,
@@ -26,12 +27,24 @@ WITH unresolved AS (
 ),
 
 hourly_max_id AS (
+    -- live silver hours, plus the hours retired from silver (ADR-089)
     SELECT
-        DATE_TRUNC('hour', created_at) AS seen_hour,
-        MAX(repo_id) AS max_id
-    FROM {{ ref('stg_gharchive__repo_names') }}
-    WHERE repo_id IS NOT NULL
-    GROUP BY DATE_TRUNC('hour', created_at)
+        seen_hour,
+        MAX(max_id) AS max_id
+    FROM (
+        SELECT
+            DATE_TRUNC('hour', created_at) AS seen_hour,
+            MAX(repo_id) AS max_id
+        FROM {{ ref('stg_gharchive__repo_names') }}
+        WHERE repo_id IS NOT NULL
+        GROUP BY DATE_TRUNC('hour', created_at)
+        UNION ALL
+        SELECT
+            seen_hour,
+            max_id
+        FROM {{ source('rollup', 'repo_name_hour_max_id') }}
+    ) AS hours
+    GROUP BY seen_hour
 ),
 
 id_ceiling AS (

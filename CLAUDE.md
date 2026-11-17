@@ -61,6 +61,7 @@ uv run keystone quality contracts|gx [--root DIR]        # ODCS contracts (datac
 uv sync --all-groups                      # adds `quality` (datacontract-cli, GX), `streaming` (kafka, avro)
 docker compose -f compose/docker-compose.yml --profile streaming --profile catalog up -d  # Phase 4 stack
 uv run keystone rollup run [--root DIR]                   # free engine: incremental DuckDB rollup
+uv run keystone rollup retire --older-than-days 7         # drop rolled-up silver, keep aggregates (ADR-089)
 uv run keystone stream produce [--root DIR] [--topic T] [--fresh] [--shuffle-seed N]  # silver -> Redpanda
 uv run keystone stream check-schema [--schema F.avsc]     # registry BACKWARD compatibility check
 uv run keystone rollup flink --namespace NS [--topic T] [--mode stream|batch]  # full engine + fold

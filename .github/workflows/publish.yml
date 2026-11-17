@@ -52,6 +52,7 @@ jobs:
     timeout-minutes: 90  # the first registry fetch took 45 min (ADR-037)
     permissions:
       contents: write  # uploads the exports to the pre-release `site-data`
+      actions: write  # deletes the older data-cache entries (ADR-089)
       issues: write  # failure and fallback issues
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -189,10 +190,16 @@ jobs:
         env:
           KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}  # encrypts the data cache
       - if: ${{ !cancelled() && steps.fetch.outcome == 'success' }}
+        id: save
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: data-cache
           key: keystone-data-${{ github.run_id }}
+      - if: ${{ !cancelled() && steps.save.outcome == 'success' }}
+        run: bash .github/scripts/cache-prune.sh 2
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: site-exports
