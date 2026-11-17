@@ -11,8 +11,10 @@ order.
 
 Retention (ADR-089): `retire` deletes silver hours older than a cutoff once they are rolled up.
 Their `rollup_files` rows stay, flagged `retired_at`, so a retired hour is never taken for a
-removed one: the windows it touched keep their aggregates and are frozen. A later hour (late or
-re-parsed) that touches a frozen window cannot be recomputed without the retired hours, so it is
+removed one: the windows it touched keep their aggregates and are frozen. A new hour (never
+rolled up, e.g. a late or caught-up file) that touches a frozen window is merged into it: every
+measure is a SUM or a MAX of row-level contributions, so adding the new hour's contribution is
+exact. A re-parsed hour (already counted once) cannot be taken out of a frozen window, so it is
 skipped and recorded in `rollup_late_skipped`. Before silver goes, the name history the warehouse
 needs (`stg_gharchive__repo_names`) is kept in compact form, in the same transaction:
 `repo_name_runs` (consecutive sightings of one exact name per repository id merged) and
@@ -76,7 +78,8 @@ class RunStats:
     windows: dict[str, int] = field(default_factory=dict)
     rows_deleted: dict[str, int] = field(default_factory=dict)
     rows_written: dict[str, int] = field(default_factory=dict)
-    late_skipped: int = 0  # changed hours not recomputed: they touch a retired window
+    late_skipped: int = 0  # re-parsed hours not recomputed: they touch a retired window
+    late_merged: int = 0  # new hours merged into retired (frozen) windows
     seconds: float = 0.0
 
 
@@ -186,9 +189,10 @@ class DuckRollup:
         con.execute(
             """DELETE FROM changed WHERE source_file IN (
                 SELECT k.source_file FROM rollup_late_skipped k JOIN silver_hours s
-                USING (source_file) WHERE k.fingerprint = s.fingerprint)"""
+                USING (source_file) WHERE k.fingerprint = s.fingerprint
+                AND k.source_file IN (SELECT source_file FROM rollup_files))"""
         )
-        stats.late_skipped = self._skip_frozen(started)
+        stats.late_skipped, stats.late_merged = self._skip_frozen(started)
         stats.changed_files = con.execute(
             "SELECT count(DISTINCT source_file) FROM changed WHERE source_file IN "
             "(SELECT source_file FROM silver_hours)"
@@ -228,11 +232,13 @@ class DuckRollup:
         stats.seconds = (datetime.now(UTC) - started).total_seconds()
         return stats
 
-    def _skip_frozen(self, now: datetime) -> int:
-        """Drop from `changed` every hour whose windows (any rollup) overlap a retired hour:
-        those windows cannot be recomputed without the retired silver. A skipped hour still in
-        silver is recorded in `rollup_late_skipped` (its fingerprint, so it is not retried); a
-        rolled-up hour gone from silver is retired in place, its aggregates kept."""
+    def _skip_frozen(self, now: datetime) -> tuple[int, int]:
+        """Sort the changed hours whose windows (any rollup) overlap a retired hour. A new hour
+        (no `rollup_files` row) stays in `changed`, listed in `merge_files`: its contribution
+        is merged into the frozen windows. Any other is dropped from `changed`: a re-parsed hour
+        still in silver is recorded in `rollup_late_skipped` (its fingerprint, so it is not
+        retried); a rolled-up hour gone from silver is retired in place, its aggregates kept.
+        Returns (skipped, merged)."""
         con = self.con
         hits = " UNION ".join(
             f"""SELECT c.source_file FROM (
@@ -244,6 +250,19 @@ class DuckRollup:
             for r in rollups()
         )
         con.execute(f"CREATE OR REPLACE TEMP TABLE frozen_hit AS {hits}")
+        con.execute(
+            """CREATE OR REPLACE TEMP TABLE merge_files AS
+            SELECT DISTINCT h.source_file FROM frozen_hit h
+            JOIN silver_hours s USING (source_file)
+            WHERE h.source_file NOT IN (SELECT source_file FROM rollup_files)"""
+        )
+        con.execute(
+            "DELETE FROM rollup_late_skipped WHERE source_file IN "
+            "(SELECT source_file FROM merge_files)"
+        )
+        con.execute(
+            "DELETE FROM frozen_hit WHERE source_file IN (SELECT source_file FROM merge_files)"
+        )
         con.execute(
             """INSERT OR REPLACE INTO rollup_late_skipped
             SELECT source_file, source_sha256, fingerprint, created_min, created_max, ?, NULL
@@ -261,7 +280,8 @@ class DuckRollup:
             "(SELECT source_file FROM silver_hours)"
         ).fetchone()
         con.execute("DELETE FROM changed WHERE source_file IN (SELECT source_file FROM frozen_hit)")
-        return int(n[0]) if n else 0
+        merged = _one(con, "SELECT count(*) FROM merge_files")
+        return (int(n[0]) if n else 0), merged
 
     def _recompute(self, r: Rollup, stats: RunStats) -> tuple[int, list[str]]:
         con = self.con
@@ -272,6 +292,18 @@ class DuckRollup:
                 date_trunc('{r.unit}', created_min), date_trunc('{r.unit}', created_max), {step}
             )) AS w FROM changed"""
         )
+        # Frozen windows (overlapping a retired hour) are merged into, never recomputed; only
+        # hours in `merge_files` can reach them (_skip_frozen dropped the others).
+        con.execute(
+            f"""CREATE OR REPLACE TEMP TABLE frozen AS
+            SELECT DISTINCT a.w FROM affected a JOIN rollup_files f ON f.retired_at IS NOT NULL
+                AND f.created_min < a.w + {step} AND f.created_max >= a.w"""
+        )
+        n_affected = _one(con, "SELECT count(*) FROM affected")
+        con.execute("DELETE FROM affected WHERE w IN (SELECT w FROM frozen)")
+        merged_files: list[str] = []
+        if _one(con, "SELECT count(*) FROM frozen"):
+            merged_files = self._merge_frozen(r, stats)
         files = [
             row[0]
             for row in con.execute(
@@ -293,9 +325,43 @@ class DuckRollup:
             where = f"WHERE date_trunc('{r.unit}', created_at) IN (SELECT w FROM affected)"
             res = con.execute(f"INSERT INTO {r.name} {duckdb_select(r, where)}").fetchone()
             written = int(res[0]) if res else 0
-        stats.rows_written[r.name] = written
-        n = con.execute("SELECT count(*) FROM affected").fetchone()
-        return (int(n[0]) if n else 0), files
+        stats.rows_written[r.name] = written + stats.rows_written.get(r.name, 0)
+        return n_affected, sorted(set(files) | set(merged_files))
+
+    def _merge_frozen(self, r: Rollup, stats: RunStats) -> list[str]:
+        """Add the contribution of the `merge_files` hours to the frozen windows: SUM measures
+        add, MAX measures take the larger value (spec: every measure is one or the other)."""
+        con = self.con
+        files = [
+            row[0]
+            for row in con.execute(
+                """SELECT events_path FROM silver_hours
+                WHERE source_file IN (SELECT source_file FROM merge_files) ORDER BY 1"""
+            ).fetchall()
+        ]
+        if not files:
+            return []
+        self._input_view(files)
+        where = f"WHERE date_trunc('{r.unit}', created_at) IN (SELECT w FROM frozen)"
+        con.execute(f"CREATE OR REPLACE TEMP TABLE frozen_delta AS {duckdb_select(r, where)}")
+        cols = ", ".join(r.columns)
+        keys = ", ".join(("window_start", *r.keys))
+        aggs = ", ".join(
+            f"MAX({m}) AS {m}" if m in r.max_measures else f"CAST(SUM({m}) AS BIGINT) AS {m}"
+            for m in r.measures
+        )
+        con.execute(
+            f"""CREATE OR REPLACE TEMP TABLE frozen_merged AS
+            SELECT {keys}, {aggs} FROM (
+                SELECT {cols} FROM {r.name} WHERE window_start IN (SELECT w FROM frozen)
+                UNION ALL SELECT {cols} FROM frozen_delta
+            ) AS both_parts GROUP BY {keys}"""
+        )
+        con.execute(f"DELETE FROM {r.name} WHERE window_start IN (SELECT w FROM frozen)")
+        res = con.execute(f"INSERT INTO {r.name} ({cols}) SELECT {cols} FROM frozen_merged")
+        row = res.fetchone()
+        stats.rows_written[r.name] = int(row[0]) if row else 0
+        return files
 
     def counts(self) -> dict[str, int]:
         out = {}
@@ -324,7 +390,8 @@ class DuckRollup:
             UNION ALL
             SELECT s.source_file, s.events_path, TRUE FROM silver_hours s
             JOIN rollup_late_skipped k USING (source_file)
-            WHERE k.retired_at IS NULL AND k.fingerprint = s.fingerprint AND s.created_max < ?""",
+            WHERE k.retired_at IS NULL AND k.fingerprint = s.fingerprint AND s.created_max < ?
+              AND s.source_file IN (SELECT source_file FROM rollup_files)""",
             [cutoff, cutoff],
         )
         n_old = _one(con, "SELECT count(*) FROM silver_hours WHERE created_max < ?", [cutoff])

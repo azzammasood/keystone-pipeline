@@ -602,6 +602,7 @@ def rollup_run(
             changed_files=stats.changed_files,
             removed_files=stats.removed_files,
             late_skipped=stats.late_skipped,
+            late_merged=stats.late_merged,
             table_rows=counts,
         )
     out = {"engine": "duckdb", **asdict(stats), "table_rows": counts}
@@ -610,7 +611,8 @@ def rollup_run(
         return
     typer.echo(
         f"changed={stats.changed_files} removed={stats.removed_files} "
-        f"late_skipped={stats.late_skipped} inputs={stats.input_files} "
+        f"late_skipped={stats.late_skipped} late_merged={stats.late_merged} "
+        f"inputs={stats.input_files} "
         f"windows={stats.windows} written={stats.rows_written} seconds={stats.seconds:.1f}"
     )
     typer.echo(" ".join(f"{k}={v}" for k, v in counts.items()))

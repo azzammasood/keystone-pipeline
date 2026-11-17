@@ -18,10 +18,14 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   fingerprint:
   - their `rollup_files` rows stay, flagged `retired_at` with the event count, so they are never
     taken for removed and their windows keep their aggregates (frozen windows);
-  - a later hour (late or re-parsed) whose windows overlap a retired hour cannot be recomputed
-    correctly: it is skipped, recorded once in `rollup_late_skipped` (its fingerprint, so it is
-    not retried), counted in `pipeline_metrics.totals.retention.late_skipped_hours`, and
-    retired with the others later;
+  - a new hour (never rolled up: a late or caught-up file) whose windows overlap a retired
+    hour is merged into those frozen windows: every rollup measure is a SUM or a MAX of
+    row-level contributions (rollup/spec.py, input.sql has no cross-row rule), so adding its
+    contribution is exact; its other windows are recomputed as before;
+  - a re-parsed hour (already counted once) whose windows are frozen cannot be taken out of
+    them: it is skipped, recorded once in `rollup_late_skipped` (its fingerprint, so it is not
+    retried), counted in `pipeline_metrics.totals.retention.late_skipped_hours`, and retired
+    with the others later;
   - the name history goes into the rollup file in the same transaction: `repo_name_runs`
     (the hourly rows of `int_repo_name_hours`, consecutive sightings of one exact name per id
     merged, so minimum, maximum and sum carry and the spells are unchanged) and
@@ -38,10 +42,18 @@ Newest first. Each entry: context, options, choice, why, date. Scope changes are
   the newest 2 (`.github/scripts/cache-prune.sh`, `actions: write` on those jobs only), and
   log the entry sizes before and after in the job log and summary.
 - Tested: rollup tables are identical before and after retiring every synthetic hour, and a
-  re-run is a no-op; a late hour in a retired day window is skipped, counted once and retired;
+  re-run is a no-op; a new late hour in a retired day window is merged and the tables equal an
+  on-time rollup; a re-parsed retired hour is skipped, counted once and retired;
   `dim_repo_name_history`, `map_repo_name_id`, `dim_repo_rename` and `dim_repo` are identical
   when built from silver and from the retired runs (fixture hours).
-- Measured on Actions: see below (filled in after the first run).
+- Measured on Actions (ingest run 44072904315, 2026-11-17): cutoff 2026-11-10T00Z, 206 hours
+  retired (2,950,267 events), 412 silver files and 234,582,318 bytes deleted, 993,670 name
+  runs; 170 older hours kept (not rolled up yet: the ADR-088 catch-up). Entry 1,141,055,350 ->
+  956,437,254 bytes; pruning deleted 9 entries, 2 left (2,097,492,604 bytes in all).
+- Found on the way: the first version skipped every changed hour in a frozen window. The
+  publish right after (run 44073330529) skipped 122 caught-up hours (never rolled up) whose
+  days had just been retired. They were still in silver, so the merge rule above (shipped
+  the same day, before the next ingest could retire them) folds them in on the next rollup.
 
 ## ADR-088 (2026-11-17) Ingest re-checks 48 hours; missed hours caught up once
 - Context: each scheduled ingest fetched a fixed window of the last 6 hours. GitHub ran only 16
