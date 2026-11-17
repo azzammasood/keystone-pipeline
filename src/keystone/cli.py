@@ -120,6 +120,10 @@ def ingest_gharchive(
     cfg = load_sources().gharchive
     disk = _disk_guard(max_gb)
     sink = _sink(cfg) if parse and not head_only else None
+    if sink is not None:
+        from keystone.rollup.duck import retired_sources
+
+        sink.retired = retired_sources(ROLLUP_DIR / "rollup.duckdb")
 
     async def run() -> gha.RunSummary:
         manifest = Manifest(MANIFEST_PATH)
@@ -595,17 +599,56 @@ def rollup_run(
             duck.close()
         stage.records_out = sum(stats.rows_written.values())
         stage.detail.update(
-            changed_files=stats.changed_files, removed_files=stats.removed_files, table_rows=counts
+            changed_files=stats.changed_files,
+            removed_files=stats.removed_files,
+            late_skipped=stats.late_skipped,
+            table_rows=counts,
         )
     out = {"engine": "duckdb", **asdict(stats), "table_rows": counts}
     if json:
         typer.echo(jsonlib.dumps(out, indent=2))
         return
     typer.echo(
-        f"changed={stats.changed_files} removed={stats.removed_files} inputs={stats.input_files} "
+        f"changed={stats.changed_files} removed={stats.removed_files} "
+        f"late_skipped={stats.late_skipped} inputs={stats.input_files} "
         f"windows={stats.windows} written={stats.rows_written} seconds={stats.seconds:.1f}"
     )
     typer.echo(" ".join(f"{k}={v}" for k, v in counts.items()))
+
+
+@rollup_app.command("retire")
+def rollup_retire(
+    older_than_days: int = typer.Option(
+        7, min=2, help="Retire silver hours whose events all precede the UTC day this old."
+    ),
+    root: Path = typer.Option(DATA_DIR, help="Data directory holding silver/; state in rollup/."),
+    json: bool = typer.Option(False, "--json", help="Print JSON."),
+) -> None:
+    """Delete rolled-up silver hours older than N days, keeping aggregates and name history."""
+    from dataclasses import asdict
+
+    from keystone.rollup.duck import DuckRollup
+
+    # Whole UTC days, so a day window is never half retired.
+    today = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
+    cutoff = today - timedelta(days=older_than_days)
+    duck = DuckRollup(root / "rollup" / "rollup.duckdb", root / "silver" / "gharchive")
+    try:
+        stats = duck.retire(cutoff)
+        totals = duck.retention()
+    finally:
+        duck.close()
+    out = {**asdict(stats), "cutoff": cutoff.isoformat(), "totals": totals}
+    if json:
+        typer.echo(jsonlib.dumps(out, indent=2))
+        return
+    typer.echo(
+        f"cutoff={cutoff:%Y-%m-%dT%H:%MZ} retired={stats.retired_files} "
+        f"retired_late_skipped={stats.retired_skipped} events={stats.retired_events} "
+        f"kept_unrolled={stats.kept_unrolled} kept_unresolved={stats.kept_unresolved} "
+        f"deleted_files={stats.deleted_files} deleted_bytes={stats.deleted_bytes}"
+    )
+    typer.echo(" ".join(f"{k}={v}" for k, v in totals.items()))
 
 
 @stream_app.command("check-schema")

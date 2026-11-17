@@ -238,6 +238,38 @@
               "type": "string"
             }
           }
+        },
+        "retention": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "additionalProperties": false,
+          "description": "Silver retention (ADR-089): hours retired from silver after the rollup.",
+          "required": [
+            "retired_hours",
+            "retired_events",
+            "late_skipped_hours",
+            "name_runs"
+          ],
+          "properties": {
+            "retired_hours": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "retired_events": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "late_skipped_hours": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "name_runs": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
         }
       }
     },

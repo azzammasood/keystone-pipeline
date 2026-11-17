@@ -49,3 +49,30 @@ sources:
     tables:
       - name: repo_hour
         description: Activity per repository, era and event type in UTC hours (ADR-024).
+      - name: repo_name_runs
+        description: >
+          Name history of silver hours retired by `keystone rollup retire` (ADR-089): the hourly
+          rows of int_repo_name_hours, consecutive sightings of one exact name per repository
+          id merged into one run.
+        columns:
+          - name: repo_id
+            description: GitHub repository id.
+          - name: repo_name
+            description: Name seen throughout the run.
+          - name: first_seen_at
+            description: First event under the name in the run.
+          - name: last_seen_at
+            description: Last event under the name in the run.
+          - name: era_min
+            description: Earliest schema era among those events.
+          - name: era_max
+            description: Latest schema era among those events.
+          - name: events
+            description: Events under the name in the run.
+      - name: repo_name_hour_max_id
+        description: Largest repository id per UTC hour of the retired silver hours (ADR-089).
+        columns:
+          - name: seen_hour
+            description: UTC hour.
+          - name: max_id
+            description: Largest repository id seen in an event with a name in the hour.

@@ -2,6 +2,47 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-089 (2026-11-17) Silver retention: retire rolled-up hours after 7 days; prune the data cache
+- Context: ingest and publish carry `data/` in the encrypted Actions cache (ADR-041). Every
+  parsed GH Archive hour stayed in silver forever: the newest entry was 1,141,055,350 bytes
+  (2026-11-17 10:19Z), 11 entries held about 11.1 GB, past the free 10 GB, so GitHub evicted
+  the oldest (ADR-088 "Open"). With full coverage silver grows about 5 GB a month, so within
+  about two months one entry would pass 10 GB and the cache would break. The owner decided on
+  2026-10-22: no silver window, keep only aggregates, as little data as possible.
+- Constraint: the free rollup (ADR-025) treats a silver hour that disappears as removed and
+  recomputes its windows without it, so deleting silver would destroy aggregates. The name
+  history (`stg_gharchive__repo_names`) reads silver events directly.
+- Choice: `keystone rollup retire --older-than-days 7`, run in ingest before the cache is
+  packed. It retires the silver hours whose events all precede the UTC day 7 days back (whole
+  days, so a day window is never half retired) and that are rolled up with an unchanged
+  fingerprint:
+  - their `rollup_files` rows stay, flagged `retired_at` with the event count, so they are never
+    taken for removed and their windows keep their aggregates (frozen windows);
+  - a later hour (late or re-parsed) whose windows overlap a retired hour cannot be recomputed
+    correctly: it is skipped, recorded once in `rollup_late_skipped` (its fingerprint, so it is
+    not retried), counted in `pipeline_metrics.totals.retention.late_skipped_hours`, and
+    retired with the others later;
+  - the name history goes into the rollup file in the same transaction: `repo_name_runs`
+    (the hourly rows of `int_repo_name_hours`, consecutive sightings of one exact name per id
+    merged, so minimum, maximum and sum carry and the spells are unchanged) and
+    `repo_name_hour_max_id` (for `map_repo_name_id`'s id ceiling). `int_repo_name_hours` and
+    `map_repo_name_id` union them with live silver. Hours with names lacking a repository id
+    (E0, E1 only) are never retired: the name resolution needs them per event hour;
+  - the silver files are deleted after the commit (a crash leaves files the next call deletes);
+    ingest's `is_done` treats a retired hour as done, so a long manual re-check never fetches
+    and parses it again.
+- Why 7 days: GH Archive's late files land within hours (ADR-022's `late` flag is 6 hours past
+  the hour) and ingest re-checks 48 hours (ADR-088). Seven whole days leave publish five daily
+  runs to roll an hour up before it can retire; an hour not yet rolled up is kept.
+- Cache: after each save, ingest and publish delete every `keystone-data-` entry on main but
+  the newest 2 (`.github/scripts/cache-prune.sh`, `actions: write` on those jobs only), and
+  log the entry sizes before and after in the job log and summary.
+- Tested: rollup tables are identical before and after retiring every synthetic hour, and a
+  re-run is a no-op; a late hour in a retired day window is skipped, counted once and retired;
+  `dim_repo_name_history`, `map_repo_name_id`, `dim_repo_rename` and `dim_repo` are identical
+  when built from silver and from the retired runs (fixture hours).
+- Measured on Actions: see below (filled in after the first run).
+
 ## ADR-088 (2026-11-17) Ingest re-checks 48 hours; missed hours caught up once
 - Context: each scheduled ingest fetched a fixed window of the last 6 hours. GitHub ran only 16
   of 28 scheduled runs between 2026-11-10 and 11-17, so every skipped run lost its hours for

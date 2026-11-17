@@ -28,10 +28,16 @@ unit_tests:
           - {repo_id: 1, repo_name: a/x, era: E1, created_at: "2015-01-01 00:00:00+00"}
           - {repo_id: 1, repo_name: a/x, era: E2, created_at: "2015-01-01 00:00:00+00"}
           - {repo_id: null, repo_name: b/y, era: E1, created_at: "2013-01-01 00:00:00+00"}
+          - {repo_id: 2, repo_name: c/z, era: E2, created_at: "2015-03-01 10:20:00+00"}
+      # a retired run (ADR-089) sits at its first hour and folds in a live row of that hour
+      - input: source('rollup', 'repo_name_runs')
+        rows:
+          - {repo_id: 2, repo_name: c/z, first_seen_at: "2015-03-01 10:05:00+00", last_seen_at: "2015-03-01 14:00:00+00", era_min: E2, era_max: E2, events: 4}
     expect:
       rows:
         - {repo_id: 1, seen_hour: "2014-12-31 23:00:00+00", era_min: E1, era_max: E1, events: 1}
         - {repo_id: 1, seen_hour: "2015-01-01 00:00:00+00", era_min: E2, era_max: E2, events: 1}
+        - {repo_id: 2, seen_hour: "2015-03-01 10:00:00+00", era_min: E2, era_max: E2, events: 5}
 
   - name: repo_day_utc_cut_and_pivot
     description: Days are UTC; each measure comes from its own event type; era is a key.
@@ -179,6 +185,8 @@ unit_tests:
           - {repo_id: 8, repo_name_lower: d/w, valid_from: "2017-01-01 00:00:00+00", last_seen_at: "2017-01-02 00:00:00+00"}
           - {repo_id: 9, repo_name_lower: e/v, valid_from: "2012-01-01 00:00:00+00", last_seen_at: "2012-02-01 00:00:00+00"}
       - input: ref('resolve_decisions')
+        rows: []
+      - input: source('rollup', 'repo_name_hour_max_id')
         rows: []
     expect:
       rows:

@@ -2,6 +2,7 @@
 
 import csv
 import hashlib
+import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -292,3 +293,46 @@ def test_free_decision_keeps_the_free_rollup(tmp_path: Path) -> None:
     assert out.as_dict()["namespace"] is None  # a free run never names a full namespace
     assert w.full_rollup(paths) is None
     assert paths.env()["KEYSTONE_ROLLUP_PATH"].endswith("rollup/rollup.duckdb")
+
+
+def test_retired_hours_keep_the_name_history(tmp_path: Path) -> None:
+    """ADR-089: name history from the rollup's compact runs equals the one from silver."""
+    root = tmp_path / "data"
+    sink = GhArchiveSink(
+        load_sources().gharchive,
+        root / "silver" / "gharchive",
+        root / "quarantine" / "gharchive",
+        root / "quality" / "drift",
+        ActorHasher(TEST_SALT.encode()),
+        load_registry(),
+    )
+    data = DataDir(root, sink)
+    for name in fixture_hours():
+        data.parse(FIXTURES / f"{name}.json.gz")
+    db = root / "rollup" / "rollup.duckdb"
+    duck = DuckRollup(db, root / "silver" / "gharchive")
+    duck.run()
+    duck.close()
+    # A copy retires everything first (dbt-duckdb keeps the rollup file attached in-process).
+    after = tmp_path / "after"
+    shutil.copytree(root, after)
+    duck = DuckRollup(after / "rollup" / "rollup.duckdb", after / "silver" / "gharchive")
+    stats = duck.retire(datetime(2100, 1, 1, tzinfo=UTC))
+    run = duck.run()
+    duck.close()
+    assert stats.retired_files > 0 and stats.name_runs > 0
+    assert (run.changed_files, run.removed_files) == (0, 0)
+    left = list((after / "silver" / "gharchive" / "events").rglob("*.parquet"))
+    assert left and len(left) == stats.kept_unresolved  # hours with id-less names stay
+
+    models = ("dim_repo_name_history", "map_repo_name_id", "dim_repo_rename", "dim_repo")
+    select = ["build", "--select", *(f"+{m}" for m in models), "--exclude", "resource_type:test"]
+
+    def snapshot(at: Path) -> dict[str, list[tuple[object, ...]]]:
+        paths = whdbt.WarehousePaths(at)
+        assert whdbt.run_dbt(select, paths)
+        return {m: _q(paths, f"SELECT * FROM marts.{m} ORDER BY ALL") for m in models}
+
+    before = snapshot(root)
+    assert before["dim_repo_name_history"]
+    assert snapshot(after) == before
