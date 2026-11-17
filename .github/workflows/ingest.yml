@@ -12,7 +12,7 @@ on:
     inputs:
       hours:
         description: Completed hours to (re)check, counting back from two hours ago.
-        default: "6"
+        default: "48"
 
 permissions:
   contents: read
@@ -52,13 +52,16 @@ jobs:
     needs: guard
     if: (github.event_name == 'workflow_dispatch' || vars.KEYSTONE_SCHEDULES == 'true') && needs.guard.outputs.busy != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 120  # a catch-up dispatch (hours=500) parses a few hundred hours
     permissions:
       contents: read
       issues: write  # failure issue only
     env:
       KEYSTONE_ACTOR_SALT: ${{ secrets.KEYSTONE_ACTOR_SALT }}
-      HOURS: ${{ inputs.hours || '6' }}
+      # 48 h, not 6: GitHub drops scheduled runs under load (16 of 28 ran, 2026-11-10 to 17), and
+      # a fixed 6 h window lost every hour a skipped run would have fetched. Hours already parsed
+      # are skipped cheaply, so the overlap costs about one conditional request per hour (ADR-088).
+      HOURS: ${{ inputs.hours || '48' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

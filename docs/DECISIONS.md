@@ -2,6 +2,18 @@
 
 Newest first. Each entry: context, options, choice, why, date. Scope changes are recorded only here.
 
+## ADR-088 (2026-11-17) Ingest re-checks 48 hours; missed hours caught up once
+- Context: each scheduled ingest fetched a fixed window of the last 6 hours. GitHub ran only 16
+  of 28 scheduled runs between 2026-11-10 and 11-17, so every skipped run lost its hours for
+  good: the daily data held 288 of about 556 hours since 2026-10-24 (pipeline_metrics, 11-16).
+- Choice: the default window is 48 hours. Parsed hours are skipped (manifest and `is_done`), so
+  re-checking costs about one conditional request per hour at the polite rate, and up to seven
+  skipped runs in a row lose nothing. The missed hours since 2026-10-27 are fetched once by a
+  manual dispatch (`hours` input); the job timeout is 120 minutes for that.
+- Open (ADR-089 to follow): the Actions data cache keeps every parsed hour (about 1 GB per
+  cache entry today, 12 entries, over the 10 GB free limit, so GitHub evicts the oldest; no
+  charge). Silver needs a retention rule that keeps the rollup and the name history intact.
+
 ## ADR-087 (2026-11-08) Databricks keepalive: control-plane activity, compute best effort
 - Context: the weekly keepalive (ADR-067) failed on 2026-11-02 and again on a manual rerun
   (run 42488830125): the SQL statements API answered HTTP 400 "The request could not be
