@@ -9,17 +9,17 @@ dependencies = [
     "duckdb>=1.5.6",
     "httpx>=0.28",
     "jsonschema>=4.26",
-    "openlineage-python>=1.54",
+    "openlineage-python>=1.55.0",
     "opentelemetry-exporter-otlp-proto-http>=1.45",
     "opentelemetry-sdk>=1.45",
     "orjson>=3.13.0",
     "psutil>=6.0",
-    "pyarrow>=26.0.0",
-    "pydantic>=2.8",
-    "pytz>=2025.2",
-    "pyyaml>=6.0",
+    "pyarrow>=26.0.1",
+    "pydantic>=2.14.4",
+    "pytz>=2026.6",
+    "pyyaml>=6.0.4",
     "sqlglot>=30.12",
-    "typer>=0.12",
+    "typer>=0.29.2",
 ]
 
 [project.scripts]
@@ -31,36 +31,36 @@ databricks = [
     "oauthlib>=4.0.1",  # PYSEC-2026-4114, CVE-2026-49272 (via databricks-sql-connector)
 ]
 dev = [
-    "mypy>=1.11",
+    "mypy>=2.4.1",
     "pip-audit>=2.7",
     "pre-commit>=3.7",
     "pyarrow-stubs>=20.0.0.20260819",
-    "pytest>=8.2",
-    "ruff>=0.17.2",
-    "sqlfluff>=3.4",
+    "pytest>=9.2.0",
+    "ruff>=0.17.6",
+    "sqlfluff>=4.5.0",
     "types-jsonschema>=4.26",
-    "types-psutil>=6.0",
-    "types-pyyaml>=6.0",
+    "types-psutil>=7.2.2.20261111",
+    "types-pyyaml>=6.0.12.20261113",
 ]
 # dbt-ol needs openlineage-sql, which has no Windows wheel: on Windows `keystone lineage dbt`
 # runs it in a Linux container (lineage/dbt.py).
 lineage = [
-    "openlineage-dbt>=1.54; sys_platform == 'linux'",
+    "openlineage-dbt>=1.55.0; sys_platform == 'linux'",
 ]
 metadata = [
-    "acryl-datahub[datahub-business-glossary,datahub-rest,dbt,iceberg,kafka]>=1.7.0.17",
+    "acryl-datahub[datahub-business-glossary,datahub-rest,dbt,iceberg,kafka]>=1.9.0",
 ]
 quality = [
-    "datacontract-cli[duckdb,parquet]>=1.2.7",
-    "great-expectations>=1.24.1",
+    "datacontract-cli[duckdb,parquet]>=1.2.11",
+    "great-expectations>=1.25.0",
 ]
 streaming = [
-    "confluent-kafka>=2.6",
+    "confluent-kafka>=2.16.2",
     "fastavro>=1.9",
 ]
 warehouse = [
-    "dbt-core>=1.10",
-    "dbt-duckdb>=1.9",
+    "dbt-core>=1.12.7",
+    "dbt-duckdb>=1.11.1",
 ]
 
 [build-system]
